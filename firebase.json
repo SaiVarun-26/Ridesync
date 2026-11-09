@@ -1,0 +1,36 @@
+{
+  "database": {
+    "rules": "firebase/database.rules.json"
+  },
+  "firestore": {
+    "rules": "firebase/firestore.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "*.log"],
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+    }
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "ridesync-dff42",
+          "appId": "1:94704893061:android:fe9b2ff6d9d44826a7bdec",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "ridesync-dff42",
+          "configurations": {
+            "android": "1:94704893061:android:fe9b2ff6d9d44826a7bdec",
+            "ios": "1:94704893061:ios:d66e8a76d73e6cf8a7bdec"
+          }
+        }
+      }
+    }
+  }
+}

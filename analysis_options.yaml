@@ -1,0 +1,33 @@
+# Static analysis configuration for RideSync.
+# Run with: flutter analyze
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - android/**
+    - ios/**
+  language:
+    strict-casts: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_final_locals: true
+    always_declare_return_types: true
+    avoid_redundant_argument_values: true
+    unnecessary_parenthesis: true
+    use_super_parameters: true
+    sort_child_properties_last: true
+    require_trailing_commas: true
+    # Repositories use constructor injection with public, descriptively-named
+    # parameters (e.g. `auth`) assigned to private fields (`_auth`). That is a
+    # deliberate project-wide DI convention, so the initializing-formals lint —
+    # which would force the parameter to be named `_auth` — is disabled.
+    prefer_initializing_formals: false

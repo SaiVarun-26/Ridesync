@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- User profiles (durable data) ----
+    match /users/{userId} {
+      allow read: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && isValidProfileCreate();
+      allow update: if isSignedIn() && isOwner(userId) && isValidProfileUpdate();
+      allow delete: if false;
+    }
+
+    // ---- Everything else: denied until its milestone adds explicit rules ----
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---------- helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isValidProfileCreate() {
+      let data = request.resource.data;
+      return data.uid == request.auth.uid
+             && data.keys().hasOnly(['uid', 'displayName', 'photoUrl', 'createdAt', 'updatedAt'])
+             && data.keys().hasAll(['uid', 'createdAt'])
+             && isValidDisplayName(data)
+             && isValidPhotoUrl(data);
+    }
+
+    function isValidProfileUpdate() {
+      let data = request.resource.data;
+      return data.uid == request.auth.uid
+             && data.uid == resource.data.uid
+             && data.keys().hasOnly(['uid', 'displayName', 'photoUrl', 'createdAt', 'updatedAt'])
+             && isValidDisplayName(data)
+             && isValidPhotoUrl(data);
+    }
+
+    function isValidDisplayName(data) {
+      return !('displayName' in data.keys())
+             || data.displayName == null
+             || (data.displayName is string && data.displayName.size() <= 40);
+    }
+
+    function isValidPhotoUrl(data) {
+      return !('photoUrl' in data.keys())
+             || data.photoUrl == null
+             || (data.photoUrl is string && data.photoUrl.size() <= 2048);
+    }
+  }
+}

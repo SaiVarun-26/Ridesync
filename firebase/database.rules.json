@@ -1,0 +1,48 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$code": {
+        ".read": "auth != null",
+        "meta": {
+          ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['code','name','hostUid','status','createdAt'])",
+          "hostUid": { ".validate": "newData.val() === auth.uid || data.val() === auth.uid" },
+          "status": { ".validate": "(newData.val() === 'lobby' || newData.val() === 'choosingMode' || newData.val() === 'planning' || newData.val() === 'initializing' || newData.val() === 'riding' || newData.val() === 'ended') && (newData.val() !== 'riding' || newData.parent().child('mode').val() !== 'guided' || root.child('rooms').child($code).child('route').child('polyline').exists())" },
+          "mode": { ".validate": "newData.val() === 'guided' || newData.val() === 'free'" }
+        },
+        "members": {
+          "$uid": {
+            ".write": "auth != null && $uid === auth.uid",
+            ".validate": "newData.hasChild('uid') && newData.child('uid').val() === $uid",
+            "ready": { ".validate": "newData.isBoolean()" },
+            "initialized": { ".validate": "newData.isBoolean()" },
+            "online": { ".validate": "newData.isBoolean()" }
+          }
+        },
+        "claims": {
+          "colors": {
+            "$colorId": {
+              ".write": "auth != null && (!data.exists() || data.val() === auth.uid) && (!newData.exists() || newData.val() === auth.uid)"
+            }
+          }
+        },
+        "route": {
+          ".write": false,
+          ".validate": "newData.hasChildren(['destinationName','destinationAddress','latitude','longitude','distanceMeters','durationSeconds','polyline','createdBy','createdAt'])",
+          "destinationName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
+          "destinationAddress": { ".validate": "newData.isString() && newData.val().length <= 300" },
+          "latitude": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
+          "longitude": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
+          "distanceMeters": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "durationSeconds": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "polyline": { ".validate": "newData.isString() && newData.val().length > 0" },
+          "createdBy": { ".validate": "newData.isString() && newData.val() === root.child('rooms').child($code).child('meta').child('hostUid').val()" },
+          "createdAt": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}
