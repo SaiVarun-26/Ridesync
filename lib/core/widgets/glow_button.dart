@@ -27,6 +27,7 @@ class GlowButton extends StatelessWidget {
     this.icon,
     this.isLoading = false,
     this.accent = AppColors.route,
+    this.foreground = Colors.white,
     this.expand = true,
   });
 
@@ -42,6 +43,10 @@ class GlowButton extends StatelessWidget {
   /// Accent color for the primary variant's fill and glow.
   final Color accent;
 
+  /// Text and icon color for the primary variant. Use a dark color on bright
+  /// accents (e.g. Neon Green) to keep the label legible.
+  final Color foreground;
+
   /// When true the button stretches to the available width.
   final bool expand;
 
@@ -51,7 +56,7 @@ class GlowButton extends StatelessWidget {
     final (Color bg, Color fg, Color border, Color? glow) = switch (variant) {
       GlowButtonVariant.primary => (
           accent,
-          Colors.white,
+          foreground,
           accent,
           accent,
         ),

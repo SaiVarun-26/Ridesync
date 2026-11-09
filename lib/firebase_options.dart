@@ -50,19 +50,23 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBij-wCM41xExnjFqhvnxw28lnq42yTR7A',
-    appId: '1:94704893061:android:fe9b2ff6d9d44826a7bdec',
-    messagingSenderId: '94704893061',
-    projectId: 'ridesync-dff42',
-    storageBucket: 'ridesync-dff42.firebasestorage.app',
-  );
+  apiKey: 'AIzaSyBij-wCM41xExnjFqhvnxw28lnq42yTR7A',
+  appId: '1:94704893061:android:fe9b2ff6d9d44826a7bdec',
+  messagingSenderId: '94704893061',
+  projectId: 'ridesync-dff42',
+  storageBucket: 'ridesync-dff42.firebasestorage.app',
+  databaseURL:
+      'https://ridesync-dff42-default-rtdb.asia-southeast1.firebasedatabase.app',
+);
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyD_YVSMyczRT8fnJ4pwrSy5Qq90cBIyfbI',
-    appId: '1:94704893061:ios:d66e8a76d73e6cf8a7bdec',
-    messagingSenderId: '94704893061',
-    projectId: 'ridesync-dff42',
-    storageBucket: 'ridesync-dff42.firebasestorage.app',
-    iosBundleId: 'com.ridesync.ridesync',
-  );
+static const FirebaseOptions ios = FirebaseOptions(
+  apiKey: 'AIzaSyD_YVSMyczRT8fnJ4pwrSy5Qq90cBIyfbI',
+  appId: '1:94704893061:ios:d66e8a76d73e6cf8a7bdec',
+  messagingSenderId: '94704893061',
+  projectId: 'ridesync-dff42',
+  storageBucket: 'ridesync-dff42.firebasestorage.app',
+  iosBundleId: 'com.ridesync.ridesync',
+  databaseURL:
+      'https://ridesync-dff42-default-rtdb.asia-southeast1.firebasedatabase.app',
+);
 }

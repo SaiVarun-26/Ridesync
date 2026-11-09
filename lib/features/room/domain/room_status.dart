@@ -25,7 +25,12 @@ enum RoomStatus {
   /// The ride is in progress.
   riding('riding'),
 
-  /// The ride has ended.
+  /// The host has ended the ride. Every rider is saving their final stats and
+  /// route; the host writes the ride summary once they have finished (or a
+  /// short timeout passes).
+  ending('ending'),
+
+  /// The ride is over and its summary is written. Everyone moves to results.
   ended('ended');
 
   const RoomStatus(this.wireValue);

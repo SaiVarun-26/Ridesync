@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../domain/geo_point.dart';
+import '../domain/location_fix.dart';
 import '../domain/location_repository.dart';
 
 /// [LocationRepository] backed by the `geolocator` plugin.
@@ -56,6 +57,45 @@ class GeolocatorLocationRepository implements LocationRepository {
       return null;
     }
   }
+
+  @override
+  Stream<LocationFix> watchFixes({required int distanceFilterMeters}) {
+    return Geolocator.getPositionStream(
+      locationSettings: _rideSettings(distanceFilterMeters),
+    ).map(
+      (p) => LocationFix(
+        point: GeoPoint(
+          latitude: p.latitude,
+          longitude: p.longitude,
+          accuracyMeters: p.accuracy,
+        ),
+        timestamp: p.timestamp,
+        // Platforms report unknown heading/speed as negative values.
+        headingDegrees: p.heading >= 0 ? p.heading : null,
+        speedMps: p.speed >= 0 ? p.speed : null,
+      ),
+    );
+  }
+
+  /// Ride-tuned settings: high accuracy, but only after real movement, and on
+  /// Android no more often than [_rideInterval].
+  static LocationSettings _rideSettings(int distanceFilterMeters) {
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => AndroidSettings(
+          distanceFilter: distanceFilterMeters,
+          intervalDuration: _rideInterval,
+        ),
+      TargetPlatform.iOS => AppleSettings(
+          distanceFilter: distanceFilterMeters,
+          activityType: ActivityType.otherNavigation,
+          pauseLocationUpdatesAutomatically: true,
+        ),
+      _ => LocationSettings(distanceFilter: distanceFilterMeters),
+    };
+  }
+
+  /// Minimum spacing of Android location updates while riding.
+  static const Duration _rideInterval = Duration(seconds: 1);
 
   @override
   Future<bool> openAppSettings() => Geolocator.openAppSettings();

@@ -47,5 +47,3 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
-# Google Maps Platform keys (see config/google_maps.example.json)
-/config/google_maps.json

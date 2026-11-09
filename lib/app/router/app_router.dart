@@ -5,10 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/splash_screen.dart';
-import '../../features/ride/presentation/free_ride_screen.dart';
 import '../../features/ride/presentation/planning_screen.dart';
 import '../../features/ride/presentation/ride_initialization_screen.dart';
+import '../../features/ride/presentation/ride_map_screen.dart';
 import '../../features/ride/presentation/ride_mode_screen.dart';
+import '../../features/ride/presentation/ride_results_screen.dart';
 import '../../features/ride/presentation/ride_screen.dart';
 import '../../features/ride_card/presentation/ride_card_screen.dart';
 import '../../features/room/presentation/create_ride_screen.dart';
@@ -80,6 +81,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: AppRoutes.results,
+        name: AppRoutes.resultsName,
+        pageBuilder: (context, state) {
+          final code = state.pathParameters['code'] ?? '';
+          return _fade(state, RideResultsScreen(roomCode: code));
+        },
+      ),
+      GoRoute(
         path: AppRoutes.initializing,
         name: AppRoutes.initializingName,
         pageBuilder: (context, state) {
@@ -92,7 +101,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.freeRideName,
         pageBuilder: (context, state) {
           final code = state.pathParameters['code'] ?? '';
-          return _fade(state, FreeRideScreen(roomCode: code));
+          return _fade(state, RideMapScreen(roomCode: code));
         },
       ),
       GoRoute(

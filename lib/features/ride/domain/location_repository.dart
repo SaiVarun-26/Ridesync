@@ -1,4 +1,5 @@
 import 'geo_point.dart';
+import 'location_fix.dart';
 
 /// Whether the app may read the device location.
 enum LocationAccess {
@@ -34,6 +35,11 @@ abstract interface class LocationRepository {
   /// A single fresh location fix, or `null` if none arrives within [timeout]
   /// or location is unavailable.
   Future<GeoPoint?> currentPosition({required Duration timeout});
+
+  /// Continuous high-accuracy fixes while riding. A new fix is delivered only
+  /// after the device moves about [distanceFilterMeters], which keeps GPS and
+  /// network use low. Cancel the subscription to stop location updates.
+  Stream<LocationFix> watchFixes({required int distanceFilterMeters});
 
   /// Opens this app's page in the system Settings app. Returns whether it
   /// opened.

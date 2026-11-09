@@ -323,6 +323,48 @@ class FirebaseRoomRepository implements RoomRepository {
   }
 
   @override
+  Future<Result<void>> beginEndingRide({required String code}) {
+    return _updateMetaAsHost(
+      code: code,
+      buildUpdate: (room) {
+        // Pressing End Ride again after a failed attempt resumes the ending
+        // instead of failing: nothing to write, the room is already ending.
+        if (room.status == RoomStatus.ending) {
+          return const Success(<String, Object?>{});
+        }
+        if (room.status != RoomStatus.riding) {
+          return const Failed(
+            ConflictFailure(message: 'This ride is not in progress.'),
+          );
+        }
+        return Success(<String, Object?>{
+          RoomPaths.metaStatus: RoomStatus.ending.wireValue,
+        });
+      },
+    );
+  }
+
+  @override
+  Future<Result<void>> completeRide({required String code}) {
+    return _updateMetaAsHost(
+      code: code,
+      buildUpdate: (room) {
+        if (room.status == RoomStatus.ended) {
+          return const Success(<String, Object?>{});
+        }
+        if (room.status != RoomStatus.ending) {
+          return const Failed(
+            ConflictFailure(message: 'This ride is not being ended.'),
+          );
+        }
+        return Success(<String, Object?>{
+          RoomPaths.metaStatus: RoomStatus.ended.wireValue,
+        });
+      },
+    );
+  }
+
+  @override
   Future<Result<void>> startGuidedRide({required String code}) {
     return _updateMetaAsHost(
       code: code,
@@ -385,7 +427,10 @@ class FirebaseRoomRepository implements RoomRepository {
 
       switch (buildUpdate(room)) {
         case Success(:final value):
-          await roomRef.child(RoomPaths.meta).update(value);
+          // An empty update means the room is already in the wanted state.
+          if (value.isNotEmpty) {
+            await roomRef.child(RoomPaths.meta).update(value);
+          }
           return const Success(null);
         case Failed(:final failure):
           return Failed(failure);

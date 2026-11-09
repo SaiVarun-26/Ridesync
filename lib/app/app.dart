@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_theme.dart';
@@ -11,12 +12,16 @@ class RideSyncApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    return MaterialApp.router(
-      title: 'RideSync',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark(),
-      themeMode: ThemeMode.dark,
-      routerConfig: router,
+    // WithForegroundTask lets a tap on the ride notification resume this app
+    // task instead of starting a new one.
+    return WithForegroundTask(
+      child: MaterialApp.router(
+        title: 'RideSync',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark(),
+        themeMode: ThemeMode.dark,
+        routerConfig: router,
+      ),
     );
   }
 }

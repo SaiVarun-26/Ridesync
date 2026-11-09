@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/firebase/firebase_config.dart';
@@ -18,6 +19,10 @@ Future<void> bootstrap() async {
   runZonedGuarded<Future<void>>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      // Open the port the background location service uses to send messages
+      // (e.g. notification taps) to the app isolate.
+      FlutterForegroundTask.initCommunicationPort();
 
       // Initialize Firebase before building the app. The generated
       // DefaultFirebaseOptions come from FlutterFire; the RTDB URL is supplied

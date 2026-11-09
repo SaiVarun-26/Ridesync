@@ -1,21 +1,29 @@
 import '../../../core/errors/result.dart';
+import 'destination.dart';
 import 'geo_point.dart';
-import 'places_repository.dart';
-import 'route_model.dart';
 
-/// Contract for the group's planned route.
+/// Contract for destination search and route computation.
 ///
-/// Routes are generated on the server so the routing API key never ships in
-/// the app; clients only request generation and observe the result.
+/// The UI only talks to this interface. The current implementation calls
+/// Google's Places and Routes REST APIs from the device; a server-backed
+/// implementation can replace it later without any UI change.
 abstract interface class RouteRepository {
-  /// The planned route for room [code], live. Emits `null` until one exists.
-  Stream<PlannedRoute?> watchRoute({required String code});
+  /// Autocomplete suggestions for [query], ranked toward [near] when given.
+  ///
+  /// Pass [newSession] for the first query of a search, so the keystrokes and
+  /// the final selection are billed as one session.
+  Future<Result<List<PlaceSuggestion>>> searchDestinations(
+    String query, {
+    GeoPoint? near,
+    bool newSession = false,
+  });
 
-  /// Asks the server to compute the route from [origin] to [destination] for
-  /// room [code] and share it with every rider. Host only.
-  Future<Result<PlannedRoute>> generateRoute({
-    required String code,
+  /// Resolves a suggestion to a named location.
+  Future<Result<Destination>> resolveDestination(String placeId);
+
+  /// Computes a riding route from [origin] to [destination].
+  Future<Result<RouteEstimate>> computeRoute({
     required GeoPoint origin,
-    required PlaceDetails destination,
+    required GeoPoint destination,
   });
 }
