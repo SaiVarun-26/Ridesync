@@ -14,7 +14,7 @@
         },
         "members": {
           "$uid": {
-            ".write": "auth != null && $uid === auth.uid",
+            ".write": "auth != null && $uid === auth.uid && (data.exists() || root.child('rooms').child($code).child('meta').child('status').val() === 'lobby')",
             ".validate": "newData.hasChild('uid') && newData.child('uid').val() === $uid",
             "ready": { ".validate": "newData.isBoolean()" },
             "initialized": { ".validate": "newData.isBoolean()" },
@@ -65,19 +65,41 @@
     },
     "rideRoutes": {
       "$code": {
-        ".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).exists()",
+        ".read": "auth != null && (root.child('rooms').child($code).child('members').child(auth.uid).exists() || root.child('userRides').child(auth.uid).child($code).exists())",
         "$uid": {
           ".write": "auth != null && $uid === auth.uid && root.child('rooms').child($code).child('members').child(auth.uid).exists() && (root.child('rooms').child($code).child('meta').child('status').val() === 'riding' || root.child('rooms').child($code).child('meta').child('status').val() === 'ending') && root.child('rideStats').child($code).child($uid).child('finished').val() !== true",
           ".validate": "newData.hasChildren(['polyline','updatedAt'])",
           "polyline": { ".validate": "newData.isString() && newData.val().length <= 60000" },
+          "speeds": { ".validate": "newData.isString() && newData.val().length <= 3200" },
           "updatedAt": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "userRides": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".indexOn": ["endedAt"],
+        "$code": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child($uid).exists() && root.child('rooms').child($code).child('meta').child('status').val() === 'ended' && root.child('rideSummaries').child($code).child('riders').child($uid).exists()",
+          ".validate": "newData.hasChildren(['roomName','mode','startedAt','endedAt','durationMs','distanceMeters','averageSpeedMps','maxSpeedMps','riderCount']) && newData.child('roomName').val() === root.child('rideSummaries').child($code).child('roomName').val() && newData.child('mode').val() === root.child('rideSummaries').child($code).child('mode').val() && newData.child('endedAt').val() === root.child('rideSummaries').child($code).child('group').child('endedAt').val() && newData.child('durationMs').val() === root.child('rideSummaries').child($code).child('group').child('durationMs').val() && newData.child('riderCount').val() === root.child('rideSummaries').child($code).child('group').child('riderCount').val() && newData.child('distanceMeters').val() === root.child('rideSummaries').child($code).child('riders').child($uid).child('distanceMeters').val()",
+          "roomName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
+          "mode": { ".validate": "newData.val() === 'guided' || newData.val() === 'free'" },
+          "startedAt": { ".validate": "newData.isNumber() && newData.val() > 0" },
+          "endedAt": { ".validate": "newData.isNumber() && newData.val() > 0" },
+          "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000000" },
+          "distanceMeters": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+          "averageSpeedMps": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150" },
+          "maxSpeedMps": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150" },
+          "riderCount": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100" },
+          "preview": { ".validate": "newData.isString() && newData.val().length <= 1500" },
           "$other": { ".validate": false }
         }
       }
     },
     "rideSummaries": {
       "$code": {
-        ".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).exists()",
+        ".read": "auth != null && (root.child('rooms').child($code).child('members').child(auth.uid).exists() || root.child('userRides').child(auth.uid).child($code).exists())",
         ".write": "auth != null && root.child('rooms').child($code).child('meta').child('hostUid').val() === auth.uid && root.child('rooms').child($code).child('meta').child('status').val() === 'ending' && !data.exists()",
         ".validate": "newData.hasChildren(['roomName','hostUid','mode','group','riders'])",
         "roomName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },

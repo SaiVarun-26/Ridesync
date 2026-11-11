@@ -9,6 +9,7 @@ import '../stats/ride_stats_repository.dart';
 import '../summary/ride_summary.dart';
 import '../summary/ride_summary_builder.dart';
 import '../summary/ride_summary_repository.dart';
+import 'ride_end_stage.dart';
 
 /// Ends a ride from the host's side.
 ///
@@ -50,9 +51,17 @@ class RideCompletionService {
   static int _systemNowMs() => DateTime.now().millisecondsSinceEpoch;
 
   /// Ends the ride in room [code] and returns the summary that was written.
-  Future<Result<RideSummary>> endRide({required String code}) async {
+  ///
+  /// [onStage] is told each time the work moves on, so the UI can show
+  /// progress.
+  Future<Result<RideSummary>> endRide({
+    required String code,
+    void Function(RideEndStage stage)? onStage,
+  }) async {
+    onStage?.call(RideEndStage.ending);
     final begun = await _rooms.beginEndingRide(code: code);
     if (begun case Failed(:final failure)) return Failed(failure);
+    onStage?.call(RideEndStage.savingRiders);
 
     final room = await _currentRoom(code);
     if (room == null) {
@@ -68,6 +77,7 @@ class RideCompletionService {
         if (member.online) member.uid,
     ];
     final stats = await _collectFinalStats(code, expected);
+    onStage?.call(RideEndStage.generatingSummary);
 
     // Re-read the room so names and colors are as they are now.
     final latest = await _currentRoom(code) ?? room;
@@ -83,6 +93,7 @@ class RideCompletionService {
     final completed = await _rooms.completeRide(code: code);
     if (completed case Failed(:final failure)) return Failed(failure);
 
+    onStage?.call(RideEndStage.complete);
     return Success(summary);
   }
 

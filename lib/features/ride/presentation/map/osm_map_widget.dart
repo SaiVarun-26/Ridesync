@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -10,6 +11,7 @@ import '../../domain/geo_point.dart';
 import 'camera_controller.dart';
 import 'live_marker_layer.dart';
 import 'marker_interpolator.dart';
+import 'night_tile_layer.dart';
 import 'trail_layer.dart';
 
 /// The dark OpenStreetMap live map: trails underneath, riders on top, camera
@@ -26,7 +28,12 @@ class OsmMapWidget extends StatefulWidget {
     required this.nowMs,
     required this.myUid,
     required this.riderCardBuilder,
+    required this.bottomInset,
   });
+
+  /// Height of the bottom panel covering the map, in pixels. Read every frame
+  /// by the camera and never rebuilds the map.
+  final ValueListenable<double> bottomInset;
 
   /// Builds the floating card for the rider with the given uid.
   final Widget Function(String uid) riderCardBuilder;
@@ -49,8 +56,9 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
   final MarkerInterpolator _interpolator = MarkerInterpolator();
   final ValueNotifier<int> _frames = ValueNotifier<int>(0);
   final Stopwatch _clock = Stopwatch()..start();
-  late final FollowCameraController _camera =
-      FollowCameraController(_mapController);
+  late final FollowCameraController _camera = FollowCameraController(
+    _mapController,
+  );
   late final Ticker _ticker = createTicker((_) => _onFrame());
   Timer? _resumeTimer;
   bool _mapReady = false;
@@ -63,19 +71,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
 
   static const double _initialZoom = 16;
   static const double _minZoom = 3;
-  static const double _maxZoom = 19;
-  static const String _tileUrl =
-      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  static const String _userAgentPackage = 'com.ridesync.ridesync';
-
-  /// Turns the light OSM style into a calm night map: greyscale, inverted, and
-  /// dimmed, with a faint cool tint. Applied once to the whole tile layer.
-  static const ColorFilter _nightTiles = ColorFilter.matrix(<double>[
-    -0.17, -0.572, -0.058, 0, 214, //
-    -0.17, -0.572, -0.058, 0, 216, //
-    -0.17, -0.572, -0.058, 0, 222, //
-    0, 0, 0, 1, 0, //
-  ]);
+  static const double _maxZoom = NightTileLayer.maxZoom;
 
   Duration get _now => _clock.elapsed;
 
@@ -83,6 +79,13 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
   void initState() {
     super.initState();
     _interpolator.update(widget.markers, _now);
+    _camera.setBottomInset(widget.bottomInset.value, _now);
+    widget.bottomInset.addListener(_onInsetChanged);
+  }
+
+  void _onInsetChanged() {
+    _camera.setBottomInset(widget.bottomInset.value, _now);
+    _ensureTicking();
   }
 
   @override
@@ -91,10 +94,17 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
     final now = _now;
     _interpolator.update(widget.markers, now);
     if (_interpolator.isAnimating(now)) _ensureTicking();
+    // A rider who disconnects (or leaves) loses their marker; close their card
+    // straight away rather than leaving it pointing at nothing.
+    final selected = _selectedUid;
+    if (selected != null && !widget.markers.any((m) => m.uid == selected)) {
+      _selectedUid = null;
+    }
   }
 
   @override
   void dispose() {
+    widget.bottomInset.removeListener(_onInsetChanged);
     _resumeTimer?.cancel();
     _ticker.dispose();
     _frames.dispose();
@@ -182,31 +192,32 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
         onTap: _onTap,
       ),
       children: [
-        ColorFiltered(
-          colorFilter: _nightTiles,
-          child: TileLayer(
-            urlTemplate: _tileUrl,
-            userAgentPackageName: _userAgentPackage,
-            maxNativeZoom: _maxZoom.toInt(),
-          ),
-        ),
+        const NightTileLayer(),
         TrailLayer(trails: widget.trails, nowMs: widget.nowMs),
         LiveMarkerLayer(
           interpolator: _interpolator,
           frames: _frames,
           clock: () => _now,
         ),
-        if (_selectedUid != null)
-          _RiderCardLayer(
-            uid: _selectedUid!,
-            interpolator: _interpolator,
-            frames: _frames,
-            clock: () => _now,
-            card: widget.riderCardBuilder(_selectedUid!),
-            onGone: () {
-              if (mounted) setState(() => _selectedUid = null);
-            },
-          ),
+        // Fades the card out when it closes; it scales and fades in itself.
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 160),
+          layoutBuilder: (current, previous) =>
+              Stack(fit: StackFit.expand, children: [...previous, ?current]),
+          child: _selectedUid == null
+              ? const SizedBox.shrink(key: ValueKey('no-card'))
+              : _RiderCardLayer(
+                  key: ValueKey(_selectedUid),
+                  uid: _selectedUid!,
+                  interpolator: _interpolator,
+                  frames: _frames,
+                  clock: () => _now,
+                  card: widget.riderCardBuilder(_selectedUid!),
+                  onGone: () {
+                    if (mounted) setState(() => _selectedUid = null);
+                  },
+                ),
+        ),
       ],
     );
   }
@@ -216,6 +227,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
 /// moves and the map pans, zooms or turns. Closes itself if the rider leaves.
 class _RiderCardLayer extends StatelessWidget {
   const _RiderCardLayer({
+    super.key,
     required this.uid,
     required this.interpolator,
     required this.frames,
@@ -251,12 +263,14 @@ class _RiderCardLayer extends StatelessWidget {
             child: TweenAnimationBuilder<double>(
               key: ValueKey(uid),
               tween: Tween(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOut,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
               builder: (context, t, child) => Opacity(
                 opacity: t,
-                child: Transform.translate(
-                  offset: Offset(0, (1 - t) * 6),
+                // Grows out of the dot it belongs to.
+                child: Transform.scale(
+                  scale: 0.88 + 0.12 * t,
+                  alignment: Alignment.bottomCenter,
                   child: child,
                 ),
               ),

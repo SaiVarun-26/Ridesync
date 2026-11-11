@@ -187,10 +187,10 @@ class RideStatsService {
           .loadMyRoute(code: _roomCode)
           .timeout(
             _restoreTimeout,
-            onTimeout: () => const Failed<List<GeoPoint>>(NetworkFailure()),
+            onTimeout: () => const Failed<RecordedPath>(NetworkFailure()),
           );
 
-      if (stats is Success<RideStats?> && route is Success<List<GeoPoint>>) {
+      if (stats is Success<RideStats?> && route is Success<RecordedPath>) {
         final saved = stats.value;
         if (saved != null) _tracker.restore(saved);
         _route.restore(route.value);
@@ -206,7 +206,7 @@ class RideStatsService {
   void _apply(LocationFix fix) {
     if (!_tracker.add(fix)) return;
     _statsVersion++;
-    _route.add(fix.point);
+    _route.add(fix.point, speedMps: fix.speedMps ?? 0);
     final stats = _tracker.stats;
     if (stats != null && !_updates.isClosed) _updates.add(stats);
   }
@@ -247,7 +247,7 @@ class RideStatsService {
       final endVersion = _statsVersion;
       final result = await _repository.saveMyRoute(
         code: _roomCode,
-        route: isFinal ? _routeWithEnd() : _route.points,
+        route: isFinal ? _routeWithEnd() : _route.path,
       );
       if (result is Success) {
         _savedRouteVersion = version;
@@ -259,10 +259,16 @@ class RideStatsService {
   /// The recorded route plus the rider's true last position. On a very long
   /// ride the recorded route is thinned, so its final point can trail the
   /// rider by a little; this makes the saved route end exactly where they did.
-  List<GeoPoint> _routeWithEnd() {
-    final points = List<GeoPoint>.of(_route.points);
+  RecordedPath _routeWithEnd() {
+    final path = _route.path;
+    final points = List<GeoPoint>.of(path.points);
+    final speeds = List<double>.of(path.speedsMps);
     final end = _tracker.stats?.lastPoint;
-    if (end != null && (points.isEmpty || points.last != end)) points.add(end);
-    return points;
+    if (end != null && (points.isEmpty || points.last != end)) {
+      points.add(end);
+      // The rider has come to rest at the end of the ride.
+      speeds.add(0);
+    }
+    return RecordedPath(points: points, speedsMps: speeds);
   }
 }

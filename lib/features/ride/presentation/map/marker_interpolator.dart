@@ -107,11 +107,11 @@ class MarkerInterpolator {
 
 class _Track {
   _Track._(this.target, this.from, this.glideStart, this.lastUpdate)
-      : glide = Duration.zero,
-        fadeStart = lastUpdate,
-        fromOpacity = 0,
-        toOpacity = 1,
-        fromHeading = target.headingDegrees;
+    : glide = Duration.zero,
+      fadeStart = lastUpdate,
+      fromOpacity = 0,
+      toOpacity = 1,
+      fromHeading = target.headingDegrees;
 
   /// A rider appearing; if they were fading out, they fade back in from where
   /// they are.
@@ -187,23 +187,30 @@ class _Track {
   }
 
   double _opacityAt(Duration now) {
-    final t =
-        MarkerInterpolator._progress(now, fadeStart, MarkerInterpolator._fade);
+    final t = MarkerInterpolator._progress(
+      now,
+      fadeStart,
+      MarkerInterpolator._fade,
+    );
     return fromOpacity + (toOpacity - fromOpacity) * t;
   }
 
   MarkerFrame frameAt(Duration now) => MarkerFrame(
-        uid: target.uid,
-        point: positionAt(now),
-        color: target.color,
-        headingDegrees: headingAt(now),
-        opacity: _opacityAt(now),
-        isMe: target.isMe,
-      );
+    uid: target.uid,
+    point: positionAt(now),
+    color: target.color,
+    headingDegrees: headingAt(now),
+    opacity: _opacityAt(now),
+    isMe: target.isMe,
+  );
 
   static Duration _clamp(Duration value) {
-    if (value < MarkerInterpolator._minGlide) return MarkerInterpolator._minGlide;
-    if (value > MarkerInterpolator._maxGlide) return MarkerInterpolator._maxGlide;
+    if (value < MarkerInterpolator._minGlide) {
+      return MarkerInterpolator._minGlide;
+    }
+    if (value > MarkerInterpolator._maxGlide) {
+      return MarkerInterpolator._maxGlide;
+    }
     return value;
   }
 }

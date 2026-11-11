@@ -1,6 +1,7 @@
 import '../../../core/errors/result.dart';
 import 'ride_mode.dart';
 import 'room.dart';
+import 'room_preview.dart';
 
 /// Contract for ride-room lifecycle and live membership.
 ///
@@ -19,8 +20,17 @@ abstract interface class RoomRepository {
   /// Joins an existing room by [code], adding the current user as a member who
   /// is not yet ready.
   ///
+  /// A room takes new riders until the host starts the ride; after that it is
+  /// locked and joining fails with [RoomLockedFailure]. A rider who is already
+  /// a member can always come back in.
+  ///
   /// Fails with [NotFoundFailure] if no room exists for the code.
   Future<Result<Room>> joinRoom({required String code});
+
+  /// Looks at room [code] without joining it.
+  ///
+  /// Fails with [NotFoundFailure] if no room exists for the code.
+  Future<Result<RoomPreview>> previewRoom({required String code});
 
   /// Atomically claims [colorId] for the current user within [code].
   ///

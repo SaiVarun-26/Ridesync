@@ -48,9 +48,10 @@ class RideMapHeader extends StatelessWidget {
   }
 }
 
-/// Bottom of the live map: speed, connection, and GPS status.
-class RideStatusCard extends StatelessWidget {
-  const RideStatusCard({
+/// Speed, connection, and GPS status: the always-visible row of the bottom
+/// ride panel.
+class RideStatusRow extends StatelessWidget {
+  const RideStatusRow({
     super.key,
     required this.speedKmh,
     required this.isConnected,
@@ -71,47 +72,41 @@ class RideStatusCard extends StatelessWidget {
       GpsStatus.weak => ('GPS Weak', AppColors.yellow),
       GpsStatus.searching => ('Searching GPS', AppColors.textTertiary),
     };
-    return GlassPanel(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xl,
-        vertical: AppSpacing.lg,
-      ),
-      child: Row(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    speedKmh.round().toString(),
-                    style: AppTypography.stat(fontSize: _speedSize),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text('km/h', style: theme.textTheme.bodySmall),
-                ],
-              ),
-              const SectionLabel('SPEED'),
-            ],
-          ),
-          const Spacer(),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _StatusLine(
-                label: isConnected ? 'Live' : 'Reconnecting',
-                color: isConnected ? AppColors.neonGreen : AppColors.warning,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _StatusLine(label: gpsLabel, color: gpsColor),
-            ],
-          ),
-        ],
-      ),
+    return Row(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  speedKmh.round().toString(),
+                  style: AppTypography.stat(fontSize: _speedSize),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text('km/h', style: theme.textTheme.bodySmall),
+              ],
+            ),
+            const SectionLabel('SPEED'),
+          ],
+        ),
+        const Spacer(),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _StatusLine(
+              label: isConnected ? 'Live' : 'Reconnecting',
+              color: isConnected ? AppColors.neonGreen : AppColors.warning,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _StatusLine(label: gpsLabel, color: gpsColor),
+          ],
+        ),
+      ],
     );
   }
 }

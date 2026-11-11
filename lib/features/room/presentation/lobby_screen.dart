@@ -11,6 +11,7 @@ import '../../../core/widgets/section_label.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../domain/room.dart';
 import '../domain/room_member.dart';
+import '../domain/room_status.dart';
 import 'providers/room_providers.dart';
 import 'room_flow.dart';
 import 'share_ride_invite.dart';
@@ -18,6 +19,7 @@ import 'widgets/color_picker_sheet.dart';
 import 'widgets/lobby_action_bar.dart';
 import 'widgets/rider_color_picker.dart';
 import 'widgets/room_exit_scope.dart';
+import 'widgets/room_open_pill.dart';
 import 'widgets/room_state_views.dart';
 import 'widgets/rider_tile.dart';
 
@@ -274,6 +276,14 @@ class _LobbyHeader extends StatelessWidget {
           style: theme.textTheme.displaySmall,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: RoomOpenPill(
+            isOpen: room.status == RoomStatus.lobby,
+            riders: room.members.length,
+          ),
         ),
         const SizedBox(height: AppSpacing.xl),
         Row(

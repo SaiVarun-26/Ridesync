@@ -67,6 +67,7 @@ class RideMapState {
     this.isConnected = true,
     this.gps = GpsStatus.searching,
     this.nowMs = 0,
+    this.isFinalSaved = false,
   });
 
   /// This device's latest fix; `null` until the first one arrives.
@@ -92,6 +93,10 @@ class RideMapState {
 
   /// Clock used to fade trails consistently across a frame.
   final int nowMs;
+
+  /// Whether this rider's final record has been saved (or given up on) after
+  /// the host ended the ride.
+  final bool isFinalSaved;
 
   /// Current ground speed, in km/h.
   double get speedKmh => (myFix?.speedMps ?? 0) * _kmhPerMps;
@@ -170,16 +175,20 @@ class RideMapController extends Notifier<RideMapState> {
         state = _copy(isConnected: connected);
       }
     });
-    final housekeeping =
-        Timer.periodic(_housekeepingInterval, (_) => _housekeep());
+    final housekeeping = Timer.periodic(
+      _housekeepingInterval,
+      (_) => _housekeep(),
+    );
     _room = ref.read(roomStreamProvider(_code)).value;
     ref.listen<AsyncValue<Room?>>(roomStreamProvider(_code), (_, next) {
       _room = next.value;
       _publishRiders();
       _maybeFinish(next.value);
     });
-    _notificationTimer =
-        Timer.periodic(_notificationInterval, (_) => _refreshNotification());
+    _notificationTimer = Timer.periodic(
+      _notificationInterval,
+      (_) => _refreshNotification(),
+    );
     ref.onDispose(() {
       housekeeping.cancel();
       _notificationTimer?.cancel();
@@ -220,7 +229,9 @@ class RideMapController extends Notifier<RideMapState> {
     _notificationTimer?.cancel();
     try {
       if (saveFinalRecord) {
-        final point = await _location.currentPosition(timeout: _finalFixTimeout);
+        final point = await _location.currentPosition(
+          timeout: _finalFixTimeout,
+        );
         if (point != null) {
           _stats.addFix(LocationFix(point: point, timestamp: DateTime.now()));
         }
@@ -229,6 +240,7 @@ class RideMapController extends Notifier<RideMapState> {
             .timeout(_finishTimeout, onTimeout: () => null);
       }
     } finally {
+      if (ref.mounted) state = _copy(isFinalSaved: true);
       await _sync.stop();
       await _tracking.stop();
     }
@@ -347,19 +359,7 @@ class RideMapController extends Notifier<RideMapState> {
     state = _copy(
       nowMs: now,
       gps: fix == null ? GpsStatus.searching : _gpsFor(fix, now),
-      trails: _prunedTrails(now),
     );
-  }
-
-  /// Trails with expired points removed; a trail that has faded away entirely
-  /// is dropped so the map does not accumulate empty entries.
-  Map<String, RiderTrail> _prunedTrails(int now) {
-    final result = <String, RiderTrail>{};
-    for (final entry in state.trails.entries) {
-      final pruned = entry.value.prune(now);
-      if (pruned.points.isNotEmpty) result[entry.key] = pruned;
-    }
-    return result;
   }
 
   Map<String, RiderTrail> _appendTrail(String uid, GeoPoint point, int now) {
@@ -391,8 +391,10 @@ class RideMapController extends Notifier<RideMapState> {
     bool? isConnected,
     GpsStatus? gps,
     int? nowMs,
+    bool? isFinalSaved,
   }) {
     return RideMapState(
+      isFinalSaved: isFinalSaved ?? state.isFinalSaved,
       myFix: myFix ?? state.myFix,
       riders: riders ?? state.riders,
       trails: trails ?? state.trails,

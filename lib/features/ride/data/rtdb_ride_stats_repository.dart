@@ -7,8 +7,9 @@ import 'package:flutter/foundation.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/errors/result.dart';
 import '../../auth/domain/auth_repository.dart';
-import '../domain/geo_point.dart';
 import '../domain/polyline.dart';
+import '../domain/speed_codec.dart';
+import '../domain/stats/recorded_route.dart';
 import '../domain/stats/ride_stats.dart';
 import '../domain/stats/ride_stats_repository.dart';
 import 'ride_stats_dto.dart';
@@ -54,26 +55,34 @@ class RtdbRideStatsRepository implements RideStatsRepository {
   }
 
   @override
-  Future<Result<List<GeoPoint>>> loadMyRoute({required String code}) {
-    return _run<List<GeoPoint>>((uid) async {
+  Future<Result<RecordedPath>> loadMyRoute({required String code}) {
+    return _run<RecordedPath>((uid) async {
       final snapshot =
           await _database.ref(RideStatsPaths.routes(code)).child(uid).get();
       final value = snapshot.value;
-      if (value is! Map) return const <GeoPoint>[];
+      if (value is! Map) return const RecordedPath();
       final encoded = value[RideStatsPaths.polyline];
-      return encoded is String ? decodePolyline(encoded) : const <GeoPoint>[];
+      if (encoded is! String) return const RecordedPath();
+      final points = decodePolyline(encoded);
+      final speeds = value[RideStatsPaths.speeds];
+      return RecordedPath(
+        points: points,
+        speedsMps: speeds is String ? SpeedCodec.decode(speeds) : const [],
+      );
     });
   }
 
   @override
   Future<Result<void>> saveMyRoute({
     required String code,
-    required List<GeoPoint> route,
+    required RecordedPath route,
   }) {
     return _run<void>((uid) {
       return _database.ref(RideStatsPaths.routes(code)).child(uid).set(
         <String, Object?>{
-          RideStatsPaths.polyline: encodePolyline(route),
+          RideStatsPaths.polyline: encodePolyline(route.points),
+          if (route.hasSpeeds)
+            RideStatsPaths.speeds: SpeedCodec.encode(route.speedsMps),
           RideStatsPaths.updatedAt: ServerValue.timestamp,
         },
       );

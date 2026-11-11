@@ -101,48 +101,48 @@ class _Indicator extends StatelessWidget {
     return Center(
       child: switch (phase) {
         InitStepPhase.pending => Container(
-            width: _pendingSize,
-            height: _pendingSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.textTertiary,
-                width: _ringWidth,
-              ),
+          width: _pendingSize,
+          height: _pendingSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: AppColors.textTertiary,
+              width: _ringWidth,
             ),
           ),
+        ),
         InitStepPhase.running => const SizedBox(
-            width: _spinnerSize,
-            height: _spinnerSize,
-            child: CircularProgressIndicator(
-              strokeWidth: _ringWidth,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.route),
-            ),
+          width: _spinnerSize,
+          height: _spinnerSize,
+          child: CircularProgressIndicator(
+            strokeWidth: _ringWidth,
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.route),
           ),
+        ),
         InitStepPhase.waiting => const PulseIndicator(size: _waitingSize),
         InitStepPhase.blocked => const PulseIndicator(
-            size: _waitingSize,
-            color: AppColors.warning,
-          ),
+          size: _waitingSize,
+          color: AppColors.warning,
+        ),
         InitStepPhase.done => Container(
-            width: _checkSize,
-            height: _checkSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.route,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.route.withValues(alpha: _checkGlowAlpha),
-                  blurRadius: _checkGlowBlur,
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.check_rounded,
-              size: _checkIconSize,
-              color: AppColors.textPrimary,
-            ),
+          width: _checkSize,
+          height: _checkSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.route,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.route.withValues(alpha: _checkGlowAlpha),
+                blurRadius: _checkGlowBlur,
+              ),
+            ],
           ),
+          child: const Icon(
+            Icons.check_rounded,
+            size: _checkIconSize,
+            color: AppColors.textPrimary,
+          ),
+        ),
       },
     );
   }

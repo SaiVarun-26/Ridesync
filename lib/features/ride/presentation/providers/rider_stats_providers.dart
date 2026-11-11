@@ -7,5 +7,5 @@ import 'ride_map_providers.dart';
 /// a rider's info card is open, so it costs nothing the rest of the ride.
 final roomRideStatsProvider = StreamProvider.autoDispose
     .family<Map<String, RideStats>, String>((ref, code) {
-  return ref.watch(rideStatsRepositoryProvider).watchAll(code: code);
-});
+      return ref.watch(rideStatsRepositoryProvider).watchAll(code: code);
+    });

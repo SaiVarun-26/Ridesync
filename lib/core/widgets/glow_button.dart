@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'pressable_scale.dart';
 
 /// Visual emphasis levels for [GlowButton].
 enum GlowButtonVariant {
@@ -29,7 +30,11 @@ class GlowButton extends StatelessWidget {
     this.accent = AppColors.route,
     this.foreground = Colors.white,
     this.expand = true,
+    this.verticalPadding = AppSpacing.lg,
   });
+
+  /// Space above and below the label; raise it for a taller button.
+  final double verticalPadding;
 
   final String label;
 
@@ -105,7 +110,10 @@ class GlowButton extends StatelessWidget {
 
     final double opacity = enabled ? 1 : 0.45;
 
-    return Opacity(
+    return PressableScale(
+      enabled: enabled,
+      child: AnimatedOpacity(
+      duration: AppMotion.normal,
       opacity: opacity,
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -128,9 +136,9 @@ class GlowButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.pill),
             child: Container(
               width: expand ? double.infinity : null,
-              padding: const EdgeInsets.symmetric(
+              padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.xl,
-                vertical: AppSpacing.lg,
+                vertical: verticalPadding,
               ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -140,6 +148,7 @@ class GlowButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

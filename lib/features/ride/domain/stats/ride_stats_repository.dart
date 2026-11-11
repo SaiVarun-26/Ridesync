@@ -1,5 +1,5 @@
 import '../../../../core/errors/result.dart';
-import '../geo_point.dart';
+import 'recorded_route.dart';
 import 'ride_stats.dart';
 
 /// Contract for saving and restoring the signed-in rider's ride record.
@@ -16,13 +16,14 @@ abstract interface class RideStatsRepository {
     required RideStats stats,
   });
 
-  /// This rider's saved whole-ride route; empty if none exists yet.
-  Future<Result<List<GeoPoint>>> loadMyRoute({required String code});
+  /// This rider's saved whole-ride route with its speeds; empty if none
+  /// exists yet.
+  Future<Result<RecordedPath>> loadMyRoute({required String code});
 
   /// Saves this rider's whole-ride [route], replacing the previous copy.
   Future<Result<void>> saveMyRoute({
     required String code,
-    required List<GeoPoint> route,
+    required RecordedPath route,
   });
 
   /// Every rider's statistics in room [code], by uid, live. Emits the full set

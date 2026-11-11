@@ -31,6 +31,12 @@ abstract final class AppRoutes {
   /// `/results/:code`
   static const String results = '/results/:code';
 
+  /// `/history`
+  static const String history = '/history';
+
+  /// `/history/:code`
+  static const String historyDetails = '/history/:code';
+
   /// `/ride/:rideId`
   static const String ride = '/ride/:rideId';
 
@@ -49,6 +55,8 @@ abstract final class AppRoutes {
   static const String initializingName = 'initializing';
   static const String freeRideName = 'freeRide';
   static const String resultsName = 'results';
+  static const String historyName = 'history';
+  static const String historyDetailsName = 'historyDetails';
   static const String rideName = 'ride';
   static const String cardName = 'card';
 
@@ -69,6 +77,9 @@ abstract final class AppRoutes {
 
   /// Builds the concrete free-ride path for room [code].
   static String freeRidePath(String code) => '/free-ride/$code';
+
+  /// Builds the concrete details path for the previous ride in room [code].
+  static String historyDetailsPath(String code) => '/history/$code';
 
   /// Builds the concrete ride path for a given [rideId].
   static String ridePath(String rideId) => '/ride/$rideId';

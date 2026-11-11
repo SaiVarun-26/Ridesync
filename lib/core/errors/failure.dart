@@ -41,6 +41,15 @@ class NotFoundFailure extends Failure {
   }) : super(message, cause: cause);
 }
 
+/// The room no longer takes new riders because the host has started the ride.
+class RoomLockedFailure extends Failure {
+  const RoomLockedFailure({
+    String message =
+        'This ride has already started and is no longer taking riders.',
+    Object? cause,
+  }) : super(message, cause: cause);
+}
+
 /// A conflicting write, e.g. a color was claimed by someone else first.
 class ConflictFailure extends Failure {
   const ConflictFailure({

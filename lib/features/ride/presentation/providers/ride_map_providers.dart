@@ -26,8 +26,9 @@ final rideStatsRepositoryProvider = Provider<RideStatsRepository>((ref) {
 });
 
 /// The Android foreground-service that keeps tracking alive in the background.
-final backgroundTrackingServiceProvider =
-    Provider<BackgroundTrackingService>((ref) {
+final backgroundTrackingServiceProvider = Provider<BackgroundTrackingService>((
+  ref,
+) {
   return BackgroundTrackingService();
 });
 

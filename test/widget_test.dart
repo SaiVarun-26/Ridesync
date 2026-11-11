@@ -45,10 +45,13 @@ void main() {
       ),
     );
 
-    // Splash resolves the (signed-out) auth state, then redirects.
-    await tester.pumpAndSettle();
+    // Splash resolves the (signed-out) auth state, then redirects. The name
+    // field pulses forever while empty, so settle with bounded pumps.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('RideSync'), findsOneWidget);
-    expect(find.text('Start'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
   });
 }

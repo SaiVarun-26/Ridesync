@@ -12,11 +12,12 @@ class TrailStyle {
   final Color color;
 }
 
-/// Paints each rider's recent path in their color, fading with age: the
-/// newest stretch is bright with a soft glow, older stretches dissolve.
+/// Paints each rider's whole ridden path in their color.
 ///
-/// Segments are grouped into a few age bands and each band is one path, so
-/// 25 riders cost a few dozen draw calls rather than thousands.
+/// The newest stretch is bright and glows softly; older stretches settle to a
+/// calmer, steady tone and never disappear. Segments are grouped into a few
+/// age bands and each band is one path, and only the part of the path that is
+/// near the screen is built, so a long ride with many riders stays cheap.
 class TrailLayer extends StatelessWidget {
   const TrailLayer({super.key, required this.trails, required this.nowMs});
 
@@ -47,44 +48,76 @@ class _TrailPainter extends CustomPainter {
   final int nowMs;
   final MapCamera camera;
 
-  static const int _bands = 6;
+  /// Bands 0.._recentBands-1 are the recent stretch; the last band holds
+  /// everything older.
+  static const int _recentBands = 4;
+  static const int _bands = _recentBands + 1;
+
+  /// Width of each recent band's slice of time.
+  static const int _bandSpanMs = 45000;
+
   static const double _strokeWidth = 3.5;
   static const double _glowWidth = 9;
   static const double _glowBlur = 4;
-  static const double _maxAlpha = 0.9;
-  static const double _glowAlpha = 0.3;
+  static const double _glowAlpha = 0.32;
 
-  /// Consecutive points further apart in time than this are not joined.
-  static const int _gapMs = 120000;
+  /// Brightest and dimmest recent tone, and the steady tone of older path.
+  static const double _newestAlpha = 0.95;
+  static const double _recentFloorAlpha = 0.7;
+  static const double _olderAlpha = 0.5;
+
+  /// How far past the screen edge points are still included, as a fraction of
+  /// the visible size, so lines run cleanly off the screen.
+  static const double _cullMargin = 0.15;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final window = RiderTrail.window.inMilliseconds;
+    final bounds = camera.visibleBounds;
+    final latPad = (bounds.north - bounds.south) * _cullMargin;
+    final lngPad = (bounds.east - bounds.west) * _cullMargin;
+    final south = bounds.south - latPad;
+    final north = bounds.north + latPad;
+    final west = bounds.west - lngPad;
+    final east = bounds.east + lngPad;
+
+    bool near(double lat, double lng) =>
+        lat >= south && lat <= north && lng >= west && lng <= east;
+
     for (final style in trails) {
       final points = style.trail.points;
       if (points.length < 2) continue;
 
       final bands = List<Path?>.filled(_bands, null);
-      var previous = _offset(points.first.point.latitude,
-          points.first.point.longitude);
-      var previousTimeMs = points.first.timeMs;
+      var previousNear = near(
+        points.first.point.latitude,
+        points.first.point.longitude,
+      );
+      Offset? previousOffset;
       for (var i = 1; i < points.length; i++) {
         final p = points[i];
-        final current = _offset(p.point.latitude, p.point.longitude);
-        final gap = p.timeMs - previousTimeMs > _gapMs;
-        previousTimeMs = p.timeMs;
-        if (gap) {
-          // The rider was away (backgrounded, no signal). Resume the trail
-          // from here rather than inventing a path across the gap.
-          previous = current;
+        final currentNear = near(p.point.latitude, p.point.longitude);
+        if (p.startsSegment) {
+          // The rider was away. Start again from here instead of inventing a
+          // path across the gap.
+          previousNear = currentNear;
+          previousOffset = null;
           continue;
         }
-        final age = (nowMs - p.timeMs).clamp(0, window) / window;
-        final band = (age * _bands).floor().clamp(0, _bands - 1);
-        (bands[band] ??= Path())
-          ..moveTo(previous.dx, previous.dy)
-          ..lineTo(current.dx, current.dy);
-        previous = current;
+        if (previousNear || currentNear) {
+          previousOffset ??= _offset(
+            points[i - 1].point.latitude,
+            points[i - 1].point.longitude,
+          );
+          final current = _offset(p.point.latitude, p.point.longitude);
+          final band = _bandFor(nowMs - p.timeMs);
+          (bands[band] ??= Path())
+            ..moveTo(previousOffset.dx, previousOffset.dy)
+            ..lineTo(current.dx, current.dy);
+          previousOffset = current;
+        } else {
+          previousOffset = null;
+        }
+        previousNear = currentNear;
       }
 
       final newest = bands.first;
@@ -95,16 +128,27 @@ class _TrailPainter extends CustomPainter {
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, _glowBlur),
         );
       }
-      for (var band = 0; band < _bands; band++) {
+      // Oldest first, so the freshest stretch is drawn on top.
+      for (var band = _bands - 1; band >= 0; band--) {
         final path = bands[band];
         if (path == null) continue;
-        final alpha = _maxAlpha * (1 - band / _bands);
         canvas.drawPath(
           path,
-          _stroke(style.color.withValues(alpha: alpha), _strokeWidth),
+          _stroke(style.color.withValues(alpha: _alphaFor(band)), _strokeWidth),
         );
       }
     }
+  }
+
+  static int _bandFor(int ageMs) {
+    final band = ageMs <= 0 ? 0 : ageMs ~/ _bandSpanMs;
+    return band >= _recentBands ? _bands - 1 : band;
+  }
+
+  static double _alphaFor(int band) {
+    if (band >= _recentBands) return _olderAlpha;
+    final t = band / (_recentBands - 1);
+    return _newestAlpha + (_recentFloorAlpha - _newestAlpha) * t;
   }
 
   Offset _offset(double latitude, double longitude) =>

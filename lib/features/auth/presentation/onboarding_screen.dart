@@ -5,7 +5,9 @@ import '../../../core/errors/result.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/brand_mark.dart';
 import '../../../core/widgets/glow_button.dart';
+import '../domain/display_name_rules.dart';
 import 'providers/auth_providers.dart';
+import 'widgets/display_name_field.dart';
 
 /// First-run screen: capture an optional display name, then sign in
 /// anonymously.
@@ -31,13 +33,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _continue() async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || !DisplayNameRules.isValid(_nameController.text)) {
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => _isSubmitting = true);
 
     final repository = ref.read(authRepositoryProvider);
     final result = await repository.signInAnonymously(
-      displayName: _nameController.text,
+      displayName: DisplayNameRules.clean(_nameController.text),
     );
 
     if (!mounted) return;
@@ -79,24 +83,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 'What should your group call you?',
                 style: theme.textTheme.titleMedium,
               ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
+              const SizedBox(height: AppSpacing.lg),
+              DisplayNameField(
                 controller: _nameController,
                 enabled: !_isSubmitting,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.done,
-                maxLength: 40,
-                onSubmitted: (_) => _continue(),
-                decoration: const InputDecoration(
-                  hintText: 'Display name (optional)',
-                  counterText: '',
-                ),
+                onSubmitted: _continue,
               ),
               const Spacer(),
-              GlowButton(
-                label: 'Start',
-                isLoading: _isSubmitting,
-                onPressed: _isSubmitting ? null : _continue,
+              // Disabled until the name is acceptable, so it cannot be tapped
+              // early.
+              ListenableBuilder(
+                listenable: _nameController,
+                builder: (context, _) => GlowButton(
+                  label: 'Continue',
+                  isLoading: _isSubmitting,
+                  onPressed: DisplayNameRules.isValid(_nameController.text)
+                      ? _continue
+                      : null,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
             ],

@@ -21,7 +21,15 @@ class RideStageScreen extends ConsumerWidget {
     required this.title,
     required this.subtitle,
     required this.caption,
+    this.leading,
+    this.actions = const [],
   });
+
+  /// Shown above the title, for example an animated badge.
+  final Widget? leading;
+
+  /// Buttons shown below the caption.
+  final List<Widget> actions;
 
   final String roomCode;
 
@@ -49,6 +57,10 @@ class RideStageScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (leading != null) ...[
+                      leading!,
+                      const SizedBox(height: AppSpacing.xxl),
+                    ],
                     Text(
                       title,
                       textAlign: TextAlign.center,
@@ -70,6 +82,10 @@ class RideStageScreen extends ConsumerWidget {
                         color: AppColors.textTertiary,
                       ),
                     ),
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xxl),
+                      ...actions,
+                    ],
                   ],
                 ),
               ),

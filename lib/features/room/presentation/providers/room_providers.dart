@@ -1,9 +1,11 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/errors/result.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../data/firebase_room_repository.dart';
 import '../../domain/room.dart';
+import '../../domain/room_preview.dart';
 import '../../domain/room_repository.dart';
 
 /// Exposes the [FirebaseDatabase] singleton as an overridable dependency so
@@ -31,6 +33,18 @@ final roomRepositoryProvider = Provider<RoomRepository>((ref) {
 final roomStreamProvider =
     StreamProvider.autoDispose.family<Room?, String>((ref, code) {
   return ref.watch(roomRepositoryProvider).watchRoom(code: code);
+});
+
+/// A look at the room with `code` before joining: its name, how many riders
+/// are in it and whether it still takes new ones. Read once per code (no live
+/// listener); a failure surfaces as an error holding the [Failure].
+final roomPreviewProvider =
+    FutureProvider.autoDispose.family<RoomPreview, String>((ref, code) async {
+  final result = await ref.watch(roomRepositoryProvider).previewRoom(code: code);
+  return switch (result) {
+    Success(:final value) => value,
+    Failed(:final failure) => throw failure,
+  };
 });
 
 /// Maintains the current rider's presence in the given room while watched.

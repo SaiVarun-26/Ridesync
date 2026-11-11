@@ -45,6 +45,23 @@ class FollowCameraController {
     MapEventSource.flingAnimationController,
   };
 
+  /// Height at the bottom of the map covered by the ride panel, in pixels.
+  double _bottomInset = 0;
+  Duration? _insetChangedAt;
+
+  double get bottomInset => _bottomInset;
+
+  /// How long the camera keeps following after the inset changes, so the
+  /// rider glides to their new spot as the panel opens or closes.
+  static const Duration _insetSettle = Duration(milliseconds: 450);
+
+  /// Tells the camera how much of the map's bottom is covered.
+  void setBottomInset(double value, Duration now) {
+    if ((value - _bottomInset).abs() < 0.5) return;
+    _bottomInset = value;
+    _insetChangedAt = now;
+  }
+
   Duration? _pausedAt;
   Duration? _returnStart;
   LatLng? _returnFrom;
@@ -52,14 +69,16 @@ class FollowCameraController {
   /// Whether the camera will move this frame (following, or easing back).
   bool isActive(Duration now) => _pausedAt == null || _shouldResume(now);
 
-  /// Whether the camera is still easing at [now]: returning after a pan, or
-  /// catching up to a new heading. False while paused, so an idle paused map
-  /// renders no frames.
+  /// Whether the camera is still easing at [now]: returning after a pan,
+  /// catching up to a new heading, or adjusting to the panel. False while
+  /// paused, so an idle paused map renders no frames.
   bool isEasing(Duration now) {
     if (_pausedAt != null) return false;
     final returning =
         _returnStart != null && now - _returnStart! < _returnDuration;
-    return returning || _heading.isSettling;
+    final insetChanging =
+        _insetChangedAt != null && now - _insetChangedAt! < _insetSettle;
+    return returning || insetChanging || _heading.isSettling;
   }
 
   /// Reports a map event; manual pans pause following and rotating.
@@ -89,7 +108,10 @@ class FollowCameraController {
     // direction of travel at the top of the screen.
     final rotation = smoothed == null ? camera.rotation : -smoothed;
 
-    final goal = _centerFor(LatLng(target.latitude, target.longitude), rotation);
+    final goal = _centerFor(
+      LatLng(target.latitude, target.longitude),
+      rotation,
+    );
     final center = _easedCenter(goal, now);
 
     final rotationChanged =
@@ -111,10 +133,17 @@ class FollowCameraController {
   /// height when the map is rotated by [rotationDegrees].
   LatLng _centerFor(LatLng rider, double rotationDegrees) {
     final camera = _map.camera;
-    final below = camera.nonRotatedSize.height * (_riderHeightFraction - 0.5);
+    // Only the part of the map above the bottom panel counts as visible, so
+    // the rider stays clear of the panel however far it is opened.
+    final height = camera.nonRotatedSize.height;
+    final visible = math.max(height - bottomInset, height / 2);
+    final below = visible * _riderHeightFraction - height / 2;
     final theta = rotationDegrees * math.pi / 180;
     // The screen offset (0, below) expressed in unrotated map pixels.
-    final worldOffset = Offset(below * math.sin(theta), below * math.cos(theta));
+    final worldOffset = Offset(
+      below * math.sin(theta),
+      below * math.cos(theta),
+    );
     final riderPixels = camera.projectAtZoom(rider, camera.zoom);
     return camera.unprojectAtZoom(riderPixels - worldOffset, camera.zoom);
   }

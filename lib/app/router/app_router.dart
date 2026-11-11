@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/splash_screen.dart';
+import '../../features/history/presentation/providers/ride_transition_providers.dart';
+import '../../features/history/presentation/ride_details_screen.dart';
+import '../../features/history/presentation/ride_history_screen.dart';
 import '../../features/ride/presentation/planning_screen.dart';
 import '../../features/ride/presentation/ride_initialization_screen.dart';
 import '../../features/ride/presentation/ride_map_screen.dart';
@@ -17,6 +20,7 @@ import '../../features/room/presentation/home_screen.dart';
 import '../../features/room/presentation/join_ride_screen.dart';
 import '../../features/room/presentation/lobby_screen.dart';
 import 'app_routes.dart';
+import 'container_transform.dart';
 
 /// Provides the app's [GoRouter].
 ///
@@ -45,6 +49,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.home,
         name: AppRoutes.homeName,
         pageBuilder: (context, state) => _fade(state, const HomeScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.history,
+        name: AppRoutes.historyName,
+        pageBuilder: (context, state) =>
+            _fade(state, const RideHistoryScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.historyDetails,
+        name: AppRoutes.historyDetailsName,
+        pageBuilder: (context, state) {
+          final code = state.pathParameters['code'] ?? '';
+          // Grows out of the history card that was tapped.
+          return containerTransformPage(
+            state: state,
+            origin: ref.read(rideTransitionOriginProvider),
+            child: RideDetailsScreen(roomCode: code),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.create,
@@ -148,9 +171,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       );
     },
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(child: Text('Route not found: ${state.uri}')),
-    ),
+    errorBuilder: (context, state) =>
+        Scaffold(body: Center(child: Text('Route not found: ${state.uri}'))),
   );
 });
 

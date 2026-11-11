@@ -20,6 +20,25 @@ abstract final class RideFormat {
   static String speed(double metersPerSecond) =>
       '${(metersPerSecond * _kmhPerMps).round()} km/h';
 
+  static const List<String> _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  /// "7 Nov 2026".
+  static String date(DateTime value) =>
+      '${value.day} ${_months[value.month - 1]} ${value.year}';
+
+  /// "6:42 PM".
+  static String time(DateTime value) {
+    final hour = value.hour % 12 == 0 ? 12 : value.hour % 12;
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour:$minute ${value.hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  /// "+0:05" style gap behind the first finisher.
+  static String gap(Duration value) => '+${duration(value)}';
+
   /// "12:04", or "1:12:04" once past an hour.
   static String duration(Duration value) {
     final total = value.inSeconds;

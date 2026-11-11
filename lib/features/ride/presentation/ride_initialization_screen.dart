@@ -58,7 +58,9 @@ class _RideInitializationScreenState
   /// e.g. a location permission granted in Settings.
   void _onResume() {
     final args = _args;
-    if (args != null) ref.read(rideInitControllerProvider(args).notifier).retry();
+    if (args != null) {
+      ref.read(rideInitControllerProvider(args).notifier).retry();
+    }
   }
 
   @override
@@ -284,7 +286,9 @@ class _StatusLine extends StatelessWidget {
             height: _spinnerSize,
             child: CircularProgressIndicator(
               strokeWidth: _strokeWidth,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.textSecondary),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.textSecondary,
+              ),
             ),
           )
         else

@@ -36,8 +36,8 @@ typedef RideInitArgs = ({String code, RideMode mode});
 /// initialization screen closes.
 final rideInitControllerProvider = NotifierProvider.autoDispose
     .family<RideInitController, RideInitState, RideInitArgs>(
-  RideInitController.new,
-);
+      RideInitController.new,
+    );
 
 /// What the initialization screen shows for the current rider.
 class RideInitState {

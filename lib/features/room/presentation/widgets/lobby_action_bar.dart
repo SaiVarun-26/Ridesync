@@ -9,7 +9,7 @@ import '../../domain/room_member.dart';
 
 /// The lobby's bottom action area.
 ///
-/// The host sees the live ready count and a Continue button that stays
+/// The host sees the live ready count and a Start Ride button that stays
 /// disabled until every rider is ready. Every other rider sees a Ready toggle.
 /// Anchored to the bottom so the primary action is always in thumb reach.
 class LobbyActionBar extends StatelessWidget {
@@ -83,10 +83,10 @@ class _HostControls extends StatelessWidget {
     final theme = Theme.of(context);
     final hostHasColor = room.host?.hasColor ?? false;
     final hint = !hostHasColor
-        ? 'Pick your color to continue.'
+        ? 'Pick your color to start the ride.'
         : room.everyoneReady
-            ? 'Everyone is ready.'
-            : 'Waiting for every rider to be ready.';
+            ? 'Everyone is ready. Starting the ride closes the room.'
+            : 'Waiting for every rider to be ready. Riders can still join.';
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -114,7 +114,7 @@ class _HostControls extends StatelessWidget {
         _Hint(text: hint),
         const SizedBox(height: AppSpacing.lg),
         GlowButton(
-          label: 'Continue →',
+          label: 'Start Ride',
           isLoading: isBusy,
           onPressed: room.canContinue ? onContinue : null,
         ),

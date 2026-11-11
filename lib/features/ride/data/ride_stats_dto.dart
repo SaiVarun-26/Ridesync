@@ -28,6 +28,7 @@ abstract final class RideStatsPaths {
 
   // rideRoutes fields
   static const String polyline = 'polyline';
+  static const String speeds = 'speeds';
 
   const RideStatsPaths._();
 }

@@ -8,6 +8,7 @@ import '../../auth/domain/app_user.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../domain/ride_mode.dart';
 import '../domain/room.dart';
+import '../domain/room_preview.dart';
 import '../domain/room_repository.dart';
 import '../domain/room_status.dart';
 import 'room_code_generator.dart';
@@ -109,19 +110,44 @@ class FirebaseRoomRepository implements RoomRepository {
     }
 
     try {
-      final metaSnapshot =
-          await _roomRef(normalized).child(RoomPaths.meta).get();
-      if (!metaSnapshot.exists) {
+      final current = RoomDto.fromSnapshot(
+        normalized,
+        (await _roomRef(normalized).get()).value,
+      );
+      if (current == null) {
         return const Failed(
           NotFoundFailure(message: 'No ride found for that code.'),
         );
       }
 
-      await _writeMembership(
-        code: normalized,
-        uid: user.uid,
-        displayName: user.displayName,
-      );
+      final isMember = current.memberByUid(user.uid) != null;
+      if (isMember) {
+        // Coming back into a room they are already in: just mark them online.
+        // Their ready state and color are left as they were.
+        final memberRef =
+            _roomRef(normalized).child(RoomPaths.members).child(user.uid);
+        await memberRef.update(<String, Object?>{RoomPaths.memberOnline: true});
+        await _armDisconnectHandler(memberRef);
+      } else {
+        // New riders are welcome until the host starts the ride.
+        if (current.status != RoomStatus.lobby) {
+          return const Failed(RoomLockedFailure());
+        }
+        try {
+          await _writeMembership(
+            code: normalized,
+            uid: user.uid,
+            displayName: user.displayName,
+          );
+        } on FirebaseException catch (e) {
+          // The host may have started the ride between our check and our
+          // write; the security rules then refuse the new member.
+          if (e.code == _permissionDenied && await _isLocked(normalized)) {
+            return const Failed(RoomLockedFailure());
+          }
+          rethrow;
+        }
+      }
 
       final snapshot = await _roomRef(normalized).get();
       final room = RoomDto.fromSnapshot(normalized, snapshot.value);
@@ -134,6 +160,51 @@ class FirebaseRoomRepository implements RoomRepository {
     } catch (e, stack) {
       return Failed(_unexpected(e, stack));
     }
+  }
+
+  @override
+  Future<Result<RoomPreview>> previewRoom({required String code}) async {
+    final normalized = code.trim().toUpperCase();
+    if (!RoomCodeGenerator.isValid(normalized)) {
+      return const Failed(
+        NotFoundFailure(message: 'That code looks invalid. Check and retry.'),
+      );
+    }
+    final uid = _authRepository.currentUser?.uid;
+    try {
+      final room = RoomDto.fromSnapshot(
+        normalized,
+        (await _roomRef(normalized).get()).value,
+      );
+      if (room == null) {
+        return const Failed(
+          NotFoundFailure(message: 'No ride found for that code.'),
+        );
+      }
+      return Success(
+        RoomPreview(
+          code: room.code,
+          name: room.name,
+          riderCount: room.members.length,
+          isOpen: room.status == RoomStatus.lobby,
+          isMember: uid != null && room.memberByUid(uid) != null,
+        ),
+      );
+    } on FirebaseException catch (e, stack) {
+      return Failed(_mapDbException(e, stack));
+    } catch (e, stack) {
+      return Failed(_unexpected(e, stack));
+    }
+  }
+
+  /// Whether the host has already started the ride in room [code].
+  Future<bool> _isLocked(String code) async {
+    final status = (await _roomRef(code)
+            .child(RoomPaths.meta)
+            .child(RoomPaths.metaStatus)
+            .get())
+        .value;
+    return RoomStatus.fromWire(status as String?) != RoomStatus.lobby;
   }
 
   @override
