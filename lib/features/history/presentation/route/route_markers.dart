@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_icon.dart';
 
 /// Marks where a ride started: a bright dot with a play arrow.
 class StartMarker extends StatelessWidget {
-  const StartMarker({super.key, this.color = AppColors.neonGreen});
+  const StartMarker({super.key, this.color = AppColors.primary});
 
   final Color color;
 
@@ -19,17 +20,10 @@ class StartMarker extends StatelessWidget {
         shape: BoxShape.circle,
         color: color,
         border: Border.all(color: Colors.white, width: 2.5),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.55),
-            blurRadius: 12,
-            spreadRadius: -2,
-          ),
-        ],
       ),
       child: const Icon(
         Icons.play_arrow_rounded,
-        size: 18,
+        size: AppIconSize.medium,
         color: AppColors.background,
       ),
     );
@@ -120,7 +114,7 @@ class _FlagPainter extends CustomPainter {
 
 /// Marks a place where the rider turned around.
 class UTurnMarker extends StatelessWidget {
-  const UTurnMarker({super.key, this.color = AppColors.yellow});
+  const UTurnMarker({super.key, this.color = AppColors.textSecondary});
 
   final Color color;
 
@@ -133,13 +127,17 @@ class UTurnMarker extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.surfaceElevated,
+        color: AppColors.surfaceRaised,
         border: Border.all(color: color, width: 2),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 8),
         ],
       ),
-      child: Icon(Icons.u_turn_left_rounded, size: 16, color: color),
+      child: Icon(
+        Icons.u_turn_left_rounded,
+        size: AppIconSize.small,
+        color: color,
+      ),
     );
   }
 }

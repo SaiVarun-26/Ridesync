@@ -23,20 +23,23 @@ class RtdbRideStatsRepository implements RideStatsRepository {
   RtdbRideStatsRepository({
     required FirebaseDatabase database,
     required AuthRepository auth,
-  })  : _database = database,
-        _auth = auth;
+  }) : _database = database,
+       _auth = auth;
 
   final FirebaseDatabase _database;
   final AuthRepository _auth;
 
-  static const Failure _signedOut =
-      AuthFailure(message: 'You must be signed in.');
+  static const Failure _signedOut = AuthFailure(
+    message: 'You must be signed in.',
+  );
 
   @override
   Future<Result<RideStats?>> loadMine({required String code}) {
     return _run<RideStats?>((uid) async {
-      final snapshot =
-          await _database.ref(RideStatsPaths.stats(code)).child(uid).get();
+      final snapshot = await _database
+          .ref(RideStatsPaths.stats(code))
+          .child(uid)
+          .get();
       return RideStatsDto.fromValue(snapshot.value);
     });
   }
@@ -57,8 +60,10 @@ class RtdbRideStatsRepository implements RideStatsRepository {
   @override
   Future<Result<RecordedPath>> loadMyRoute({required String code}) {
     return _run<RecordedPath>((uid) async {
-      final snapshot =
-          await _database.ref(RideStatsPaths.routes(code)).child(uid).get();
+      final snapshot = await _database
+          .ref(RideStatsPaths.routes(code))
+          .child(uid)
+          .get();
       final value = snapshot.value;
       if (value is! Map) return const RecordedPath();
       final encoded = value[RideStatsPaths.polyline];
@@ -114,13 +119,10 @@ class RtdbRideStatsRepository implements RideStatsRepository {
             ref.onChildChanged.listen(onUpsert, onError: controller.addError),
           )
           ..add(
-            ref.onChildRemoved.listen(
-              (event) {
-                final uid = event.snapshot.key;
-                if (uid != null && current.remove(uid) != null) emit();
-              },
-              onError: controller.addError,
-            ),
+            ref.onChildRemoved.listen((event) {
+              final uid = event.snapshot.key;
+              if (uid != null && current.remove(uid) != null) emit();
+            }, onError: controller.addError),
           );
       },
       onCancel: () async {

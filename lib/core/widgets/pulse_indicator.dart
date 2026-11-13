@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 /// A small dot that breathes in and out, signalling that the app is waiting on
 /// someone else (for example, the host). Calmer than a spinner.
 class PulseIndicator extends StatefulWidget {
   const PulseIndicator({
     super.key,
-    this.color = AppColors.route,
+    this.color = AppColors.primary,
     this.size = defaultSize,
   });
 
@@ -23,18 +24,17 @@ class PulseIndicator extends StatefulWidget {
 
 class _PulseIndicatorState extends State<PulseIndicator>
     with SingleTickerProviderStateMixin {
-  static const Duration _period = Duration(milliseconds: 1200);
   static const double _minOpacity = 0.35;
-  static const double _glowAlpha = 0.6;
 
-  late final AnimationController _controller =
-      AnimationController(vsync: this, duration: _period)
-        ..repeat(reverse: true);
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: AppMotion.breath,
+  )..repeat(reverse: true);
 
   late final Animation<double> _opacity = Tween<double>(
     begin: _minOpacity,
     end: 1,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  ).animate(CurvedAnimation(parent: _controller, curve: AppMotion.ambient));
 
   @override
   void dispose() {
@@ -49,17 +49,29 @@ class _PulseIndicatorState extends State<PulseIndicator>
       child: Container(
         width: widget.size,
         height: widget.size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: widget.color,
-          boxShadow: [
-            BoxShadow(
-              color: widget.color.withValues(alpha: _glowAlpha),
-              blurRadius: widget.size,
-            ),
-          ],
-        ),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: widget.color),
       ),
+    );
+  }
+}
+
+/// The small dot at the front of every status pill: it breathes while the
+/// thing it describes is [live], and sits still otherwise.
+class StatusDot extends StatelessWidget {
+  const StatusDot({super.key, required this.color, this.live = false});
+
+  final Color color;
+  final bool live;
+
+  static const double size = 7;
+
+  @override
+  Widget build(BuildContext context) {
+    if (live) return PulseIndicator(color: color, size: size);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }

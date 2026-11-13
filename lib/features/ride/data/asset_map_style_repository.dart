@@ -10,7 +10,8 @@ import '../domain/map_style_repository.dart';
 /// cached after the first load, so initialization pays the cost once and the
 /// map receives it instantly.
 class AssetMapStyleRepository implements MapStyleRepository {
-  AssetMapStyleRepository({AssetBundle? bundle}) : _bundle = bundle ?? rootBundle;
+  AssetMapStyleRepository({AssetBundle? bundle})
+    : _bundle = bundle ?? rootBundle;
 
   final AssetBundle _bundle;
   Future<String>? _nightStyle;

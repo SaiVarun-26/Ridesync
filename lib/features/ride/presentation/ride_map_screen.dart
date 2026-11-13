@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/ride_loader.dart';
 import '../../../core/theme/rider_palette.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../room/domain/room.dart';
@@ -13,7 +14,6 @@ import '../../room/domain/room_status.dart';
 import '../../room/presentation/providers/room_providers.dart';
 import '../../room/presentation/room_flow.dart';
 import '../../room/presentation/widgets/room_exit_scope.dart';
-import '../../room/presentation/widgets/room_state_views.dart';
 import 'map/marker_interpolator.dart';
 import 'map/osm_map_widget.dart';
 import 'map/trail_layer.dart';
@@ -27,7 +27,7 @@ import 'widgets/rider_info_card.dart';
 
 /// The Free Roam live map for room [roomCode].
 ///
-/// Every rider appears as a glowing dot in their color with a fading trail;
+/// Every rider appears as a dot in their color with a fading trail;
 /// positions sync in real time and the camera follows this rider. All ride
 /// logic lives in [RideMapController]; this screen only lays out the map and
 /// its two overlays.
@@ -117,18 +117,27 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
           body: Stack(
             children: [
               Positioned.fill(
-                child: fix == null
-                    ? const _Locating()
-                    : OsmMapWidget(
-                        initialCenter: fix.point,
-                        markers: _markers(map),
-                        trails: _trails(map),
-                        nowMs: map.nowMs,
-                        myUid: myUid,
-                        riderCardBuilder: (uid) =>
-                            RiderInfoCard(roomCode: roomCode, uid: uid),
-                        bottomInset: _panelInset,
-                      ),
+                // The map fades in over the loader once the first fix lands.
+                child: AnimatedSwitcher(
+                  duration: AppMotion.slow,
+                  switchInCurve: AppMotion.curve,
+                  switchOutCurve: AppMotion.exit,
+                  child: fix == null
+                      ? const _Locating(key: ValueKey('locating'))
+                      : RepaintBoundary(
+                          key: const ValueKey('map'),
+                          child: OsmMapWidget(
+                            initialCenter: fix.point,
+                            markers: _markers(map),
+                            trails: _trails(map),
+                            nowMs: map.nowMs,
+                            myUid: myUid,
+                            riderCardBuilder: (uid) =>
+                                RiderInfoCard(roomCode: roomCode, uid: uid),
+                            bottomInset: _panelInset,
+                          ),
+                        ),
+                ),
               ),
               SafeArea(
                 child: Padding(
@@ -177,7 +186,9 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                 child: IgnorePointer(
                   ignoring: progress == null,
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 320),
+                    duration: AppMotion.slow,
+                    switchInCurve: AppMotion.curve,
+                    switchOutCurve: AppMotion.exit,
                     child: progress == null
                         ? const SizedBox.shrink(key: ValueKey('no-overlay'))
                         : RideEndingOverlay(
@@ -228,13 +239,11 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
 }
 
 class _Locating extends StatelessWidget {
-  const _Locating();
+  const _Locating({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: RoomMessageView(message: 'Finding your position…'),
-    );
+    return const RideLoaderMessage(message: 'Finding your position…');
   }
 }
 

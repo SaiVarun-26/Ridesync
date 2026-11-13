@@ -86,7 +86,8 @@ class RideStatsTracker {
       return true;
     }
 
-    final isTopSpeed = speed > current.maxSpeedMps && speed <= maxPlausibleSpeedMps;
+    final isTopSpeed =
+        speed > current.maxSpeedMps && speed <= maxPlausibleSpeedMps;
     _stats = sampled.copyWith(
       distanceMeters: current.distanceMeters + meters,
       movingTimeMs: current.movingTimeMs + math.min(dtMs, maxMovingCreditMs),

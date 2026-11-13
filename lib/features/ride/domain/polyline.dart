@@ -63,7 +63,10 @@ List<GeoPoint> decodePolyline(String encoded) {
     latitude += dLat;
     longitude += dLng;
     points.add(
-      GeoPoint(latitude: latitude / precision, longitude: longitude / precision),
+      GeoPoint(
+        latitude: latitude / precision,
+        longitude: longitude / precision,
+      ),
     );
   }
   return points;

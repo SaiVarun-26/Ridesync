@@ -11,11 +11,7 @@
 /// V1 captures no image and performs no upload — but the field is modelled now
 /// so the durable profile schema is stable.
 class AppUser {
-  const AppUser({
-    required this.uid,
-    this.displayName,
-    this.photoUrl,
-  });
+  const AppUser({required this.uid, this.displayName, this.photoUrl});
 
   /// The stable, immutable Firebase user id. Present for anonymous users too.
   final String uid;
@@ -45,8 +41,9 @@ class AppUser {
       displayName: identical(displayName, _unset)
           ? this.displayName
           : displayName as String?,
-      photoUrl:
-          identical(photoUrl, _unset) ? this.photoUrl : photoUrl as String?,
+      photoUrl: identical(photoUrl, _unset)
+          ? this.photoUrl
+          : photoUrl as String?,
     );
   }
 

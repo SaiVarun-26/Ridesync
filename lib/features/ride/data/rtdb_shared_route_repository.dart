@@ -13,7 +13,7 @@ import 'route_dto.dart';
 /// while the ride is being planned.
 class RtdbSharedRouteRepository implements SharedRouteRepository {
   RtdbSharedRouteRepository({required FirebaseDatabase database})
-      : _database = database;
+    : _database = database;
 
   final FirebaseDatabase _database;
 

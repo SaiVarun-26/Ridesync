@@ -106,6 +106,6 @@ abstract final class RoomDto {
   static int? _asInt(Object? value) => value is int
       ? value
       : value is num
-          ? value.toInt()
-          : null;
+      ? value.toInt()
+      : null;
 }

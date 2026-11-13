@@ -4,6 +4,8 @@ import 'package:flutter/animation.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
+import '../../../../core/theme/app_spacing.dart';
+
 import '../../domain/geo_point.dart';
 import '../../domain/live/heading_smoother.dart';
 
@@ -159,7 +161,7 @@ class FollowCameraController {
       _returnStart = null;
       return goal;
     }
-    final eased = Curves.easeOutCubic.transform(t);
+    final eased = AppMotion.curve.transform(t);
     return LatLng(
       from.latitude + (goal.latitude - from.latitude) * eased,
       from.longitude + (goal.longitude - from.longitude) * eased,

@@ -103,3 +103,22 @@ abstract final class AppTypography {
 
   const AppTypography._();
 }
+
+/// The few font sizes used outside the theme's text styles. Everything else
+/// comes from `Theme.of(context).textTheme`.
+abstract final class AppTypeScale {
+  /// Tiny uppercase labels above stat values.
+  static const double micro = 10;
+
+  /// A value inside a row or a small stat.
+  static const double statSmall = 16;
+
+  /// Every button label.
+  static const double button = 16;
+
+  /// Text typed into a field, and short page-level messages.
+  static const double title = 22;
+
+  /// A ride name on its details page.
+  static const double headline = 26;
+}

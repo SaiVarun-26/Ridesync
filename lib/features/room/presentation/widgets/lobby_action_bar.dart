@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/glow_button.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../domain/room.dart';
 import '../../domain/room_member.dart';
 
@@ -41,7 +41,7 @@ class LobbyActionBar extends StatelessWidget {
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: AppColors.background,
-        border: Border(top: BorderSide(color: AppColors.divider)),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
         top: false,
@@ -53,7 +53,11 @@ class LobbyActionBar extends StatelessWidget {
             AppSpacing.lg,
           ),
           child: rider.isHost
-              ? _HostControls(room: room, isBusy: isBusy, onContinue: onContinue)
+              ? _HostControls(
+                  room: room,
+                  isBusy: isBusy,
+                  onContinue: onContinue,
+                )
               : _RiderControls(
                   rider: rider,
                   isBusy: isBusy,
@@ -85,8 +89,8 @@ class _HostControls extends StatelessWidget {
     final hint = !hostHasColor
         ? 'Pick your color to start the ride.'
         : room.everyoneReady
-            ? 'Everyone is ready. Starting the ride closes the room.'
-            : 'Waiting for every rider to be ready. Riders can still join.';
+        ? 'Everyone is ready. Others can still join once you start.'
+        : 'Waiting for every rider to be ready. Riders can still join.';
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -113,7 +117,7 @@ class _HostControls extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         _Hint(text: hint),
         const SizedBox(height: AppSpacing.lg),
-        GlowButton(
+        AppButton(
           label: 'Start Ride',
           isLoading: isBusy,
           onPressed: room.canContinue ? onContinue : null,
@@ -156,14 +160,14 @@ class _RiderControls extends StatelessWidget {
           switchInCurve: AppMotion.curve,
           switchOutCurve: AppMotion.curve,
           child: rider.isReady
-              ? GlowButton(
+              ? AppButton(
                   key: const ValueKey<bool>(true),
                   label: '✓ Ready',
-                  variant: GlowButtonVariant.secondary,
+                  variant: AppButtonVariant.secondary,
                   isLoading: isBusy,
                   onPressed: onToggleReady,
                 )
-              : GlowButton(
+              : AppButton(
                   key: const ValueKey<bool>(false),
                   label: 'Ready',
                   isLoading: isBusy,
@@ -187,9 +191,8 @@ class _Hint extends StatelessWidget {
       child: Text(
         text,
         key: ValueKey<String>(text),
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AppColors.textSecondary),
       ),
     );
   }

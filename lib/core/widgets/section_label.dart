@@ -16,9 +16,9 @@ class SectionLabel extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: AppColors.textTertiary,
-            letterSpacing: _letterSpacing,
-          ),
+        color: AppColors.textTertiary,
+        letterSpacing: _letterSpacing,
+      ),
     );
   }
 }

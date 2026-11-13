@@ -7,6 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../domain/geo_point.dart';
 import 'camera_controller.dart';
 import 'live_marker_layer.dart';
@@ -201,7 +202,8 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
         ),
         // Fades the card out when it closes; it scales and fades in itself.
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 160),
+          duration: AppMotion.fast,
+          switchOutCurve: AppMotion.exit,
           layoutBuilder: (current, previous) =>
               Stack(fit: StackFit.expand, children: [...previous, ?current]),
           child: _selectedUid == null
@@ -263,13 +265,14 @@ class _RiderCardLayer extends StatelessWidget {
             child: TweenAnimationBuilder<double>(
               key: ValueKey(uid),
               tween: Tween(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
+              duration: AppMotion.springDuration,
+              curve: AppMotion.spring,
               builder: (context, t, child) => Opacity(
-                opacity: t,
-                // Grows out of the dot it belongs to.
+                // Fades in over the first part of the spring.
+                opacity: (t * 1.6).clamp(0.0, 1.0),
+                // Springs out of the dot it belongs to.
                 child: Transform.scale(
-                  scale: 0.88 + 0.12 * t,
+                  scale: 0.82 + 0.18 * t,
                   alignment: Alignment.bottomCenter,
                   child: child,
                 ),

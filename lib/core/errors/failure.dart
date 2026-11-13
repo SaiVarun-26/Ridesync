@@ -35,17 +35,14 @@ class AuthFailure extends Failure {
 
 /// Requested resource (room, ride) does not exist.
 class NotFoundFailure extends Failure {
-  const NotFoundFailure({
-    String message = 'Not found.',
-    Object? cause,
-  }) : super(message, cause: cause);
+  const NotFoundFailure({String message = 'Not found.', Object? cause})
+    : super(message, cause: cause);
 }
 
-/// The room no longer takes new riders because the host has started the ride.
+/// The room no longer takes new riders because the host has ended the ride.
 class RoomLockedFailure extends Failure {
   const RoomLockedFailure({
-    String message =
-        'This ride has already started and is no longer taking riders.',
+    String message = 'This ride has finished and is no longer taking riders.',
     Object? cause,
   }) : super(message, cause: cause);
 }

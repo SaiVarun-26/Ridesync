@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 import 'heat_palette.dart';
 import 'route_scene.dart';
 
@@ -290,6 +291,8 @@ class SpeedLegend extends StatelessWidget {
   final String lowText;
   final String highText;
 
+  static final List<Color> _steps = HeatPalette.steps(16);
+
   @override
   Widget build(BuildContext context) {
     final label = Theme.of(context).textTheme.labelSmall
@@ -301,19 +304,25 @@ class SpeedLegend extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              height: 6,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
-                gradient: LinearGradient(colors: HeatPalette.gradient),
+            // A row of flat colour steps, slow to fast.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: SizedBox(
+                height: 6,
+                child: Row(
+                  children: [
+                    for (final color in _steps)
+                      Expanded(child: ColoredBox(color: color)),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(lowText, style: label),
-                const SizedBox(width: 16),
+                const SizedBox(width: AppSpacing.lg),
                 Text(highText, style: label),
               ],
             ),

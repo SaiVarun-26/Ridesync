@@ -28,8 +28,8 @@ class RideStatsService {
     required RideStatsRepository repository,
     required String roomCode,
     this.saveInterval = const Duration(seconds: 10),
-  })  : _repository = repository,
-        _roomCode = roomCode;
+  }) : _repository = repository,
+       _roomCode = roomCode;
 
   /// How often changed statistics are saved.
   final Duration saveInterval;
@@ -240,7 +240,8 @@ class RideStatsService {
     }
     // The periodic save only rewrites the route when it gained points. The
     // final save also makes sure the route ends exactly where the rider did.
-    final routeChanged = _route.version != _savedRouteVersion ||
+    final routeChanged =
+        _route.version != _savedRouteVersion ||
         (isFinal && _routeEndVersion != _statsVersion);
     if (includeRoute && routeChanged) {
       final version = _route.version;

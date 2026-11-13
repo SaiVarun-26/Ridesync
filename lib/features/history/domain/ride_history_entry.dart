@@ -21,11 +21,17 @@ class RideHistoryEntry {
     required this.maxSpeedMps,
     required this.riderCount,
     this.routePreview = const [],
+    this.previewSpeedsMps = const [],
   });
 
   /// A thinned copy of the rider's route for the card's miniature; empty for
   /// rides saved without one.
   final List<GeoPoint> routePreview;
+
+  /// The rider's speed at each point of [routePreview], in meters per second.
+  /// Empty when speeds were not recorded, and the miniature is then drawn in
+  /// one colour.
+  final List<double> previewSpeedsMps;
 
   /// The ride's room code, which also identifies its summary.
   final String code;
@@ -39,8 +45,12 @@ class RideHistoryEntry {
   final double maxSpeedMps;
   final int riderCount;
 
-  /// This entry with [points] (thinned) as its route miniature.
-  RideHistoryEntry withRoutePreview(List<GeoPoint> points) {
+  /// This entry with [points] (thinned) as its route miniature, and the
+  /// matching [speedsMps] if they were recorded.
+  RideHistoryEntry withRoutePreview(
+    List<GeoPoint> points, {
+    List<double> speedsMps = const [],
+  }) {
     return RideHistoryEntry(
       code: code,
       roomName: roomName,
@@ -53,6 +63,9 @@ class RideHistoryEntry {
       maxSpeedMps: maxSpeedMps,
       riderCount: riderCount,
       routePreview: RoutePreview.thin(points),
+      previewSpeedsMps: speedsMps.length == points.length
+          ? RoutePreview.thinValues(speedsMps)
+          : const [],
     );
   }
 

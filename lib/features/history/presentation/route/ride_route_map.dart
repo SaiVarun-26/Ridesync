@@ -7,7 +7,8 @@ import 'package:latlong2/latlong.dart' show LatLng;
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/glass_panel.dart';
+import '../../../../core/widgets/app_icon.dart';
+import '../../../../core/widgets/app_icon_button.dart';
 import '../../../ride/domain/live/ride_format.dart';
 import '../../../ride/presentation/map/night_tile_layer.dart';
 import '../../domain/ride_details.dart';
@@ -230,7 +231,7 @@ class RideRouteMapState extends State<RideRouteMap> {
   void _onCameraIntro() {
     final rest = _restCamera;
     if (rest == null || _cameraIntroDone) return;
-    final t = Curves.easeOutCubic.transform(widget.reveal.camera.value);
+    final t = AppMotion.curve.transform(widget.reveal.camera.value);
     _controller.move(rest.center, rest.zoom - _introZoomOut * (1 - t));
     if (widget.reveal.camera.value >= 1) _cameraIntroDone = true;
   }
@@ -332,9 +333,10 @@ class RideRouteMapState extends State<RideRouteMap> {
     Widget appear(Animation<double> animation, Widget child) => FadeTransition(
       opacity: animation,
       child: ScaleTransition(
-        scale: Tween<double>(begin: 0.6, end: 1).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-        ),
+        scale: Tween<double>(
+          begin: 0.6,
+          end: 1,
+        ).animate(CurvedAnimation(parent: animation, curve: AppMotion.spring)),
         child: child,
       ),
     );
@@ -380,7 +382,8 @@ class _MapButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _RoundButton(
+        AppIconButton(
+          glass: true,
           icon: Icons.fit_screen_rounded,
           tooltip: 'Show whole ride',
           onPressed: onFit,
@@ -399,14 +402,16 @@ class _MapButtons extends StatelessWidget {
                   ? Padding(
                       key: const ValueKey('north'),
                       padding: const EdgeInsets.only(top: AppSpacing.sm),
-                      child: _RoundButton(
+                      child: AppIconButton(
+                        glass: true,
+                        icon: Icons.navigation_rounded,
                         tooltip: 'Face north',
                         onPressed: onNorth,
                         child: Transform.rotate(
                           angle: -degrees * math.pi / 180,
                           child: const Icon(
                             Icons.navigation_rounded,
-                            size: 20,
+                            size: AppIconSize.medium,
                             color: AppColors.textPrimary,
                           ),
                         ),
@@ -417,43 +422,6 @@ class _MapButtons extends StatelessWidget {
           },
         ),
       ],
-    );
-  }
-}
-
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({
-    required this.tooltip,
-    required this.onPressed,
-    this.icon,
-    this.child,
-  });
-
-  final String tooltip;
-  final VoidCallback onPressed;
-  final IconData? icon;
-  final Widget? child;
-
-  static const double _size = 44;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onPressed,
-        child: SizedBox.square(
-          dimension: _size,
-          child: GlassPanel(
-            padding: EdgeInsets.zero,
-            radius: _size,
-            child: Center(
-              child:
-                  child ?? Icon(icon, size: 20, color: AppColors.textPrimary),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -1,16 +1,35 @@
-import 'package:flutter/painting.dart';
+import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 
-/// The speed colours: blue (slow) through green, yellow and orange to red
-/// (fast), blended smoothly in between.
+/// The speed colours of a route, all in the RideSync purple: a quiet, greyed
+/// purple when slow, the brand purple at pace, and a bright lifted purple when
+/// fast. One hue, so a route reads as part of the app rather than a rainbow,
+/// with enough change in brightness to show where the ride was quick.
+///
+/// Routes are drawn in short solid segments, each in the colour for its speed,
+/// so the ramp reads as smooth while every stroke stays one flat colour.
 abstract final class HeatPalette {
-  static const List<Color> _stops = [
-    AppColors.route, // blue
-    AppColors.neonGreen,
-    AppColors.yellow,
-    AppColors.orange,
-    Color(0xFFFF3B3B), // red
+  /// The brightest, fastest tone: the brand purple lifted toward white.
+  static final Color fastest = Color.lerp(
+    AppColors.primary,
+    Colors.white,
+    0.45,
+  )!;
+
+  /// The slowest tone: the brand purple faded toward grey, still clear on the
+  /// night map.
+  static final Color slowest = Color.lerp(
+    AppColors.primary,
+    AppColors.textSecondary,
+    0.7,
+  )!;
+
+  static final List<Color> _stops = [
+    slowest,
+    Color.lerp(AppColors.primary, AppColors.textSecondary, 0.35)!,
+    AppColors.primary,
+    fastest,
   ];
 
   /// The colour for a position [t] from 0 (slowest) to 1 (fastest).
@@ -20,9 +39,6 @@ abstract final class HeatPalette {
     final index = scaled.floor().clamp(0, _stops.length - 2);
     return Color.lerp(_stops[index], _stops[index + 1], scaled - index)!;
   }
-
-  /// The colours of a legend bar, slowest first.
-  static List<Color> get gradient => _stops;
 
   /// [steps] evenly spaced colours, slowest first. Computed once by callers
   /// that group route segments by colour.

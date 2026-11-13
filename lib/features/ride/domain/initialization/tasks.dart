@@ -12,8 +12,8 @@ import 'init_task.dart';
 /// proof that this rider is in sync with the group.
 class RoomSyncTask implements InitTask {
   RoomSyncTask({required RoomRepository rooms, required String roomCode})
-      : _rooms = rooms,
-        _roomCode = roomCode;
+    : _rooms = rooms,
+      _roomCode = roomCode;
 
   final RoomRepository _rooms;
   final String _roomCode;
@@ -46,20 +46,14 @@ class RoomSyncTask implements InitTask {
 
     controller = StreamController<InitTaskUpdate>(
       onListen: () {
-        connectionSub = _rooms.watchConnection().listen(
-          (value) {
-            connected = value;
-            evaluate();
-          },
-          onError: controller.addError,
-        );
-        roomSub = _rooms.watchRoom(code: _roomCode).listen(
-          (room) {
-            hasRoom = room != null;
-            evaluate();
-          },
-          onError: controller.addError,
-        );
+        connectionSub = _rooms.watchConnection().listen((value) {
+          connected = value;
+          evaluate();
+        }, onError: controller.addError);
+        roomSub = _rooms.watchRoom(code: _roomCode).listen((room) {
+          hasRoom = room != null;
+          evaluate();
+        }, onError: controller.addError);
       },
       onCancel: () async {
         await connectionSub?.cancel();
@@ -76,9 +70,9 @@ class RiderIdentityTask implements InitTask {
     required AuthRepository auth,
     required RoomRepository rooms,
     required String roomCode,
-  })  : _auth = auth,
-        _rooms = rooms,
-        _roomCode = roomCode;
+  }) : _auth = auth,
+       _rooms = rooms,
+       _roomCode = roomCode;
 
   final AuthRepository _auth;
   final RoomRepository _rooms;
@@ -110,7 +104,7 @@ class RiderIdentityTask implements InitTask {
 /// Makes sure the app may read the device location, prompting if possible.
 class LocationPermissionTask implements InitTask {
   LocationPermissionTask({required LocationRepository location})
-      : _location = location;
+    : _location = location;
 
   final LocationRepository _location;
 
@@ -128,11 +122,12 @@ class LocationPermissionTask implements InitTask {
     }
     yield switch (access) {
       LocationAccess.granted => const InitTaskUpdate.done(),
-      LocationAccess.denied =>
-        const InitTaskUpdate.blocked(InitBlocker.locationPermissionDenied),
+      LocationAccess.denied => const InitTaskUpdate.blocked(
+        InitBlocker.locationPermissionDenied,
+      ),
       LocationAccess.deniedForever => const InitTaskUpdate.blocked(
-          InitBlocker.locationPermissionDeniedForever,
-        ),
+        InitBlocker.locationPermissionDeniedForever,
+      ),
     };
   }
 }
@@ -141,7 +136,7 @@ class LocationPermissionTask implements InitTask {
 /// as long as it takes.
 class CurrentLocationTask implements InitTask {
   CurrentLocationTask({required LocationRepository location})
-      : _location = location;
+    : _location = location;
 
   final LocationRepository _location;
 
@@ -178,7 +173,7 @@ class CurrentLocationTask implements InitTask {
 /// Loads and validates the night map style so the map can apply it at once.
 class MapResourcesTask implements InitTask {
   MapResourcesTask({required MapStyleRepository mapStyles})
-      : _mapStyles = mapStyles;
+    : _mapStyles = mapStyles;
 
   final MapStyleRepository _mapStyles;
 

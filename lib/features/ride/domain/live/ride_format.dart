@@ -39,6 +39,14 @@ abstract final class RideFormat {
   /// "+0:05" style gap behind the first finisher.
   static String gap(Duration value) => '+${duration(value)}';
 
+  static const List<String> _points = [
+    'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', //
+  ];
+
+  /// "NE": the compass point nearest to a heading in degrees.
+  static String compass(double degrees) =>
+      _points[(((degrees % 360) + 360) % 360 / 45).round() % 8];
+
   /// "12:04", or "1:12:04" once past an hour.
   static String duration(Duration value) {
     final total = value.inSeconds;

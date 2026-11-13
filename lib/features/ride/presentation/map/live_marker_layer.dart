@@ -5,9 +5,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 import 'marker_interpolator.dart';
 
-/// Paints every rider as a glowing dot: soft glow, colored center, and a
+/// Paints every rider as a flat dot: translucent disc, colored center, and a
 /// subtle outer ring, with a small wedge showing the direction of travel.
 ///
 /// Positions come from the shared [MarkerInterpolator] and are repainted on
@@ -56,10 +57,10 @@ class _MarkerPainter extends CustomPainter {
 
   static const double _dotRadius = 6.5;
   static const double _ringRadius = 10.5;
-  static const double _glowRadius = 20;
+  static const double _glowRadius = 16;
   static const double _ringWidth = 1.5;
   static const double _backingWidth = 2.5;
-  static const double _glowAlpha = 0.42;
+  static const double _glowAlpha = 0.16;
   static const double _ringAlpha = 0.55;
   static const double _wedgeNear = 13;
   static const double _wedgeFar = 21;
@@ -83,16 +84,34 @@ class _MarkerPainter extends CustomPainter {
     final opacity = frame.opacity;
     final color = frame.color;
 
+    // A rider arriving pops in with a little elastic overshoot; a rider
+    // leaving shrinks away. Riders at rest take the plain path.
+    if (opacity < 1) {
+      final scale = AppMotion.spring.transform(opacity.clamp(0.0, 1.0));
+      canvas
+        ..save()
+        ..translate(center.dx, center.dy)
+        ..scale(scale)
+        ..translate(-center.dx, -center.dy);
+      _paintRiderBody(canvas, center, frame, opacity, color);
+      canvas.restore();
+      return;
+    }
+    _paintRiderBody(canvas, center, frame, opacity, color);
+  }
+
+  void _paintRiderBody(
+    Canvas canvas,
+    Offset center,
+    MarkerFrame frame,
+    double opacity,
+    Color color,
+  ) {
     canvas.drawCircle(
       center,
       _glowRadius,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [
-            color.withValues(alpha: _glowAlpha * opacity),
-            color.withValues(alpha: 0),
-          ],
-        ).createShader(Rect.fromCircle(center: center, radius: _glowRadius)),
+      // A flat translucent disc, only enough to lift the dot off the map.
+      Paint()..color = color.withValues(alpha: _glowAlpha * opacity),
     );
 
     final heading = frame.headingDegrees;

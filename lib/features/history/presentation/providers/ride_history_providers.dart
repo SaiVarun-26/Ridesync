@@ -11,6 +11,7 @@ import '../../data/json_cache.dart';
 import '../../data/rtdb_ride_history_repository.dart';
 import '../../domain/ride_history_entry.dart';
 import '../../domain/ride_history_repository.dart';
+import '../thumbnail/route_thumbnail_layout.dart';
 
 /// Where ride history and ride details are kept on the device.
 final rideCacheProvider = Provider<JsonCache>((ref) {
@@ -120,6 +121,7 @@ class RideHistoryController extends Notifier<RideHistoryState> {
         final cached = await _repository.cached(uid);
         if (!ref.mounted) return;
         if (cached.isNotEmpty) {
+          _warm(cached);
           state = state.copyWith(entries: cached, fromCache: true);
         }
       }
@@ -132,11 +134,13 @@ class RideHistoryController extends Notifier<RideHistoryState> {
       if (!ref.mounted) return;
       switch (result) {
         case Success(:final value):
+          _warm(value.entries);
           state = RideHistoryState(
             entries: value.entries,
             hasMore: value.hasMore,
             isLoading: false,
           );
+          unawaited(_fillMissingPreviews());
         case Failed(:final failure):
           state = state.copyWith(
             isLoading: false,
@@ -150,6 +154,39 @@ class RideHistoryController extends Notifier<RideHistoryState> {
         _refreshAgain = false;
         unawaited(refresh());
       }
+    }
+  }
+
+  /// Rides whose preview has been tried, so one without a recorded route is
+  /// not fetched again and again.
+  final Set<String> _previewTried = {};
+
+  /// Gives every ride that has no route preview its own, built from its
+  /// recorded GPS route, one ride at a time so the first page stays quick.
+  Future<void> _fillMissingPreviews() async {
+    final uid = _uid;
+    if (uid == null) return;
+    for (final entry in List<RideHistoryEntry>.of(state.entries)) {
+      if (entry.routePreview.isNotEmpty || !_previewTried.add(entry.code)) {
+        continue;
+      }
+      final filled = await _repository.generatePreview(uid: uid, entry: entry);
+      if (!ref.mounted) return;
+      if (filled == null) continue;
+      _warm([filled]);
+      state = state.copyWith(
+        entries: [
+          for (final e in state.entries) e.code == filled.code ? filled : e,
+        ],
+      );
+    }
+  }
+
+  /// Lays out each ride's route miniature ahead of time, so the cards draw
+  /// instantly when they scroll into view instead of working it out then.
+  void _warm(Iterable<RideHistoryEntry> entries) {
+    for (final entry in entries) {
+      RouteThumbnailLayout.of(entry.routePreview, entry.previewSpeedsMps);
     }
   }
 
@@ -168,11 +205,13 @@ class RideHistoryController extends Notifier<RideHistoryState> {
       if (!ref.mounted) return;
       switch (result) {
         case Success(:final value):
+          _warm(value.entries);
           state = state.copyWith(
             entries: [...state.entries, ...value.entries],
             hasMore: value.hasMore,
             isLoadingMore: false,
           );
+          unawaited(_fillMissingPreviews());
         case Failed(:final failure):
           state = state.copyWith(isLoadingMore: false, error: failure.message);
       }

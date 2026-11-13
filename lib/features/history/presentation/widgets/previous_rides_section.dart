@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/widgets/app_text_button.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/app_icon.dart';
 import '../providers/ride_history_providers.dart';
 import '../open_ride_details.dart';
 import 'ride_history_card.dart';
@@ -36,15 +38,17 @@ class PreviousRidesSection extends ConsumerWidget {
               child: Text('Previous Rides', style: theme.textTheme.titleMedium),
             ),
             if (canViewAll)
-              TextButton(
+              AppTextButton(
+                label: 'View all',
                 onPressed: () => context.push(AppRoutes.history),
-                child: const Text('View all'),
               ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 240),
+          duration: AppMotion.normal,
+          switchInCurve: AppMotion.curve,
+          switchOutCurve: AppMotion.exit,
           child: _body(context, ref, history),
         ),
       ],
@@ -73,15 +77,15 @@ class PreviousRidesSection extends ConsumerWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(AppSpacing.xl),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.card + 4),
-          border: Border.all(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.border),
         ),
         child: Column(
           children: [
             const Icon(
-              Icons.route_outlined,
+              Icons.route_rounded,
               color: AppColors.textTertiary,
-              size: 30,
+              size: AppIconSize.hero,
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
@@ -97,10 +101,10 @@ class PreviousRidesSection extends ConsumerWidget {
               ),
             ),
             if (failed)
-              TextButton(
+              AppTextButton(
+                label: 'Try again',
                 onPressed: () =>
                     ref.read(rideHistoryProvider.notifier).refresh(),
-                child: const Text('Try again'),
               ),
           ],
         ),

@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/app_dialogs.dart';
+import '../../../core/widgets/app_icon_button.dart';
 import '../../../app/router/app_routes.dart';
 import '../../../core/errors/result.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/fade_slide_in.dart';
-import '../../../core/widgets/glow_button.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/section_label.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../domain/room.dart';
 import '../domain/room_member.dart';
-import '../domain/room_status.dart';
 import 'providers/room_providers.dart';
 import 'room_flow.dart';
 import 'share_ride_invite.dart';
@@ -113,9 +114,7 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showAppSnackBar(context, message);
   }
 
   // --- Build ---------------------------------------------------------------
@@ -139,11 +138,13 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
         appBar: AppBar(
           automaticallyImplyLeading: false,
           actions: [
-            IconButton(
+            AppIconButton(
               tooltip: 'Leave ride',
               onPressed: isLeaving ? null : requestLeave,
-              icon: const Icon(Icons.logout, color: AppColors.warning),
+              icon: Icons.logout_rounded,
+              color: AppColors.error,
             ),
+            const SizedBox(width: AppSpacing.sm),
           ],
         ),
         body: roomAsync.when(
@@ -242,9 +243,8 @@ class _LobbyContent extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Text(
             'Tap ✓ Ready to change your color.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AppColors.textTertiary),
           ),
         ],
       ],
@@ -281,7 +281,8 @@ class _LobbyHeader extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: RoomOpenPill(
-            isOpen: room.status == RoomStatus.lobby,
+            isOpen: room.status.acceptsNewRiders,
+            isUnderway: room.status.isUnderway,
             riders: room.members.length,
           ),
         ),
@@ -307,10 +308,10 @@ class _LobbyHeader extends StatelessWidget {
             ),
             if (isHost)
               Builder(
-                builder: (buttonContext) => GlowButton(
+                builder: (buttonContext) => AppButton(
                   label: 'Share Ride',
-                  icon: Icons.ios_share,
-                  variant: GlowButtonVariant.secondary,
+                  icon: Icons.ios_share_rounded,
+                  variant: AppButtonVariant.secondary,
                   expand: false,
                   onPressed: () => onShare(buttonContext),
                 ),

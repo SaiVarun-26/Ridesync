@@ -1,27 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/ride_loader.dart';
 
 /// Centered spinner shown while a room is loading.
 class RoomLoadingView extends StatelessWidget {
   const RoomLoadingView({super.key});
 
-  static const double _size = 28;
-  static const double _strokeWidth = 2;
-
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: SizedBox(
-        height: _size,
-        width: _size,
-        child: CircularProgressIndicator(
-          strokeWidth: _strokeWidth,
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textSecondary),
-        ),
-      ),
-    );
+    return const RideLoaderMessage();
   }
 }
 
@@ -33,8 +21,7 @@ class RoomMessageView extends StatelessWidget {
   final String message;
 
   /// Shown when the room stream fails.
-  static const String loadError =
-      'Could not load this ride. Please try again.';
+  static const String loadError = 'Could not load this ride. Please try again.';
 
   /// Shown when the room no longer exists.
   static const String unavailable = 'This ride is no longer available.';

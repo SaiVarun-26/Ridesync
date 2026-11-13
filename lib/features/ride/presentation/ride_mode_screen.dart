@@ -5,7 +5,8 @@ import '../../../app/router/app_routes.dart';
 import '../../../core/errors/result.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/fade_slide_in.dart';
-import '../../../core/widgets/glow_button.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_dialogs.dart';
 import '../../../core/widgets/pulse_indicator.dart';
 import '../../../core/widgets/section_label.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
@@ -39,7 +40,7 @@ class _RideModeScreenState extends ConsumerState<RideModeScreen> {
   String get _code => widget.roomCode;
 
   /// Delay between the two cards' entrance animations.
-  static const Duration _cardStagger = Duration(milliseconds: 90);
+  static const Duration _cardStagger = AppMotion.stagger;
 
   Future<void> _confirm() async {
     final mode = _selected;
@@ -53,9 +54,7 @@ class _RideModeScreenState extends ConsumerState<RideModeScreen> {
     // host, so the button stays in its loading state until then.
     if (result case Failed(:final failure)) {
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(failure.message)));
+      showAppSnackBar(context, failure.message);
     }
   }
 
@@ -165,7 +164,7 @@ class _RideModeScreenState extends ConsumerState<RideModeScreen> {
               AppSpacing.xl,
               AppSpacing.xl,
             ),
-            child: GlowButton(
+            child: AppButton(
               label: switch (_selected) {
                 RideMode.guided => 'Start Guided Ride →',
                 RideMode.free => 'Start Free Roam →',

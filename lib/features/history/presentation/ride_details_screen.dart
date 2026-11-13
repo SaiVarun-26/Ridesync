@@ -6,9 +6,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_icon.dart';
+import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/glass_panel.dart';
-import '../../../core/widgets/glow_button.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/ride_loader.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../domain/ride_details.dart';
 import 'providers/ride_details_providers.dart';
@@ -71,43 +75,22 @@ class _LoadingDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 22,
-      height: 22,
-      child: CircularProgressIndicator(strokeWidth: 2),
-    );
+    return const RideLoader(size: RideLoader.hero);
   }
 }
 
 class _BackButton extends StatelessWidget {
   const _BackButton();
 
-  static const double _size = 44;
-
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.topLeft,
-      child: Semantics(
-        button: true,
-        label: 'Back',
-        child: GestureDetector(
-          onTap: () => context.pop(),
-          child: const SizedBox.square(
-            dimension: _size,
-            child: GlassPanel(
-              padding: EdgeInsets.zero,
-              radius: _size,
-              child: Center(
-                child: Icon(
-                  Icons.arrow_back_rounded,
-                  size: 22,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-          ),
-        ),
+      child: AppIconButton(
+        glass: true,
+        icon: Icons.arrow_back_rounded,
+        tooltip: 'Back',
+        onPressed: () => context.pop(),
       ),
     );
   }
@@ -141,7 +124,7 @@ class _ContentState extends ConsumerState<_Content>
 
   static const int _introMs = 3300;
   static const Duration _mapWaitLimit = Duration(milliseconds: 1500);
-  static const Duration _skipDuration = Duration(milliseconds: 220);
+  static const Duration _skipDuration = AppMotion.normal;
 
   late final AnimationController _intro = AnimationController(
     vsync: this,
@@ -152,7 +135,7 @@ class _ContentState extends ConsumerState<_Content>
   Animation<double> _span(
     int fromMs,
     int toMs, [
-    Curve curve = Curves.easeOut,
+    Curve curve = AppMotion.curve,
   ]) {
     final animation = CurvedAnimation(
       parent: _intro,
@@ -166,15 +149,11 @@ class _ContentState extends ConsumerState<_Content>
     begin: 1,
     end: 0,
   ).animate(_span(0, 350));
-  late final Animation<double> _statsReveal = _span(
-    2400,
-    3000,
-    Curves.easeOutCubic,
-  );
+  late final Animation<double> _statsReveal = _span(2400, 3000);
   late final Animation<double> _listsReveal = _span(2700, 3300);
   late final RouteReveal _reveal = RouteReveal(
     camera: _span(100, 1100, Curves.linear),
-    draw: _span(700, 1500, Curves.easeInOutCubic),
+    draw: _span(700, 1500, AppMotion.move),
     heat: _span(1500, 1900),
     startMarker: _span(1800, 2100),
     finishMarker: _span(2000, 2350),
@@ -249,7 +228,7 @@ class _ContentState extends ConsumerState<_Content>
     if (_started && _intro.value >= 1) return;
     _started = true;
     _mapWait?.cancel();
-    _intro.animateTo(1, duration: _skipDuration, curve: Curves.easeOut);
+    _intro.animateTo(1, duration: _skipDuration, curve: AppMotion.curve);
   }
 
   void _select(String? uid) {
@@ -310,7 +289,9 @@ class _ContentState extends ConsumerState<_Content>
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
+                    duration: AppMotion.normal,
+                    switchInCurve: AppMotion.spring,
+                    switchOutCurve: AppMotion.exit,
                     child: selected == null
                         ? const SizedBox(key: ValueKey('none'), height: 44)
                         : _SelectionChip(
@@ -367,7 +348,7 @@ class _SelectionChip extends StatelessWidget {
         onTap: onClear,
         child: GlassPanel(
           radius: 44,
-          glowColor: color,
+          accent: color,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.md,
@@ -392,7 +373,7 @@ class _SelectionChip extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               const Icon(
                 Icons.close_rounded,
-                size: 16,
+                size: AppIconSize.small,
                 color: AppColors.textSecondary,
               ),
             ],
@@ -441,7 +422,7 @@ class _Sheet extends StatelessWidget {
           curve: Interval(
             (index - 1) * _listStep,
             ((index - 1) * _listStep + 0.55).clamp(0.0, 1.0),
-            curve: Curves.easeOut,
+            curve: AppMotion.curve,
           ),
         ),
       );
@@ -463,20 +444,14 @@ class _Sheet extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.lg + 4),
+          top: Radius.circular(AppRadius.lg),
         ),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x99000000),
-            blurRadius: 30,
-            offset: Offset(0, -8),
-          ),
-        ],
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.sheet,
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.lg + 4),
+          top: Radius.circular(AppRadius.lg),
         ),
         child: ListView(
           controller: controller,
@@ -493,7 +468,7 @@ class _Sheet extends StatelessWidget {
                 height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.textTertiary,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
               ),
             ),
@@ -560,9 +535,9 @@ class _Failed extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.lg),
-            GlowButton(
+            AppButton(
               label: 'Try again',
-              variant: GlowButtonVariant.secondary,
+              variant: AppButtonVariant.secondary,
               expand: false,
               onPressed: onRetry,
             ),

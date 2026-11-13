@@ -11,10 +11,10 @@ import 'app_typography.dart';
 abstract final class AppTheme {
   static ThemeData dark() {
     const scheme = ColorScheme.dark(
-      primary: AppColors.route,
-      secondary: AppColors.neonGreen,
-      surface: AppColors.surface,
-      error: AppColors.warning,
+      primary: AppColors.primary,
+      secondary: AppColors.primary,
+      tertiary: AppColors.primary,
+      error: AppColors.error,
     );
 
     final base = ThemeData.dark();
@@ -24,9 +24,9 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
       canvasColor: AppColors.background,
       textTheme: AppTypography.textTheme(base.textTheme),
-      dividerColor: AppColors.divider,
+      dividerColor: AppColors.border,
       dividerTheme: const DividerThemeData(
-        color: AppColors.divider,
+        color: AppColors.border,
         thickness: 1,
         space: 1,
       ),
@@ -54,21 +54,52 @@ abstract final class AppTheme {
         ),
         hintStyle: const TextStyle(color: AppColors.textTertiary),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.route, width: 1.5),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+        circularTrackColor: AppColors.border,
+        linearTrackColor: AppColors.border,
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: AppColors.primary,
+        selectionColor: AppColors.primary.withValues(alpha: 0.4),
+        selectionHandleColor: AppColors.primary,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        modalBackgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: false,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: const BorderSide(color: AppColors.border),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surfaceRaised,
+        selectedColor: AppColors.primary.withValues(alpha: 0.28),
+        side: const BorderSide(color: AppColors.border),
+        labelStyle: const TextStyle(color: AppColors.textSecondary),
+        shape: const StadiumBorder(),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.route,
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.xl,
@@ -78,22 +109,32 @@ abstract final class AppTheme {
             borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
           textStyle: const TextStyle(
-            fontSize: 16,
+            fontSize: AppTypeScale.button,
             fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
+            letterSpacing: 0.2,
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+        style: TextButton.styleFrom(foregroundColor: AppColors.primary),
       ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: AppColors.surfaceElevated,
-        contentTextStyle: TextStyle(color: AppColors.textPrimary),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.surfaceRaised,
+        contentTextStyle: const TextStyle(color: AppColors.textPrimary),
         behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        insetPadding: const EdgeInsets.all(AppSpacing.lg),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: const BorderSide(color: AppColors.border),
+        ),
       ),
-      splashColor: Colors.white10,
-      highlightColor: Colors.white10,
+      // No Material ripple anywhere: presses are shown by the press-in of
+      // `PressableScale` and a faint tint, never an expanding circle.
+      splashFactory: NoSplash.splashFactory,
+      splashColor: Colors.transparent,
+      highlightColor: AppColors.primary.withValues(alpha: 0.06),
+      hoverColor: AppColors.primary.withValues(alpha: 0.04),
     );
   }
 

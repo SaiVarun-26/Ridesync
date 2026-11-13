@@ -6,6 +6,9 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/app_icon.dart';
+import '../../../../core/widgets/ride_loader.dart';
 
 /// A power-off style slider: drag the thumb all the way across to confirm.
 ///
@@ -19,8 +22,8 @@ class SlideToConfirm extends StatefulWidget {
     required this.label,
     required this.onConfirmed,
     this.isBusy = false,
-    this.accent = AppColors.warning,
-    this.icon = Icons.power_settings_new,
+    this.accent = AppColors.error,
+    this.icon = Icons.power_settings_new_rounded,
   });
 
   final String label;
@@ -49,11 +52,7 @@ class _SlideToConfirmState extends State<SlideToConfirm>
   /// The thumb ticks lightly as it passes each of these steps.
   static const int _hapticSteps = 4;
 
-  static final SpringDescription _spring = SpringDescription.withDampingRatio(
-    mass: 1,
-    stiffness: 320,
-    ratio: 0.78,
-  );
+  static final SpringDescription _spring = AppMotion.settle;
 
   // Unbounded so the spring may overshoot slightly; the view clamps it.
   late final AnimationController _position = AnimationController.unbounded(
@@ -129,11 +128,7 @@ class _SlideToConfirmState extends State<SlideToConfirm>
     _dragging = false;
     _confirmed = true;
     HapticFeedback.heavyImpact();
-    _position.animateTo(
-      1,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOut,
-    );
+    _position.animateTo(1, duration: AppMotion.micro, curve: AppMotion.curve);
     widget.onConfirmed();
   }
 
@@ -242,28 +237,11 @@ class _Thumb extends StatelessWidget {
     return Container(
       width: _SlideToConfirmState._thumbSize,
       height: _SlideToConfirmState._thumbSize,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: accent,
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: 0.45),
-            blurRadius: 18,
-            spreadRadius: -4,
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
       child: Center(
         child: isBusy
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.4,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Icon(icon, color: Colors.white, size: 28),
+            ? const RideLoader(size: RideLoader.inline, color: Colors.white)
+            : Icon(icon, color: Colors.white, size: AppIconSize.large),
       ),
     );
   }

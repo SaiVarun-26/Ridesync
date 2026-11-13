@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 
 /// The live ride map for the ride identified by [rideId] — the heart of the
@@ -21,7 +22,7 @@ class RideScreen extends ConsumerWidget {
       body: Stack(
         children: [
           // Placeholder for the map layer (added in Milestone 4).
-          const Positioned.fill(child: ColoredBox(color: Color(0xFF070707))),
+          const Positioned.fill(child: ColoredBox(color: AppColors.background)),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),

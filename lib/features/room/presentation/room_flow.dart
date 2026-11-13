@@ -21,9 +21,10 @@ String roomFlowPath(Room room) {
     RoomStatus.initializing => AppRoutes.initializingPath(room.code),
     // Ending keeps riders on the ride screen while they save their final
     // stats; it only shows a "wrapping up" state.
-    RoomStatus.riding || RoomStatus.ending => room.mode == RideMode.free
-        ? AppRoutes.freeRidePath(room.code)
-        : AppRoutes.ridePath(room.code),
+    RoomStatus.riding || RoomStatus.ending =>
+      room.mode == RideMode.free
+          ? AppRoutes.freeRidePath(room.code)
+          : AppRoutes.ridePath(room.code),
     RoomStatus.ended => AppRoutes.resultsPath(room.code),
   };
 }

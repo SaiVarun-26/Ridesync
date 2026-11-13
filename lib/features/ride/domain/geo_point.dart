@@ -25,7 +25,8 @@ class GeoPoint {
     double rad(double degrees) => degrees * math.pi / 180;
     final dLat = rad(other.latitude - latitude);
     final dLng = rad(other.longitude - longitude);
-    final a = math.pow(math.sin(dLat / 2), 2) +
+    final a =
+        math.pow(math.sin(dLat / 2), 2) +
         math.cos(rad(latitude)) *
             math.cos(rad(other.latitude)) *
             math.pow(math.sin(dLng / 2), 2);

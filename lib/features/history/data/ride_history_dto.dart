@@ -1,4 +1,6 @@
+import '../../ride/domain/geo_point.dart';
 import '../../ride/domain/polyline.dart';
+import '../../ride/domain/speed_codec.dart';
 import '../../room/domain/ride_mode.dart';
 import '../domain/ride_history_entry.dart';
 
@@ -21,6 +23,7 @@ abstract final class RideHistoryPaths {
   static const String maxSpeedMps = 'maxSpeedMps';
   static const String riderCount = 'riderCount';
   static const String preview = 'preview';
+  static const String previewSpeeds = 'previewSpeeds';
 
   const RideHistoryPaths._();
 }
@@ -39,6 +42,8 @@ abstract final class RideHistoryDto {
     RideHistoryPaths.riderCount: entry.riderCount,
     if (entry.routePreview.isNotEmpty)
       RideHistoryPaths.preview: encodePolyline(entry.routePreview),
+    if (entry.previewSpeedsMps.isNotEmpty)
+      RideHistoryPaths.previewSpeeds: SpeedCodec.encode(entry.previewSpeedsMps),
   };
 
   /// The entry for ride [code], or `null` if [value] is absent or incomplete.
@@ -50,6 +55,13 @@ abstract final class RideHistoryDto {
     if (name is! String || mode == null || endedAt is! num) return null;
     final startedAt = value[RideHistoryPaths.startedAt];
     final preview = value[RideHistoryPaths.preview];
+    final previewSpeeds = value[RideHistoryPaths.previewSpeeds];
+    final previewPoints = preview is String
+        ? decodePolyline(preview)
+        : const <GeoPoint>[];
+    final speeds = previewSpeeds is String
+        ? SpeedCodec.decode(previewSpeeds)
+        : const <double>[];
     return RideHistoryEntry(
       code: code,
       roomName: name,
@@ -61,7 +73,10 @@ abstract final class RideHistoryDto {
       averageSpeedMps: _number(value[RideHistoryPaths.averageSpeedMps]),
       maxSpeedMps: _number(value[RideHistoryPaths.maxSpeedMps]),
       riderCount: _number(value[RideHistoryPaths.riderCount]).toInt(),
-      routePreview: preview is String ? decodePolyline(preview) : const [],
+      routePreview: previewPoints,
+      previewSpeedsMps: speeds.length == previewPoints.length
+          ? speeds
+          : const [],
     );
   }
 

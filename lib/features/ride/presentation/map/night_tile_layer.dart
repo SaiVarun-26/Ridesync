@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 /// The OpenStreetMap tiles in the app's night style, shared by every map.
 ///
 /// Turns the light OSM style into a calm night map: greyscale, inverted, and
@@ -14,9 +16,9 @@ class NightTileLayer extends StatelessWidget {
   static const String _userAgentPackage = 'com.ridesync.ridesync';
 
   static const ColorFilter _nightTiles = ColorFilter.matrix(<double>[
-    -0.17, -0.572, -0.058, 0, 214, //
     -0.17, -0.572, -0.058, 0, 216, //
-    -0.17, -0.572, -0.058, 0, 222, //
+    -0.17, -0.572, -0.058, 0, 211, //
+    -0.17, -0.572, -0.058, 0, 228, //
     0, 0, 0, 1, 0, //
   ]);
 
@@ -28,10 +30,12 @@ class NightTileLayer extends StatelessWidget {
         urlTemplate: _tileUrl,
         userAgentPackageName: _userAgentPackage,
         maxNativeZoom: maxZoom.toInt(),
+        // Load a ring of tiles beyond the screen and keep recently seen ones,
+        // so panning and zooming reveal ready tiles instead of blank ones.
+        panBuffer: 2,
+        keepBuffer: 4,
         // Tiles ease in over the dark map instead of popping into place.
-        tileDisplay: const TileDisplay.fadeIn(
-          duration: Duration(milliseconds: 240),
-        ),
+        tileDisplay: const TileDisplay.fadeIn(duration: AppMotion.normal),
       ),
     );
   }

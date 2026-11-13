@@ -38,10 +38,10 @@ class PlannedRoute {
 
   @override
   int get hashCode => Object.hash(
-        destinationName,
-        destination,
-        encodedPolyline,
-        distanceMeters,
-        durationSeconds,
-      );
+    destinationName,
+    destination,
+    encodedPolyline,
+    distanceMeters,
+    durationSeconds,
+  );
 }

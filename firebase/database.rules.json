@@ -14,7 +14,7 @@
         },
         "members": {
           "$uid": {
-            ".write": "auth != null && $uid === auth.uid && (data.exists() || root.child('rooms').child($code).child('meta').child('status').val() === 'lobby')",
+            ".write": "auth != null && $uid === auth.uid && (data.exists() || (root.child('rooms').child($code).child('meta').child('status').val() !== 'ending' && root.child('rooms').child($code).child('meta').child('status').val() !== 'ended'))",
             ".validate": "newData.hasChild('uid') && newData.child('uid').val() === $uid",
             "ready": { ".validate": "newData.isBoolean()" },
             "initialized": { ".validate": "newData.isBoolean()" },
@@ -92,7 +92,14 @@
           "averageSpeedMps": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150" },
           "maxSpeedMps": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150" },
           "riderCount": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100" },
-          "preview": { ".validate": "newData.isString() && newData.val().length <= 1500" },
+          "preview": {
+            ".write": "auth != null && auth.uid === $uid && !data.exists()",
+            ".validate": "newData.isString() && newData.val().length <= 1500"
+          },
+          "previewSpeeds": {
+            ".write": "auth != null && auth.uid === $uid && !data.exists()",
+            ".validate": "newData.isString() && newData.val().length <= 100"
+          },
           "$other": { ".validate": false }
         }
       }

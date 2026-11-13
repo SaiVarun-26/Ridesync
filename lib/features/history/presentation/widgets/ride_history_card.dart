@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
@@ -10,11 +11,12 @@ import '../ride_mode_label.dart';
 import 'route_thumbnail.dart';
 
 /// One finished ride in a list: a miniature of its route beside its name,
-/// date, mode and numbers.
+/// date and mode, with the ride's numbers beneath.
 ///
-/// Pressing it lifts it: it scales in a touch while its shadow deepens and
-/// spreads. [onTap] is given the card's place on screen, which the details
-/// screen grows out of.
+/// A translucent violet-tinted surface with a faint sheen and a hairline
+/// border. Pressing it lifts it: it scales in a touch while its shadow deepens
+/// and its border brightens. [onTap] is given the card's place on screen,
+/// which the details screen grows out of.
 class RideHistoryCard extends StatefulWidget {
   const RideHistoryCard({super.key, required this.entry, required this.onTap});
 
@@ -38,28 +40,23 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
   Widget build(BuildContext context) {
     final entry = widget.entry;
     final theme = Theme.of(context);
-    final radius = BorderRadius.circular(AppRadius.card + 4);
+    final radius = BorderRadius.circular(AppRadius.lg);
     return PressableScale(
       onPressedChanged: (down) => setState(() => _lifted = down),
       child: AnimatedContainer(
         duration: AppMotion.fast,
-        curve: Curves.easeOut,
+        curve: AppMotion.curve,
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: radius,
           border: Border.all(
             color: _lifted
-                ? AppColors.neonGreen.withValues(alpha: 0.35)
-                : AppColors.divider,
+                ? AppColors.primary.withValues(alpha: 0.7)
+                : AppColors.border,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: _lifted ? 0.6 : 0.4),
-              blurRadius: _lifted ? 30 : 18,
-              offset: Offset(0, _lifted ? 14 : 8),
-              spreadRadius: -6,
-            ),
-          ],
+          // Very large and very faint: only enough to lift the card off the
+          // page. Deepens a little while pressed.
+          boxShadow: _lifted ? AppShadows.lifted : AppShadows.rest,
         ),
         child: Material(
           type: MaterialType.transparency,
@@ -67,49 +64,74 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
             onTap: () => _open(context),
             borderRadius: radius,
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md + 2),
-              child: Row(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  RouteThumbnail(points: entry.routePreview),
-                  const SizedBox(width: AppSpacing.lg),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entry.roomName,
-                          style: theme.textTheme.titleMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${RideFormat.date(entry.endedAt)}  ·  '
-                          '${entry.mode.label}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Row(
+                  Row(
+                    children: [
+                      RouteThumbnail(
+                        points: entry.routePreview,
+                        speedsMps: entry.previewSpeedsMps,
+                      ),
+                      const SizedBox(width: AppSpacing.lg),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _Figure(
-                              value: RideFormat.distance(entry.distanceMeters),
-                              label: 'DIST',
+                            Text(
+                              entry.roomName,
+                              style: theme.textTheme.titleMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            _Figure(
-                              value: RideFormat.duration(entry.duration),
-                              label: 'TIME',
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              RideFormat.date(entry.endedAt),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                            _Figure(
-                              value: '${entry.riderCount}',
-                              label: entry.riderCount == 1 ? 'RIDER' : 'RIDERS',
-                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _ModeChip(label: entry.mode.label),
                           ],
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceRaised,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.md,
+                      ),
+                      child: Row(
+                        children: [
+                          _Figure(
+                            value: RideFormat.distance(entry.distanceMeters),
+                            label: 'DISTANCE',
+                          ),
+                          _Figure(
+                            value: RideFormat.duration(entry.duration),
+                            label: 'TIME',
+                          ),
+                          _Figure(
+                            value: _speed(entry.averageSpeedMps),
+                            unit: 'km/h',
+                            label: 'AVG SPEED',
+                          ),
+                          _Figure(
+                            value: _speed(entry.maxSpeedMps),
+                            unit: 'km/h',
+                            label: 'TOP SPEED',
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -120,15 +142,51 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
       ),
     );
   }
+
+  /// Speeds are shown without the unit on the card; the unit follows the
+  /// number in smaller type elsewhere.
+  static String _speed(double mps) => '${(mps * 3.6).round()}';
+}
+
+class _ModeChip extends StatelessWidget {
+  const _ModeChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
 }
 
 class _Figure extends StatelessWidget {
-  const _Figure({required this.value, required this.label});
+  const _Figure({required this.value, required this.label, this.unit});
 
   final String value;
   final String label;
 
-  static const double _valueSize = 15;
+  /// A small unit set after the value, when it has one.
+  final String? unit;
+
+  static const double _valueSize = 16;
   static const double _labelSpacing = 1.1;
 
   @override
@@ -140,15 +198,33 @@ class _Figure extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(value, style: AppTypography.stat(fontSize: _valueSize)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(value, style: AppTypography.stat(fontSize: _valueSize)),
+                if (unit != null) ...[
+                  const SizedBox(width: AppSpacing.xxs),
+                  Text(
+                    unit!,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: AppTypeScale.micro,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppSpacing.xxs),
           Text(
             label,
             maxLines: 1,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: AppColors.textTertiary,
               letterSpacing: _labelSpacing,
+              fontSize: AppTypeScale.micro,
             ),
           ),
         ],

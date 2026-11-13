@@ -14,7 +14,7 @@ class TrailStyle {
 
 /// Paints each rider's whole ridden path in their color.
 ///
-/// The newest stretch is bright and glows softly; older stretches settle to a
+/// The newest stretch is bright; older stretches settle to a
 /// calmer, steady tone and never disappear. Segments are grouped into a few
 /// age bands and each band is one path, and only the part of the path that is
 /// near the screen is built, so a long ride with many riders stays cheap.
@@ -57,14 +57,12 @@ class _TrailPainter extends CustomPainter {
   static const int _bandSpanMs = 45000;
 
   static const double _strokeWidth = 3.5;
-  static const double _glowWidth = 9;
-  static const double _glowBlur = 4;
-  static const double _glowAlpha = 0.32;
 
   /// Brightest and dimmest recent tone, and the steady tone of older path.
+  /// The difference is deliberately slight: the whole ride stays easy to read.
   static const double _newestAlpha = 0.95;
-  static const double _recentFloorAlpha = 0.7;
-  static const double _olderAlpha = 0.5;
+  static const double _recentFloorAlpha = 0.84;
+  static const double _olderAlpha = 0.7;
 
   /// How far past the screen edge points are still included, as a fraction of
   /// the visible size, so lines run cleanly off the screen.
@@ -120,14 +118,6 @@ class _TrailPainter extends CustomPainter {
         previousNear = currentNear;
       }
 
-      final newest = bands.first;
-      if (newest != null) {
-        canvas.drawPath(
-          newest,
-          _stroke(style.color.withValues(alpha: _glowAlpha), _glowWidth)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, _glowBlur),
-        );
-      }
       // Oldest first, so the freshest stretch is drawn on top.
       for (var band = _bands - 1; band >= 0; band--) {
         final path = bands[band];

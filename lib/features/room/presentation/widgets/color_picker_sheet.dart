@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/rider_palette.dart';
+import '../../../../core/widgets/app_dialogs.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/room_providers.dart';
 import 'color_tile.dart';
@@ -22,11 +23,9 @@ Future<void> showColorPickerSheet({
   required String roomCode,
   required ColorClaimCallback onClaim,
 }) {
-  return showModalBottomSheet<void>(
+  return showAppSheet<void>(
     context: context,
-    showDragHandle: true,
     isScrollControlled: true,
-    backgroundColor: AppColors.surface,
     builder: (_) => _ColorPickerSheet(roomCode: roomCode, onClaim: onClaim),
   );
 }
@@ -73,7 +72,9 @@ class _ColorPickerSheetState extends ConsumerState<_ColorPickerSheet> {
     final theme = Theme.of(context);
     final room = ref.watch(roomStreamProvider(widget.roomCode)).value;
     final myUid = ref.watch(authStateChangesProvider).value?.uid;
-    final mySelection = myUid == null ? null : room?.memberByUid(myUid)?.colorId;
+    final mySelection = myUid == null
+        ? null
+        : room?.memberByUid(myUid)?.colorId;
     final claimedByOthers = room?.colorsClaimedByOthers(myUid) ?? <String>{};
 
     return ConstrainedBox(
@@ -109,7 +110,7 @@ class _ColorPickerSheetState extends ConsumerState<_ColorPickerSheet> {
                         child: Text(
                           _error!,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppColors.warning,
+                            color: AppColors.error,
                           ),
                         ),
                       ),
@@ -172,8 +173,8 @@ class _LabeledColorTile extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: taken ? AppColors.textTertiary : AppColors.textSecondary,
-              ),
+            color: taken ? AppColors.textTertiary : AppColors.textSecondary,
+          ),
         ),
       ],
     );

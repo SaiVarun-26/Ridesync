@@ -39,9 +39,9 @@ class RecordedRoute {
 
   /// The recorded path with its speeds.
   RecordedPath get path => RecordedPath(
-        points: List<GeoPoint>.unmodifiable(_points),
-        speedsMps: List<double>.unmodifiable(_speeds),
-      );
+    points: List<GeoPoint>.unmodifiable(_points),
+    speedsMps: List<double>.unmodifiable(_speeds),
+  );
 
   /// Increases whenever the route changes, so callers can tell if it needs
   /// saving.
@@ -69,8 +69,7 @@ class RecordedRoute {
   /// Records [point] and the rider's [speedMps] if they have moved far
   /// enough. Returns whether it was added.
   bool add(GeoPoint point, {double speedMps = 0}) {
-    if (_points.isNotEmpty &&
-        _points.last.distanceMetersTo(point) < _spacing) {
+    if (_points.isNotEmpty && _points.last.distanceMetersTo(point) < _spacing) {
       return false;
     }
     _points.add(point);

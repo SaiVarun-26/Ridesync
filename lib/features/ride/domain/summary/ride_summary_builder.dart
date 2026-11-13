@@ -36,8 +36,9 @@ abstract final class RideSummaryBuilder {
       longest = math.max(longest, rider.distanceMeters);
       final started = rider.startedAtMs;
       if (started != null) {
-        earliestStart =
-            earliestStart == null ? started : math.min(earliestStart, started);
+        earliestStart = earliestStart == null
+            ? started
+            : math.min(earliestStart, started);
       }
     }
 

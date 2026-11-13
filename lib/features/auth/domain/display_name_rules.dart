@@ -8,7 +8,10 @@ abstract final class DisplayNameRules {
   static const int minLength = 2;
   static const int maxLength = 40;
 
-  static final RegExp _hasLetterOrDigit = RegExp(r'[\p{L}\p{N}]', unicode: true);
+  static final RegExp _hasLetterOrDigit = RegExp(
+    r'[\p{L}\p{N}]',
+    unicode: true,
+  );
   static final RegExp _controlCharacters = RegExp(r'[\u0000-\u001F\u007F]');
 
   /// The name as it will be saved: trimmed, with runs of spaces collapsed.

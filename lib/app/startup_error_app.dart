@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_spacing.dart';
+import '../core/theme/app_typography.dart';
 
 /// Shown instead of the app when startup fails (for example Firebase cannot
 /// initialize), so the failure is visible rather than a black screen.
@@ -27,7 +28,7 @@ class StartupErrorApp extends StatelessWidget {
                   'RideSync could not start',
                   style: TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 22,
+                    fontSize: AppTypeScale.title,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

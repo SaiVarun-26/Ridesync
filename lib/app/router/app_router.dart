@@ -1,7 +1,10 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/splash_screen.dart';
@@ -38,23 +41,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.splash,
         name: AppRoutes.splashName,
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const SplashScreen(), NavMotion.fadeThrough),
       ),
       GoRoute(
         path: AppRoutes.onboarding,
         name: AppRoutes.onboardingName,
-        pageBuilder: (context, state) => _fade(state, const OnboardingScreen()),
+        pageBuilder: (context, state) =>
+            _page(state, const OnboardingScreen(), NavMotion.fadeThrough),
       ),
       GoRoute(
         path: AppRoutes.home,
         name: AppRoutes.homeName,
-        pageBuilder: (context, state) => _fade(state, const HomeScreen()),
+        pageBuilder: (context, state) =>
+            _page(state, const HomeScreen(), NavMotion.fadeThrough),
       ),
       GoRoute(
         path: AppRoutes.history,
         name: AppRoutes.historyName,
         pageBuilder: (context, state) =>
-            _fade(state, const RideHistoryScreen()),
+            _page(state, const RideHistoryScreen()),
       ),
       GoRoute(
         path: AppRoutes.historyDetails,
@@ -72,19 +78,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.create,
         name: AppRoutes.createName,
-        pageBuilder: (context, state) => _fade(state, const CreateRideScreen()),
+        pageBuilder: (context, state) => _page(state, const CreateRideScreen()),
       ),
       GoRoute(
         path: AppRoutes.join,
         name: AppRoutes.joinName,
-        pageBuilder: (context, state) => _fade(state, const JoinRideScreen()),
+        pageBuilder: (context, state) => _page(state, const JoinRideScreen()),
       ),
       GoRoute(
         path: AppRoutes.lobby,
         name: AppRoutes.lobbyName,
         pageBuilder: (context, state) {
           final code = state.pathParameters['code'] ?? '';
-          return _fade(state, LobbyScreen(roomCode: code));
+          return _page(state, LobbyScreen(roomCode: code), NavMotion.flow);
         },
       ),
       GoRoute(
@@ -92,7 +98,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.rideModeName,
         pageBuilder: (context, state) {
           final code = state.pathParameters['code'] ?? '';
-          return _fade(state, RideModeScreen(roomCode: code));
+          return _page(state, RideModeScreen(roomCode: code), NavMotion.flow);
         },
       ),
       GoRoute(
@@ -100,7 +106,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.planningName,
         pageBuilder: (context, state) {
           final code = state.pathParameters['code'] ?? '';
-          return _fade(state, PlanningScreen(roomCode: code));
+          return _page(state, PlanningScreen(roomCode: code), NavMotion.flow);
         },
       ),
       GoRoute(
@@ -108,7 +114,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.resultsName,
         pageBuilder: (context, state) {
           final code = state.pathParameters['code'] ?? '';
-          return _fade(state, RideResultsScreen(roomCode: code));
+          return _page(
+            state,
+            RideResultsScreen(roomCode: code),
+            NavMotion.flow,
+          );
         },
       ),
       GoRoute(
@@ -116,7 +126,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.initializingName,
         pageBuilder: (context, state) {
           final code = state.pathParameters['code'] ?? '';
-          return _fade(state, RideInitializationScreen(roomCode: code));
+          return _page(
+            state,
+            RideInitializationScreen(roomCode: code),
+            NavMotion.flow,
+          );
         },
       ),
       GoRoute(
@@ -124,7 +138,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.freeRideName,
         pageBuilder: (context, state) {
           final code = state.pathParameters['code'] ?? '';
-          return _fade(state, RideMapScreen(roomCode: code));
+          return _page(state, RideMapScreen(roomCode: code), NavMotion.flow);
         },
       ),
       GoRoute(
@@ -132,7 +146,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.rideName,
         pageBuilder: (context, state) {
           final rideId = state.pathParameters['rideId'] ?? '';
-          return _fade(state, RideScreen(rideId: rideId));
+          return _page(state, RideScreen(rideId: rideId), NavMotion.flow);
         },
       ),
       GoRoute(
@@ -140,7 +154,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.cardName,
         pageBuilder: (context, state) {
           final rideId = state.pathParameters['rideId'] ?? '';
-          return _fade(state, RideCardScreen(rideId: rideId));
+          return _page(
+            state,
+            RideCardScreen(rideId: rideId),
+            NavMotion.fadeThrough,
+          );
         },
       ),
     ],
@@ -197,17 +215,58 @@ class _AuthRefreshListenable extends ChangeNotifier {
   }
 }
 
-/// Builds a page with a calm fade transition, matching the app's motion system.
-CustomTransitionPage<void> _fade(GoRouterState state, Widget child) {
+/// How a screen moves in and out. All of them use Material motion, over the
+/// app's near-black so nothing ever flashes between screens.
+enum NavMotion {
+  /// Fade out, then fade in with a slight scale: for moving between
+  /// top-level places (splash, onboarding, home).
+  fadeThrough,
+
+  /// Slide along the horizontal axis: for going one level deeper and back.
+  sharedAxis,
+
+  /// A plain fade through the page colour: for the stages of a ride, which
+  /// follow each other rather than nest.
+  flow,
+}
+
+/// Builds a page with the Material motion for [motion].
+CustomTransitionPage<void> _page(
+  GoRouterState state,
+  Widget child, [
+  NavMotion motion = NavMotion.sharedAxis,
+]) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 240),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return FadeTransition(
-        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-        child: child,
-      );
+    transitionDuration: AppMotion.slow,
+    reverseTransitionDuration: AppMotion.normal,
+    transitionsBuilder: (context, animation, secondaryAnimation, page) {
+      return switch (motion) {
+        NavMotion.fadeThrough => FadeThroughTransition(
+          animation: animation,
+          secondaryAnimation: secondaryAnimation,
+          fillColor: AppColors.background,
+          child: page,
+        ),
+        NavMotion.sharedAxis => SharedAxisTransition(
+          animation: animation,
+          secondaryAnimation: secondaryAnimation,
+          transitionType: SharedAxisTransitionType.horizontal,
+          fillColor: AppColors.background,
+          child: page,
+        ),
+        // The stages of a ride use the lightest transition there is, a fade
+        // through the page colour, because the screens they open (a live map,
+        // a results page) are heavy to build and a lighter transition leaves
+        // them the frames to do it.
+        NavMotion.flow => FadeThroughTransition(
+          animation: animation,
+          secondaryAnimation: secondaryAnimation,
+          fillColor: AppColors.background,
+          child: page,
+        ),
+      };
     },
   );
 }

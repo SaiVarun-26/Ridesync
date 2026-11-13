@@ -38,6 +38,16 @@ enum RoomStatus {
   /// The exact string stored in the database for this status.
   final String wireValue;
 
+  /// Whether a rider who is not yet in the room can still join it.
+  ///
+  /// Joining stays open for the whole life of a ride, including while it is
+  /// being ridden, and closes only once the host has started ending it.
+  bool get acceptsNewRiders => this != ending && this != ended;
+
+  /// Whether the group has moved past the lobby, so a rider joining now is
+  /// joining a ride that is already under way.
+  bool get isUnderway => this != lobby;
+
   /// Resolves a persisted [wireValue] back to a [RoomStatus], defaulting to
   /// [RoomStatus.lobby] for unknown or missing values.
   static RoomStatus fromWire(String? value) {

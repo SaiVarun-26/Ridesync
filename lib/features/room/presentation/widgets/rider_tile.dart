@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/rider_palette.dart';
-import '../../../../core/widgets/neon_card.dart';
+import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/rider_dot.dart';
 import '../../domain/room_member.dart';
 
@@ -40,8 +40,8 @@ class RiderTile extends StatelessWidget {
     final name = trimmed.isEmpty ? _fallbackName : trimmed;
     final lit = member.online && member.countsAsReady;
 
-    return NeonCard(
-      glowColor: lit ? color : null,
+    return AppCard(
+      accent: lit ? color : null,
       child: Row(
         children: [
           RiderDot(color: color, size: _dotSize),
@@ -102,42 +102,42 @@ class _StatusLabel extends StatelessWidget {
     final label = Theme.of(context).textTheme.labelMedium;
     return switch (status) {
       _RiderStatus.host => Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: Text(
-            'HOST',
-            style: label?.copyWith(
-              color: AppColors.textSecondary,
-              letterSpacing: _hostLetterSpacing,
-            ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Text(
+          'HOST',
+          style: label?.copyWith(
+            color: AppColors.textSecondary,
+            letterSpacing: _hostLetterSpacing,
           ),
         ),
+      ),
       _RiderStatus.ready => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.check_rounded,
-              size: _checkSize,
-              color: accent ?? AppColors.textPrimary,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text('Ready', style: label?.copyWith(color: AppColors.textPrimary)),
-          ],
-        ),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check_rounded,
+            size: _checkSize,
+            color: accent ?? AppColors.textPrimary,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text('Ready', style: label?.copyWith(color: AppColors.textPrimary)),
+        ],
+      ),
       _RiderStatus.offline => Text(
-          'Offline',
-          style: label?.copyWith(color: AppColors.textTertiary),
-        ),
+        'Offline',
+        style: label?.copyWith(color: AppColors.textTertiary),
+      ),
       _RiderStatus.waiting => Text(
-          'Waiting…',
-          style: label?.copyWith(color: AppColors.textTertiary),
-        ),
+        'Waiting…',
+        style: label?.copyWith(color: AppColors.textTertiary),
+      ),
     };
   }
 }

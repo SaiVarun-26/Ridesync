@@ -1,128 +1,96 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../ride/domain/geo_point.dart';
+import '../thumbnail/route_thumbnail_layout.dart';
+import '../thumbnail/route_thumbnail_painter.dart';
 
-/// A miniature of a ride's route: its shape drawn as a glowing line on a dark
-/// tile, with a dot at the start. Paints no map, so it costs almost nothing in
-/// a list.
+/// The actual path a ride took, drawn small on a black tile with rounded
+/// corners: a thin purple line, arrows, a start and a finish.
+///
+/// The route is laid out once per ride (see [RouteThumbnailLayout]) and the
+/// result painted onto its own layer, so a list of them scrolls and presses
+/// without redrawing anything. While a ride's preview is still being built
+/// from its recorded route, the tile shows a quiet outline of one.
 class RouteThumbnail extends StatelessWidget {
   const RouteThumbnail({
     super.key,
     required this.points,
+    this.speedsMps = const [],
     this.size = defaultSize,
-    this.color = AppColors.neonGreen,
   });
 
-  static const double defaultSize = 84;
+  static const double defaultSize = 96;
 
   final List<GeoPoint> points;
+
+  /// Speed at each of [points], when recorded.
+  final List<double> speedsMps;
+
   final double size;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
+    final layout = RouteThumbnailLayout.of(points, speedsMps);
     return RepaintBoundary(
       child: SizedBox.square(
         dimension: size,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.divider),
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.border),
           ),
-          child: points.length < 2
-              ? Icon(
-                  Icons.route_outlined,
-                  color: AppColors.textTertiary,
-                  size: size * 0.34,
-                )
-              : CustomPaint(painter: _RoutePainter(points, color)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            child: AnimatedSwitcher(
+              duration: AppMotion.normal,
+              switchInCurve: AppMotion.curve,
+              child: layout == null
+                  ? const CustomPaint(
+                      key: ValueKey('pending'),
+                      painter: _PendingPainter(),
+                    )
+                  : CustomPaint(
+                      key: ValueKey(layout),
+                      painter: RouteThumbnailPainter(layout),
+                    ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _RoutePainter extends CustomPainter {
-  _RoutePainter(this.points, this.color);
-
-  final List<GeoPoint> points;
-  final Color color;
-
-  static const double _inset = 12;
+/// A faint dashed outline of a route, with a dot at each end, shown while a
+/// ride's real route is on its way.
+class _PendingPainter extends CustomPainter {
+  const _PendingPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Flatten latitude/longitude so a degree of longitude is no wider than a
-    // degree of latitude at this place on Earth.
-    final meanLat =
-        points.fold<double>(0, (sum, p) => sum + p.latitude) / points.length;
-    final xScale = math.cos(meanLat * math.pi / 180);
-    var minX = double.infinity;
-    var maxX = -double.infinity;
-    var minY = double.infinity;
-    var maxY = -double.infinity;
-    for (final p in points) {
-      final x = p.longitude * xScale;
-      final y = -p.latitude;
-      minX = math.min(minX, x);
-      maxX = math.max(maxX, x);
-      minY = math.min(minY, y);
-      maxY = math.max(maxY, y);
+    final s = size.shortestSide;
+    final path = Path()
+      ..moveTo(s * 0.2, s * 0.72)
+      ..cubicTo(s * 0.2, s * 0.2, s * 0.8, s * 0.8, s * 0.8, s * 0.28);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round
+      ..color = AppColors.textTertiary.withValues(alpha: 0.6);
+    for (final metric in path.computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += 9) {
+        canvas.drawPath(metric.extractPath(d, d + 4.5), paint);
+      }
     }
-    final width = math.max(maxX - minX, 1e-9);
-    final height = math.max(maxY - minY, 1e-9);
-    final available = size.width - 2 * _inset;
-    final scale = math.min(
-      available / width,
-      (size.height - 2 * _inset) / height,
-    );
-    final dx = (size.width - width * scale) / 2;
-    final dy = (size.height - height * scale) / 2;
-
-    Offset at(GeoPoint p) => Offset(
-      dx + (p.longitude * xScale - minX) * scale,
-      dy + (-p.latitude - minY) * scale,
-    );
-
-    final path = Path()..moveTo(at(points.first).dx, at(points.first).dy);
-    for (final p in points.skip(1)) {
-      final o = at(p);
-      path.lineTo(o.dx, o.dy);
-    }
-
+    final dot = Paint()..color = AppColors.textTertiary;
     canvas
-      ..drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 5
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..color = color.withValues(alpha: 0.28)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-      )
-      ..drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.2
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..color = color,
-      )
-      ..drawCircle(
-        at(points.first),
-        3.2,
-        Paint()..color = AppColors.textPrimary,
-      )
-      ..drawCircle(at(points.last), 3.2, Paint()..color = color);
+      ..drawCircle(Offset(s * 0.2, s * 0.72), 2.6, dot)
+      ..drawCircle(Offset(s * 0.8, s * 0.28), 2.6, dot);
   }
 
   @override
-  bool shouldRepaint(_RoutePainter old) =>
-      !identical(old.points, points) || old.color != color;
+  bool shouldRepaint(_PendingPainter old) => false;
 }

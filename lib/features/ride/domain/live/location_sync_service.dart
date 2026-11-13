@@ -26,10 +26,10 @@ class LocationSyncService {
     required Stream<bool> connection,
     required String roomCode,
     this.minPublishInterval = const Duration(seconds: 1),
-  })  : _location = location,
-        _live = liveLocations,
-        _connection = connection,
-        _roomCode = roomCode;
+  }) : _location = location,
+       _live = liveLocations,
+       _connection = connection,
+       _roomCode = roomCode;
 
   /// Movement needed before the GPS reports a new fix.
   static const int distanceFilterMeters = 5;
@@ -135,8 +135,10 @@ class LocationSyncService {
     _lastPublishedAt = DateTime.now();
     final result = await _live.publish(code: _roomCode, fix: fix);
     if (result case Failed(:final failure)) {
-      developer.log('Publish failed: ${failure.message}',
-          name: 'LocationSyncService');
+      developer.log(
+        'Publish failed: ${failure.message}',
+        name: 'LocationSyncService',
+      );
     }
   }
 

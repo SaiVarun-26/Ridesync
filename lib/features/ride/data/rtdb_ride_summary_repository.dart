@@ -11,7 +11,7 @@ import 'ride_summary_dto.dart';
 /// [RideSummaryRepository] on the Realtime Database.
 class RtdbRideSummaryRepository implements RideSummaryRepository {
   RtdbRideSummaryRepository({required FirebaseDatabase database})
-      : _database = database;
+    : _database = database;
 
   final FirebaseDatabase _database;
 

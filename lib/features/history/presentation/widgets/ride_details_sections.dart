@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/rider_palette.dart';
+import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/section_label.dart';
 import '../../../ride/domain/live/ride_format.dart';
 import '../../../ride/domain/summary/ride_summary.dart';
@@ -39,7 +40,9 @@ class RideTitleBlock extends StatelessWidget {
       children: [
         Text(
           summary.roomName,
-          style: theme.textTheme.headlineMedium?.copyWith(fontSize: 26),
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontSize: AppTypeScale.headline,
+          ),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -114,7 +117,7 @@ class RideHeroStats extends StatelessWidget {
               child: _HeroStat(
                 label: 'TOP SPEED',
                 progress: progress,
-                accent: AppColors.orange,
+                accent: AppColors.primary,
                 text: (t) => _split(RideFormat.speed(group.maxSpeedMps * t)),
               ),
             ),
@@ -247,16 +250,16 @@ class _RowsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withValues(alpha: 0.6),
+        color: AppColors.surfaceRaised.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: AppColors.border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.card),
         child: Column(
           children: [
             for (var i = 0; i < children.length; i++) ...[
-              if (i > 0) const Divider(height: 1, color: AppColors.divider),
+              if (i > 0) const Divider(height: 1, color: AppColors.border),
               children[i],
             ],
           ],
@@ -396,7 +399,7 @@ class _SegmentedTabs<T> extends StatelessWidget {
       height: _height,
       padding: const EdgeInsets.all(_inset),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: LayoutBuilder(
@@ -413,10 +416,10 @@ class _SegmentedTabs<T> extends StatelessWidget {
                 bottom: 0,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppColors.neonGreen.withValues(alpha: 0.16),
+                    color: AppColors.primary.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                     border: Border.all(
-                      color: AppColors.neonGreen.withValues(alpha: 0.45),
+                      color: AppColors.primary.withValues(alpha: 0.45),
                     ),
                   ),
                 ),
@@ -434,7 +437,7 @@ class _SegmentedTabs<T> extends StatelessWidget {
                             style: Theme.of(context).textTheme.labelLarge!
                                 .copyWith(
                                   color: value == selected
-                                      ? AppColors.neonGreen
+                                      ? AppColors.primary
                                       : AppColors.textSecondary,
                                 ),
                             child: Text(labelOf(value)),
@@ -490,10 +493,10 @@ class ComingSoonCard extends StatelessWidget {
   const ComingSoonCard({super.key});
 
   static const List<(IconData, String)> _items = [
-    (Icons.file_download_outlined, 'GPX export'),
-    (Icons.wb_sunny_outlined, 'Weather'),
-    (Icons.notes_outlined, 'Notes'),
-    (Icons.photo_library_outlined, 'Photos'),
+    (Icons.file_download_rounded, 'GPX export'),
+    (Icons.wb_sunny_rounded, 'Weather'),
+    (Icons.notes_rounded, 'Notes'),
+    (Icons.photo_library_rounded, 'Photos'),
   ];
 
   @override
@@ -509,7 +512,11 @@ class ComingSoonCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(item.$1, size: 20, color: AppColors.textTertiary),
+                Icon(
+                  item.$1,
+                  size: AppIconSize.medium,
+                  color: AppColors.textTertiary,
+                ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
@@ -607,7 +614,10 @@ class _RiderRow extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(value, style: AppTypography.stat(fontSize: 15)),
+                Text(
+                  value,
+                  style: AppTypography.stat(fontSize: AppTypeScale.statSmall),
+                ),
                 if (detail != null)
                   Text(
                     detail!,
@@ -645,7 +655,6 @@ class _ColorDot extends StatelessWidget {
         color: color,
         boxShadow: ringed
             ? [
-                BoxShadow(color: color.withValues(alpha: 0.7), blurRadius: 10),
                 BoxShadow(
                   color: Colors.white.withValues(alpha: 0.9),
                   spreadRadius: 2,
@@ -671,8 +680,8 @@ class _Position extends StatelessWidget {
       child: Text(
         '$position',
         style: AppTypography.stat(
-          fontSize: 16,
-          color: position == 1 ? AppColors.neonGreen : AppColors.textSecondary,
+          fontSize: AppTypeScale.statSmall,
+          color: position == 1 ? AppColors.primary : AppColors.textSecondary,
         ),
       ),
     );

@@ -41,16 +41,16 @@ class Room {
 
   /// The set of color ids already claimed by members.
   Set<String> get claimedColorIds => {
-        for (final m in members)
-          if (m.colorId != null) m.colorId!,
-      };
+    for (final m in members)
+      if (m.colorId != null) m.colorId!,
+  };
 
   /// Color ids claimed by members other than [uid]. The rider's own color is
   /// excluded so it can be shown as selected rather than taken.
   Set<String> colorsClaimedByOthers(String? uid) => {
-        for (final m in members)
-          if (m.uid != uid && m.colorId != null) m.colorId!,
-      };
+    for (final m in members)
+      if (m.uid != uid && m.colorId != null) m.colorId!,
+  };
 
   /// The host's member entry, or `null` if the host has left.
   RoomMember? get host => memberByUid(hostUid);
@@ -64,8 +64,7 @@ class Room {
 
   /// Whether the host may continue: every rider is ready and every rider,
   /// including the host, has a color (their identity for the ride).
-  bool get canContinue =>
-      everyoneReady && members.every((m) => m.hasColor);
+  bool get canContinue => everyoneReady && members.every((m) => m.hasColor);
 
   /// Whether every member is currently connected.
   bool get everyoneConnected =>

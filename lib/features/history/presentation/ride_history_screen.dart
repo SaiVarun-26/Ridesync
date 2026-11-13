@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_icon.dart';
 import '../../../core/widgets/fade_slide_in.dart';
+import '../../../core/widgets/ride_loader.dart';
+import '../domain/ride_history_entry.dart';
 import 'open_ride_details.dart';
 import 'providers/ride_history_providers.dart';
 import 'widgets/ride_history_card.dart';
@@ -26,7 +29,7 @@ class _RideHistoryScreenState extends ConsumerState<RideHistoryScreen> {
   /// Cards that fade in one after another when the list first appears; cards
   /// further down, and ones loaded later, just appear with the scroll.
   static const int _staggered = 6;
-  static const Duration _stagger = Duration(milliseconds: 50);
+  static const Duration _stagger = AppMotion.stagger;
 
   @override
   void initState() {
@@ -53,43 +56,88 @@ class _RideHistoryScreenState extends ConsumerState<RideHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Previous Rides')),
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(rideHistoryProvider.notifier).refresh(),
-        child: AnimatedSwitcher(
-          duration: AppMotion.normal,
-          child: entries.isEmpty
-              ? _EmptyOrLoading(key: const ValueKey('empty'), history: history)
-              : ListView.separated(
-                  key: const ValueKey('list'),
-                  controller: _scroll,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(AppSpacing.xl),
-                  itemCount: entries.length + 1,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppSpacing.md),
-                  itemBuilder: (context, index) {
-                    if (index == entries.length) {
-                      return _Footer(history: history);
-                    }
-                    final entry = entries[index];
-                    final card = RideHistoryCard(
-                      entry: entry,
-                      onTap: (origin) => openRideDetails(
-                        context,
-                        ref,
-                        code: entry.code,
-                        origin: origin,
-                      ),
-                    );
-                    return KeyedSubtree(
-                      key: ValueKey(entry.code),
-                      child: index < _staggered
-                          ? FadeSlideIn(delay: _stagger * index, child: card)
-                          : card,
-                    );
-                  },
+      body: Stack(
+        children: [
+          Positioned.fill(child: _refreshable(entries, history)),
+          // Pull-to-refresh shows the RideSync loader, not the stock spinner.
+          Positioned(
+            top: AppSpacing.md,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: AnimatedSwitcher(
+                duration: AppMotion.normal,
+                switchInCurve: AppMotion.curve,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.8, end: 1).animate(animation),
+                    child: child,
+                  ),
                 ),
-        ),
+                child: _refreshing
+                    ? const Center(
+                        key: ValueKey('refreshing'),
+                        child: RideLoader(),
+                      )
+                    : const SizedBox.shrink(key: ValueKey('idle')),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// True from the moment a pull is released until the refresh settles.
+  bool _refreshing = false;
+
+  void _onRefreshStatus(RefreshIndicatorStatus? status) {
+    final active = status == RefreshIndicatorStatus.refresh;
+    if (active != _refreshing && mounted) setState(() => _refreshing = active);
+  }
+
+  Widget _refreshable(
+    List<RideHistoryEntry> entries,
+    RideHistoryState history,
+  ) {
+    return RefreshIndicator.noSpinner(
+      onRefresh: () => ref.read(rideHistoryProvider.notifier).refresh(),
+      onStatusChange: _onRefreshStatus,
+      child: AnimatedSwitcher(
+        duration: AppMotion.normal,
+        child: entries.isEmpty
+            ? _EmptyOrLoading(key: const ValueKey('empty'), history: history)
+            : ListView.separated(
+                key: const ValueKey('list'),
+                controller: _scroll,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                itemCount: entries.length + 1,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, index) {
+                  if (index == entries.length) {
+                    return _Footer(history: history);
+                  }
+                  final entry = entries[index];
+                  final card = RideHistoryCard(
+                    entry: entry,
+                    onTap: (origin) => openRideDetails(
+                      context,
+                      ref,
+                      code: entry.code,
+                      origin: origin,
+                    ),
+                  );
+                  return KeyedSubtree(
+                    key: ValueKey(entry.code),
+                    child: index < _staggered
+                        ? FadeSlideIn(delay: _stagger * index, child: card)
+                        : card,
+                  );
+                },
+              ),
       ),
     );
   }
@@ -125,8 +173,8 @@ class _EmptyOrLoading extends StatelessWidget {
             children: [
               const SizedBox(height: AppSpacing.xxxl),
               const Icon(
-                Icons.route_outlined,
-                size: 36,
+                Icons.route_rounded,
+                size: AppIconSize.hero,
                 color: AppColors.textTertiary,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -162,13 +210,7 @@ class _Footer extends StatelessWidget {
     if (history.isLoadingMore) {
       return const Padding(
         padding: EdgeInsets.all(AppSpacing.lg),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
+        child: Center(child: RideLoader()),
       );
     }
     final message =

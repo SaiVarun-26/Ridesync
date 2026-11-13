@@ -6,15 +6,21 @@ abstract final class RoutePreview {
   /// (about 500 characters encoded) and plenty to show a route's shape.
   static const int maxPoints = 48;
 
-  /// [points] reduced to at most [maxPoints], evenly spaced along the list and
-  /// always keeping the first and last point.
-  static List<GeoPoint> thin(List<GeoPoint> points) {
-    if (points.length <= maxPoints) return List.unmodifiable(points);
-    final result = <GeoPoint>[];
-    final step = (points.length - 1) / (maxPoints - 1);
-    for (var i = 0; i < maxPoints; i++) {
-      result.add(points[(i * step).round()]);
-    }
-    return List.unmodifiable(result);
+  /// Which of [length] points a preview keeps: at most [maxPoints], evenly
+  /// spaced, always including the first and the last.
+  static List<int> indices(int length) {
+    if (length <= maxPoints) return [for (var i = 0; i < length; i++) i];
+    final step = (length - 1) / (maxPoints - 1);
+    return [for (var i = 0; i < maxPoints; i++) (i * step).round()];
   }
+
+  /// [points] reduced to at most [maxPoints], evenly spaced along the list
+  /// and always keeping the first and last point.
+  static List<GeoPoint> thin(List<GeoPoint> points) =>
+      List.unmodifiable([for (final i in indices(points.length)) points[i]]);
+
+  /// [values] reduced the same way as [thin] reduces points, so the two stay
+  /// in step.
+  static List<double> thinValues(List<double> values) =>
+      List.unmodifiable([for (final i in indices(values.length)) values[i]]);
 }

@@ -82,14 +82,14 @@ class GeolocatorLocationRepository implements LocationRepository {
   static LocationSettings _rideSettings(int distanceFilterMeters) {
     return switch (defaultTargetPlatform) {
       TargetPlatform.android => AndroidSettings(
-          distanceFilter: distanceFilterMeters,
-          intervalDuration: _rideInterval,
-        ),
+        distanceFilter: distanceFilterMeters,
+        intervalDuration: _rideInterval,
+      ),
       TargetPlatform.iOS => AppleSettings(
-          distanceFilter: distanceFilterMeters,
-          activityType: ActivityType.otherNavigation,
-          pauseLocationUpdatesAutomatically: true,
-        ),
+        distanceFilter: distanceFilterMeters,
+        activityType: ActivityType.otherNavigation,
+        pauseLocationUpdatesAutomatically: true,
+      ),
       _ => LocationSettings(distanceFilter: distanceFilterMeters),
     };
   }
@@ -103,12 +103,10 @@ class GeolocatorLocationRepository implements LocationRepository {
   static LocationAccess _map(LocationPermission permission) {
     return switch (permission) {
       LocationPermission.always ||
-      LocationPermission.whileInUse =>
-        LocationAccess.granted,
+      LocationPermission.whileInUse => LocationAccess.granted,
       LocationPermission.deniedForever => LocationAccess.deniedForever,
       LocationPermission.denied ||
-      LocationPermission.unableToDetermine =>
-        LocationAccess.denied,
+      LocationPermission.unableToDetermine => LocationAccess.denied,
     };
   }
 }

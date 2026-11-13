@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/glass_panel.dart';
+import '../../../../core/widgets/pulse_indicator.dart';
 import '../../../../core/widgets/section_label.dart';
 import '../ride_map_controller.dart';
 
@@ -68,8 +69,8 @@ class RideStatusRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final (gpsLabel, gpsColor) = switch (gps) {
-      GpsStatus.locked => ('GPS Locked', AppColors.neonGreen),
-      GpsStatus.weak => ('GPS Weak', AppColors.yellow),
+      GpsStatus.locked => ('GPS Locked', AppColors.success),
+      GpsStatus.weak => ('GPS Weak', AppColors.textSecondary),
       GpsStatus.searching => ('Searching GPS', AppColors.textTertiary),
     };
     return Row(
@@ -100,7 +101,7 @@ class RideStatusRow extends StatelessWidget {
           children: [
             _StatusLine(
               label: isConnected ? 'Live' : 'Reconnecting',
-              color: isConnected ? AppColors.neonGreen : AppColors.warning,
+              color: isConnected ? AppColors.success : AppColors.error,
             ),
             const SizedBox(height: AppSpacing.sm),
             _StatusLine(label: gpsLabel, color: gpsColor),
@@ -117,7 +118,7 @@ class _StatusLine extends StatelessWidget {
   final String label;
   final Color color;
 
-  static const double _dotSize = 7;
+  static const double _dotSize = StatusDot.size;
 
   @override
   Widget build(BuildContext context) {
@@ -126,6 +127,7 @@ class _StatusLine extends StatelessWidget {
       children: [
         AnimatedContainer(
           duration: AppMotion.normal,
+          curve: AppMotion.curve,
           width: _dotSize,
           height: _dotSize,
           decoration: BoxDecoration(shape: BoxShape.circle, color: color),

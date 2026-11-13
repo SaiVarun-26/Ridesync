@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/errors/result.dart';
+import '../../../core/theme/rider_palette.dart';
 import '../../auth/domain/app_user.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../domain/ride_mode.dart';
@@ -28,9 +29,9 @@ class FirebaseRoomRepository implements RoomRepository {
     required FirebaseDatabase database,
     required AuthRepository authRepository,
     RoomCodeGenerator? codeGenerator,
-  })  : _database = database,
-        _authRepository = authRepository,
-        _codeGenerator = codeGenerator ?? RoomCodeGenerator();
+  }) : _database = database,
+       _authRepository = authRepository,
+       _codeGenerator = codeGenerator ?? RoomCodeGenerator();
 
   final FirebaseDatabase _database;
   final AuthRepository _authRepository;
@@ -47,9 +48,7 @@ class FirebaseRoomRepository implements RoomRepository {
   Future<Result<Room>> createRoom({required String name}) async {
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) {
-      return const Failed(
-        UnexpectedFailure(message: 'Give your ride a name.'),
-      );
+      return const Failed(UnexpectedFailure(message: 'Give your ride a name.'));
     }
 
     // The durable profile (Firestore) is the source of truth for the display
@@ -124,13 +123,15 @@ class FirebaseRoomRepository implements RoomRepository {
       if (isMember) {
         // Coming back into a room they are already in: just mark them online.
         // Their ready state and color are left as they were.
-        final memberRef =
-            _roomRef(normalized).child(RoomPaths.members).child(user.uid);
+        final memberRef = _roomRef(normalized)
+            .child(RoomPaths.members)
+            .child(user.uid);
         await memberRef.update(<String, Object?>{RoomPaths.memberOnline: true});
         await _armDisconnectHandler(memberRef);
       } else {
-        // New riders are welcome until the host starts the ride.
-        if (current.status != RoomStatus.lobby) {
+        // New riders are welcome for as long as the ride is going, even once
+        // it is under way. Only a ride that is ending or ended is closed.
+        if (!current.status.acceptsNewRiders) {
           return const Failed(RoomLockedFailure());
         }
         try {
@@ -140,12 +141,17 @@ class FirebaseRoomRepository implements RoomRepository {
             displayName: user.displayName,
           );
         } on FirebaseException catch (e) {
-          // The host may have started the ride between our check and our
+          // The host may have ended the ride between our check and our
           // write; the security rules then refuse the new member.
-          if (e.code == _permissionDenied && await _isLocked(normalized)) {
+          if (e.code == _permissionDenied && await _isClosed(normalized)) {
             return const Failed(RoomLockedFailure());
           }
           rethrow;
+        }
+        // Someone joining a ride already under way skips the lobby, where
+        // colors are normally picked, so they are given one now.
+        if (current.status.isUnderway) {
+          await _assignFreeColor(normalized);
         }
       }
 
@@ -186,7 +192,8 @@ class FirebaseRoomRepository implements RoomRepository {
           code: room.code,
           name: room.name,
           riderCount: room.members.length,
-          isOpen: room.status == RoomStatus.lobby,
+          isOpen: room.status.acceptsNewRiders,
+          isUnderway: room.status.isUnderway,
           isMember: uid != null && room.memberByUid(uid) != null,
         ),
       );
@@ -197,14 +204,33 @@ class FirebaseRoomRepository implements RoomRepository {
     }
   }
 
-  /// Whether the host has already started the ride in room [code].
-  Future<bool> _isLocked(String code) async {
-    final status = (await _roomRef(code)
-            .child(RoomPaths.meta)
-            .child(RoomPaths.metaStatus)
-            .get())
-        .value;
-    return RoomStatus.fromWire(status as String?) != RoomStatus.lobby;
+  /// Whether the ride in room [code] has been closed to new riders.
+  Future<bool> _isClosed(String code) async {
+    final status = (await _roomRef(
+      code,
+    ).child(RoomPaths.meta).child(RoomPaths.metaStatus).get()).value;
+    return !RoomStatus.fromWire(status as String?).acceptsNewRiders;
+  }
+
+  /// Claims the first color nobody holds for the current rider, trying the
+  /// next if someone else takes it first. A rider left without one is still
+  /// riding; they simply show in a neutral color.
+  Future<void> _assignFreeColor(String code) async {
+    try {
+      final taken =
+          RoomDto.fromSnapshot(
+            code,
+            (await _roomRef(code).get()).value,
+          )?.claimedColorIds ??
+          const <String>{};
+      for (final color in RiderPalette.colors) {
+        if (taken.contains(color.id)) continue;
+        final result = await claimColor(code: code, colorId: color.id);
+        if (result.isSuccess) return;
+      }
+    } on FirebaseException catch (e) {
+      debugPrint('Assigning a color failed (${e.code}): ${e.message}');
+    }
   }
 
   @override
@@ -232,14 +258,14 @@ class FirebaseRoomRepository implements RoomRepository {
       // set to our uid only if it is empty or already ours; otherwise the
       // transaction aborts and the caller gets a ConflictFailure. The security
       // rules enforce the same condition server-side.
-      final result = await _colorClaimRef(code, colorId).runTransaction(
-        (current) {
-          if (current == null || current == user.uid) {
-            return Transaction.success(user.uid);
-          }
-          return Transaction.abort();
-        },
-      );
+      final result = await _colorClaimRef(code, colorId).runTransaction((
+        current,
+      ) {
+        if (current == null || current == user.uid) {
+          return Transaction.success(user.uid);
+        }
+        return Transaction.abort();
+      });
       if (!result.committed) {
         return const Failed(ConflictFailure());
       }
@@ -277,7 +303,9 @@ class FirebaseRoomRepository implements RoomRepository {
       final room = RoomDto.fromSnapshot(code, (await roomRef.get()).value);
       final me = room?.memberByUid(user.uid);
       if (room == null || me == null) {
-        return const Failed(NotFoundFailure(message: 'You are not in this ride.'));
+        return const Failed(
+          NotFoundFailure(message: 'You are not in this ride.'),
+        );
       }
       if (me.isHost) {
         return const Failed(
@@ -290,10 +318,9 @@ class FirebaseRoomRepository implements RoomRepository {
         );
       }
 
-      await roomRef
-          .child(RoomPaths.members)
-          .child(user.uid)
-          .update(<String, Object?>{RoomPaths.memberReady: ready});
+      await roomRef.child(RoomPaths.members).child(user.uid).update(
+        <String, Object?>{RoomPaths.memberReady: ready},
+      );
       return const Success(null);
     } on FirebaseException catch (e, stack) {
       return Failed(_mapDbException(e, stack));
@@ -386,9 +413,7 @@ class FirebaseRoomRepository implements RoomRepository {
         final next = room.mode == RideMode.guided
             ? RoomStatus.planning
             : RoomStatus.riding;
-        return Success(<String, Object?>{
-          RoomPaths.metaStatus: next.wireValue,
-        });
+        return Success(<String, Object?>{RoomPaths.metaStatus: next.wireValue});
       },
     );
   }
@@ -491,9 +516,7 @@ class FirebaseRoomRepository implements RoomRepository {
         return const Failed(NotFoundFailure(message: 'No ride found.'));
       }
       if (room.hostUid != user.uid) {
-        return const Failed(
-          AuthFailure(message: 'Only the host can do that.'),
-        );
+        return const Failed(AuthFailure(message: 'Only the host can do that.'));
       }
 
       switch (buildUpdate(room)) {
@@ -520,8 +543,7 @@ class FirebaseRoomRepository implements RoomRepository {
       return const Failed(AuthFailure(message: 'You must be signed in.'));
     }
 
-    final memberRef =
-        _roomRef(code).child(RoomPaths.members).child(user.uid);
+    final memberRef = _roomRef(code).child(RoomPaths.members).child(user.uid);
 
     try {
       // Release the color first so it frees up for other riders.
@@ -574,9 +596,8 @@ class FirebaseRoomRepository implements RoomRepository {
 
   @override
   Stream<Room?> watchRoom({required String code}) {
-    return _roomRef(code).onValue.map(
-          (event) => RoomDto.fromSnapshot(code, event.snapshot.value),
-        );
+    return _roomRef(code).onValue
+        .map((event) => RoomDto.fromSnapshot(code, event.snapshot.value));
   }
 
   /// Writes the member node and arms the disconnect handler.
@@ -673,8 +694,8 @@ class FirebaseRoomRepository implements RoomRepository {
     debugPrint('RTDB FirebaseException(${e.code}): ${e.message}');
     return switch (e.code) {
       'permission-denied' => const AuthFailure(
-          message: 'You do not have access to this room.',
-        ),
+        message: 'You do not have access to this room.',
+      ),
       'unavailable' || 'network-error' => NetworkFailure(cause: e),
       _ => UnexpectedFailure(cause: e),
     };

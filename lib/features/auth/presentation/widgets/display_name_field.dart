@@ -3,14 +3,17 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/app_icon.dart';
+import '../../../../core/widgets/app_text_field.dart';
 import '../../domain/display_name_rules.dart';
 
 /// The required display name input.
 ///
 /// Built to be impossible to miss: a large field with a strong outline that
-/// glows while it is empty, turns bright when focused, warns when the name is
-/// not acceptable and confirms when it is. A message under it always says what
-/// is needed.
+/// breathes softly while it is empty, brightens when focused, turns to the
+/// warning colour and shakes when the name is not acceptable, and confirms
+/// with a check when it is. A message under it always says what is needed.
 class DisplayNameField extends StatefulWidget {
   const DisplayNameField({
     super.key,
@@ -28,16 +31,33 @@ class DisplayNameField extends StatefulWidget {
 }
 
 class _DisplayNameFieldState extends State<DisplayNameField>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final FocusNode _focus = FocusNode();
 
-  /// Drives the soft glow that invites the rider to type while it is empty.
+  /// Drives the soft breathing that invites the rider to type while empty.
   late final AnimationController _pulse = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1600),
+    duration: AppMotion.breath,
   );
 
+  /// Plays when the rider tries to continue with a name that is not valid.
+  late final AnimationController _shake = AnimationController(
+    vsync: this,
+    duration: AppMotion.shake,
+  );
+
+  /// 0 with the label resting in the field, 1 floated to the top.
+  late final AnimationController _float = AnimationController(
+    vsync: this,
+    duration: AppMotion.normal,
+    value: _shouldFloat ? 1 : 0,
+  );
+
+  static const double _inset = AppSpacing.xl;
+
   bool get _isEmpty => widget.controller.text.trim().isEmpty;
+
+  bool get _shouldFloat => _focus.hasFocus || widget.controller.text.isNotEmpty;
 
   @override
   void initState() {
@@ -52,21 +72,38 @@ class _DisplayNameFieldState extends State<DisplayNameField>
     widget.controller.removeListener(_onChanged);
     _focus.dispose();
     _pulse.dispose();
+    _shake.dispose();
+    _float.dispose();
     super.dispose();
   }
 
   void _onChanged() {
     _syncPulse();
+    final target = _shouldFloat ? 1.0 : 0.0;
+    if (_float.value != target) {
+      _float.animateTo(target, curve: AppMotion.curve);
+    }
     setState(() {});
   }
 
-  /// Pulses only while there is nothing typed, so a filled-in screen is still.
+  /// Breathes only while there is nothing typed, so a filled-in screen is
+  /// still.
   void _syncPulse() {
     if (_isEmpty && !_focus.hasFocus) {
       if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
     } else if (_pulse.isAnimating) {
       _pulse.stop();
     }
+  }
+
+  void _submit() {
+    if (DisplayNameRules.isValid(widget.controller.text)) {
+      widget.onSubmitted();
+      return;
+    }
+    HapticFeedback.lightImpact();
+    _shake.forward(from: 0);
+    _focus.requestFocus();
   }
 
   @override
@@ -77,56 +114,66 @@ class _DisplayNameFieldState extends State<DisplayNameField>
     // Nothing typed at all. Spaces only is not empty: it is wrong, and says so.
     final empty = text.isEmpty;
     final focused = _focus.hasFocus;
+    final valid = !empty && error == null;
 
-    final Color accent;
-    if (empty) {
-      accent = focused ? AppColors.route : AppColors.neonGreen;
-    } else if (error != null) {
-      accent = AppColors.warning;
-    } else {
-      accent = AppColors.neonGreen;
-    }
+    final accent = !empty && error != null
+        ? AppColors.error
+        : AppColors.primary;
+    final textStyle = theme.textTheme.titleLarge?.copyWith(
+      fontSize: AppTypeScale.title,
+    );
+    // Room on the right for the check and on top for the floated label.
+    const textArea = EdgeInsets.fromLTRB(
+      _inset,
+      _inset + FloatingLabel.space,
+      _inset + AppIconSize.large + AppSpacing.sm,
+      _inset - AppSpacing.xs,
+    );
 
     final message = empty
         ? 'Required. This is how your group will see you.'
         : (error ?? 'Looks good.');
     final messageColor = empty
         ? AppColors.textSecondary
-        : (error != null ? AppColors.warning : AppColors.neonGreen);
+        : (error != null ? AppColors.error : AppColors.primary);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AnimatedBuilder(
-          animation: _pulse,
+          animation: Listenable.merge([_pulse, _shake]),
           builder: (context, child) {
-            final t = Curves.easeInOut.transform(_pulse.value);
-            final glow = empty && !focused ? 0.12 + 0.2 * t : (focused ? 0.28 : 0.2);
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(
-                  color: accent.withValues(alpha: focused || !empty ? 1 : 0.55 + 0.3 * t),
-                  width: focused ? 2 : 1.5,
+            final t = AppMotion.ambient.transform(_pulse.value);
+            return Transform.translate(
+              offset: Offset(AppMotion.shakeOffset(_shake.value), 0),
+              child: AnimatedContainer(
+                duration: AppMotion.fast,
+                curve: AppMotion.curve,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: accent.withValues(alpha: glow),
-                    blurRadius: focused ? 26 : 20,
-                    spreadRadius: -4,
+                // Drawn over the field, so the thicker focused border never
+                // nudges the text.
+                foregroundDecoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                  border: Border.all(
+                    color: accent.withValues(
+                      alpha: focused || !empty ? 0.95 : 0.5 + 0.3 * t,
+                    ),
+                    width: focused ? 1.8 : 1.4,
                   ),
-                ],
+                ),
+                child: child,
               ),
-              child: child,
             );
           },
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
+          // One semantics node: the label is read as the field's name.
+          child: MergeSemantics(
+            child: Stack(
+              alignment: Alignment.centerRight,
+              children: [
+                TextField(
                   controller: widget.controller,
                   focusNode: _focus,
                   enabled: widget.enabled,
@@ -134,19 +181,17 @@ class _DisplayNameFieldState extends State<DisplayNameField>
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.done,
                   inputFormatters: [
-                    LengthLimitingTextInputFormatter(DisplayNameRules.maxLength),
+                    LengthLimitingTextInputFormatter(
+                      DisplayNameRules.maxLength,
+                    ),
                   ],
-                  onSubmitted: (_) {
-                    if (DisplayNameRules.isValid(widget.controller.text)) {
-                      widget.onSubmitted();
-                    }
-                  },
-                  style: theme.textTheme.titleLarge?.copyWith(fontSize: 22),
+                  onSubmitted: (_) => _submit(),
+                  style: textStyle,
                   cursorColor: accent,
                   decoration: InputDecoration(
-                    hintText: 'Your name',
-                    hintStyle: theme.textTheme.titleLarge?.copyWith(
-                      fontSize: 22,
+                    // The example shows once the label has floated away.
+                    hintText: _shouldFloat ? 'Enter your name' : null,
+                    hintStyle: textStyle?.copyWith(
                       color: AppColors.textTertiary,
                     ),
                     filled: false,
@@ -154,34 +199,47 @@ class _DisplayNameFieldState extends State<DisplayNameField>
                     enabledBorder: InputBorder.none,
                     disabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl,
-                      vertical: AppSpacing.xl,
+                    contentPadding: textArea,
+                  ),
+                ),
+                FloatingLabel(
+                  text: 'Your name',
+                  progress: _float,
+                  floated: _shouldFloat,
+                  color: focused ? accent : AppColors.textSecondary,
+                  textArea: textArea,
+                  style: textStyle,
+                ),
+                // Springs in over the right edge without moving the text.
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.lg),
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: valid ? 1 : 0,
+                      duration: AppMotion.normal,
+                      curve: AppMotion.curve,
+                      child: AnimatedScale(
+                        scale: valid ? 1 : 0.6,
+                        duration: AppMotion.springDuration,
+                        curve: AppMotion.spring,
+                        child: const Icon(
+                          Icons.check_circle_rounded,
+                          size: AppIconSize.large,
+                          color: AppColors.success,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                transitionBuilder: (child, animation) =>
-                    ScaleTransition(scale: animation, child: child),
-                child: !empty && error == null
-                    ? const Padding(
-                        key: ValueKey('valid'),
-                        padding: EdgeInsets.only(right: AppSpacing.lg),
-                        child: Icon(
-                          Icons.check_circle,
-                          color: AppColors.neonGreen,
-                        ),
-                      )
-                    : const SizedBox(key: ValueKey('none'), width: 0),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
+          duration: AppMotion.fast,
+          switchInCurve: AppMotion.curve,
+          switchOutCurve: AppMotion.exit,
           child: Padding(
             key: ValueKey(message),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),

@@ -64,13 +64,13 @@ class RoomMember {
 
   @override
   int get hashCode => Object.hash(
-        uid,
-        displayName,
-        colorId,
-        isHost,
-        isReady,
-        isInitialized,
-        online,
-        joinedAt,
-      );
+    uid,
+    displayName,
+    colorId,
+    isHost,
+    isReady,
+    isInitialized,
+    online,
+    joinedAt,
+  );
 }

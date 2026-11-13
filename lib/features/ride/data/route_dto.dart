@@ -55,11 +55,11 @@ abstract final class RouteDto {
 
   /// The six stored fields, and nothing else.
   static Map<String, Object?> toValue(PlannedRoute route) => <String, Object?>{
-        RoutePaths.destinationName: route.destinationName,
-        RoutePaths.destinationLatitude: route.destination.latitude,
-        RoutePaths.destinationLongitude: route.destination.longitude,
-        RoutePaths.encodedPolyline: route.encodedPolyline,
-        RoutePaths.distanceMeters: route.distanceMeters,
-        RoutePaths.durationSeconds: route.durationSeconds,
-      };
+    RoutePaths.destinationName: route.destinationName,
+    RoutePaths.destinationLatitude: route.destination.latitude,
+    RoutePaths.destinationLongitude: route.destination.longitude,
+    RoutePaths.encodedPolyline: route.encodedPolyline,
+    RoutePaths.distanceMeters: route.distanceMeters,
+    RoutePaths.durationSeconds: route.durationSeconds,
+  };
 }

@@ -17,6 +17,14 @@ abstract interface class RideHistoryRepository {
     int limit = 20,
   });
 
+  /// Builds the route preview for a ride saved without one, from the rider's
+  /// recorded GPS route, and saves it so every device gets it. Returns the
+  /// entry with its preview, or `null` when the ride has no recorded route.
+  Future<RideHistoryEntry?> generatePreview({
+    required String uid,
+    required RideHistoryEntry entry,
+  });
+
   /// Adds the finished ride [code] to [uid]'s history. Does nothing if it is
   /// already there or if [uid] was not part of the ride.
   Future<Result<void>> record({required String uid, required String code});

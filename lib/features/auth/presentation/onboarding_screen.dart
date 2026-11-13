@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/result.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/ambient_background.dart';
+import '../../../core/widgets/app_dialogs.dart';
 import '../../../core/widgets/brand_mark.dart';
-import '../../../core/widgets/glow_button.dart';
+import '../../../core/widgets/fade_slide_in.dart';
+import '../../../core/widgets/app_button.dart';
 import '../domain/display_name_rules.dart';
 import 'providers/auth_providers.dart';
 import 'widgets/display_name_field.dart';
@@ -53,9 +56,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         break;
       case Failed(:final failure):
         setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(failure.message)));
+        showAppSnackBar(context, failure.message);
     }
   }
 
@@ -63,47 +64,61 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Spacer(),
-              const BrandMark(),
-              const SizedBox(height: AppSpacing.xxl),
-              Text('RideSync', style: theme.textTheme.displayMedium),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Never lose your ride.',
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.xxxl),
-              Text(
-                'What should your group call you?',
-                style: theme.textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              DisplayNameField(
-                controller: _nameController,
-                enabled: !_isSubmitting,
-                onSubmitted: _continue,
-              ),
-              const Spacer(),
-              // Disabled until the name is acceptable, so it cannot be tapped
-              // early.
-              ListenableBuilder(
-                listenable: _nameController,
-                builder: (context, _) => GlowButton(
-                  label: 'Continue',
-                  isLoading: _isSubmitting,
-                  onPressed: DisplayNameRules.isValid(_nameController.text)
-                      ? _continue
-                      : null,
+      body: AmbientBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Spacer(),
+                const FadeSlideIn(child: BrandMark()),
+                const SizedBox(height: AppSpacing.xl),
+                FadeSlideIn(
+                  delay: AppMotion.stagger,
+                  child: Text('RideSync', style: theme.textTheme.displayMedium),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
+                const SizedBox(height: AppSpacing.sm),
+                FadeSlideIn(
+                  delay: AppMotion.stagger * 2,
+                  child: Text(
+                    'Never lose your ride.',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxxl),
+                FadeSlideIn(
+                  delay: AppMotion.stagger * 3,
+                  child: Text(
+                    'What should your group call you?',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                FadeSlideIn(
+                  delay: AppMotion.stagger * 4,
+                  child: DisplayNameField(
+                    controller: _nameController,
+                    enabled: !_isSubmitting,
+                    onSubmitted: _continue,
+                  ),
+                ),
+                const Spacer(),
+                // Disabled until the name is acceptable, so it cannot be tapped
+                // early.
+                ListenableBuilder(
+                  listenable: _nameController,
+                  builder: (context, _) => AppButton(
+                    label: 'Continue',
+                    isLoading: _isSubmitting,
+                    onPressed: DisplayNameRules.isValid(_nameController.text)
+                        ? _continue
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,55 +1,77 @@
 import 'package:flutter/material.dart';
 
-/// Central color palette for RideSync.
+/// The RideSync colour system.
 ///
-/// The identity is "neon trails on a black map". Backgrounds are near-black,
-/// surfaces are dark grey, and a curated set of neon accents is used for
-/// riders and the planned route. Colors are never reused across riders, and
-/// red is reserved exclusively for warnings.
+/// One purple, solid colours only. Near-black surfaces, one brand colour for
+/// every accent, white and grey text, and hairline borders. There are no
+/// gradients anywhere in the app's chrome: depth comes from layering and from
+/// very soft, very faint shadows.
+///
+/// Colour is also information on the map, so riders keep their own identity
+/// colours (see `RiderPalette`) and routes are coloured by speed; neither is
+/// used for the app's chrome.
 @immutable
 abstract final class AppColors {
   // ---------------------------------------------------------------------------
-  // Structural tones
+  // Surfaces
   // ---------------------------------------------------------------------------
 
-  /// App background. Near-black, never pure #000 everywhere so depth reads.
-  static const Color background = Color(0xFF050505);
+  /// App background.
+  static const Color background = Color(0xFF000000);
 
-  /// Elevated surfaces: cards, sheets, dialogs.
-  static const Color surface = Color(0xFF101010);
+  /// Cards, sheets and panels.
+  static const Color surface = Color(0xFF121212);
 
-  /// Slightly raised surface for layering above [surface].
-  static const Color surfaceElevated = Color(0xFF161616);
+  /// A step above [surface], for things that sit inside a card.
+  static const Color surfaceRaised = Color(0xFF1A1A1A);
 
-  /// Hairline dividers and borders.
-  static const Color divider = Color(0xFF1B1B1B);
+  /// Borders and dividers.
+  static const Color border = Color(0xFF262626);
+
+  /// The dimmed backdrop behind dialogs and sheets.
+  static const Color scrim = Color(0xB3000000);
+
+  // ---------------------------------------------------------------------------
+  // Brand
+  // ---------------------------------------------------------------------------
+
+  /// The RideSync purple. The only purple in the app.
+  static const Color primary = Color(0xFF8C3EE2);
+
+  /// [primary] a touch lighter, for hover.
+  static final Color primaryHover = Color.lerp(primary, Colors.white, 0.10)!;
+
+  /// [primary] a touch darker, for a pressed state.
+  static final Color primaryPressed = Color.lerp(primary, Colors.black, 0.16)!;
 
   // ---------------------------------------------------------------------------
   // Text
   // ---------------------------------------------------------------------------
 
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFF8A8A8A);
-  static const Color textTertiary = Color(0xFF5A5A5A);
+  static const Color textSecondary = Color(0xFF9A9A9A);
+
+  /// Hints, placeholders and disabled text: quieter than [textSecondary].
+  static const Color textTertiary = Color(0xFF5C5C5C);
 
   // ---------------------------------------------------------------------------
-  // Warning (the only sanctioned use of red)
+  // Status
   // ---------------------------------------------------------------------------
 
-  static const Color warning = Color(0xFFFF4D4D);
+  /// Success and "all good" states (a valid input, a live connection, a
+  /// finished step) are the brand purple: RideSync has no green chrome.
+  static const Color success = primary;
+  static const Color error = Color(0xFFFF5252);
 
   // ---------------------------------------------------------------------------
-  // Signature accents
+  // Rider identity colours
+  //
+  // Used only for riders' dots, trails and avatars, so friends can tell each
+  // other apart on the map. Order matters: `RiderPalette` assigns from here.
   // ---------------------------------------------------------------------------
 
-  /// The planned destination route. Deliberately distinct from every rider
-  /// accent so the route never blends into a trail.
-  static const Color route = Color(0xFF2E6BFF); // Electric Blue
-
-  // Rider accent palette. Order matters: [RiderPalette] assigns from this list.
   static const Color neonGreen = Color(0xFF00FF94);
   static const Color orange = Color(0xFFFF9F1C);
-  static const Color purple = Color(0xFF9B5CFF);
   static const Color cyan = Color(0xFF00E5FF);
   static const Color pink = Color(0xFFFF5CA8);
   static const Color yellow = Color(0xFFFFE23D);

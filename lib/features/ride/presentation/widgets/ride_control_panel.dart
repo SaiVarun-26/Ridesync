@@ -95,8 +95,8 @@ class _RideControlPanelState extends State<RideControlPanel> {
             gps: widget.gps,
           ),
           AnimatedSize(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
+            duration: AppMotion.slow,
+            curve: AppMotion.curve,
             alignment: Alignment.topCenter,
             child: _expanded
                 ? _Details(
@@ -147,7 +147,7 @@ class _Handle extends StatelessWidget {
               height: _barHeight,
               decoration: BoxDecoration(
                 color: AppColors.textTertiary,
-                borderRadius: BorderRadius.circular(_barHeight),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
               ),
             ),
           ),
@@ -181,14 +181,14 @@ class _Details extends StatelessWidget {
     final theme = Theme.of(context);
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOut,
+      duration: AppMotion.normal,
+      curve: AppMotion.curve,
       builder: (context, t, child) => Opacity(opacity: t, child: child),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: AppSpacing.lg),
-          const Divider(height: 1, color: AppColors.divider),
+          const Divider(height: 1, color: AppColors.border),
           const SizedBox(height: AppSpacing.lg),
           Row(
             children: [

@@ -23,8 +23,8 @@ class FirebaseAuthRepository implements AuthRepository {
   FirebaseAuthRepository({
     required FirebaseAuth auth,
     required FirebaseFirestore firestore,
-  })  : _auth = auth,
-        _firestore = firestore;
+  }) : _auth = auth,
+       _firestore = firestore;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -158,11 +158,11 @@ class FirebaseAuthRepository implements AuthRepository {
     return switch (e.code) {
       'network-request-failed' => NetworkFailure(cause: e),
       'operation-not-allowed' => const AuthFailure(
-          message: 'Anonymous sign-in is not enabled for this project.',
-        ),
+        message: 'Anonymous sign-in is not enabled for this project.',
+      ),
       'too-many-requests' => const AuthFailure(
-          message: 'Too many attempts. Please wait a moment and try again.',
-        ),
+        message: 'Too many attempts. Please wait a moment and try again.',
+      ),
       _ => AuthFailure(cause: e),
     };
   }
@@ -172,8 +172,8 @@ class FirebaseAuthRepository implements AuthRepository {
     return switch (e.code) {
       'unavailable' || 'deadline-exceeded' => NetworkFailure(cause: e),
       'permission-denied' => const AuthFailure(
-          message: 'You do not have permission to update this profile.',
-        ),
+        message: 'You do not have permission to update this profile.',
+      ),
       _ => UnexpectedFailure(cause: e),
     };
   }

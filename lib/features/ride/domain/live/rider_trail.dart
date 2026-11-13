@@ -94,7 +94,8 @@ class RiderTrail {
         result.add(p);
         continue;
       }
-      final boundary = i == 0 ||
+      final boundary =
+          i == 0 ||
           i == olderCount - 1 ||
           p.startsSegment ||
           source[i + 1].startsSegment;

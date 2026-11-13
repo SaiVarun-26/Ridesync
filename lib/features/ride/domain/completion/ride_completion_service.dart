@@ -32,10 +32,10 @@ class RideCompletionService {
     required RideSummaryRepository summaries,
     int Function()? nowMs,
     this.finishTimeout = const Duration(seconds: 5),
-  })  : _rooms = rooms,
-        _stats = stats,
-        _summaries = summaries,
-        _nowMs = nowMs ?? _systemNowMs;
+  }) : _rooms = rooms,
+       _stats = stats,
+       _summaries = summaries,
+       _nowMs = nowMs ?? _systemNowMs;
 
   /// How long to wait for riders to confirm their final stats.
   final Duration finishTimeout;
@@ -111,17 +111,19 @@ class RideCompletionService {
 
     if (expected.isEmpty) return latest;
 
-    final subscription = _stats.watchAll(code: code).listen(
-      (stats) {
-        latest = stats;
-        if (everyoneFinished(stats) && !allFinished.isCompleted) {
-          allFinished.complete();
-        }
-      },
-      onError: (Object _) {
-        if (!allFinished.isCompleted) allFinished.complete();
-      },
-    );
+    final subscription = _stats
+        .watchAll(code: code)
+        .listen(
+          (stats) {
+            latest = stats;
+            if (everyoneFinished(stats) && !allFinished.isCompleted) {
+              allFinished.complete();
+            }
+          },
+          onError: (Object _) {
+            if (!allFinished.isCompleted) allFinished.complete();
+          },
+        );
     await allFinished.future.timeout(finishTimeout, onTimeout: () {});
     // Not awaited: a stream that is slow to cancel must never hold up ending
     // the ride once the wait is over.

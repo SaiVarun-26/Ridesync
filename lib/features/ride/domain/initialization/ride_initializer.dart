@@ -26,12 +26,12 @@ class InitStepState {
   bool get isDone => phase == InitStepPhase.done;
 
   InitStepState _apply(InitTaskUpdate update) => InitStepState(
-        id: id,
-        label: label,
-        phase: update.phase,
-        message: update.message,
-        blocker: update.blocker,
-      );
+    id: id,
+    label: label,
+    phase: update.phase,
+    message: update.message,
+    blocker: update.blocker,
+  );
 }
 
 /// Runs a ride's initialization plan, one task after another, and reports
@@ -45,11 +45,11 @@ class RideInitializer {
   RideInitializer(
     List<InitTask> tasks, {
     this.retryDelay = const Duration(seconds: 2),
-  })  : _tasks = List<InitTask>.unmodifiable(tasks),
-        _steps = [
-          for (final task in tasks)
-            InitStepState(id: task.id, label: task.label),
-        ];
+  }) : _tasks = List<InitTask>.unmodifiable(tasks),
+       _steps = [
+         for (final task in tasks)
+           InitStepState(id: task.id, label: task.label),
+       ];
 
   /// Pause before re-running a task that failed.
   final Duration retryDelay;

@@ -11,11 +11,7 @@ import '../domain/app_user.dart';
 /// any other key would be rejected by the rules, so all field names are defined
 /// as constants and reused rather than written inline.
 class UserProfileDto {
-  const UserProfileDto({
-    required this.uid,
-    this.displayName,
-    this.photoUrl,
-  });
+  const UserProfileDto({required this.uid, this.displayName, this.photoUrl});
 
   final String uid;
   final String? displayName;
@@ -32,10 +28,10 @@ class UserProfileDto {
 
   /// Builds a DTO from a domain [AppUser].
   factory UserProfileDto.fromDomain(AppUser user) => UserProfileDto(
-        uid: user.uid,
-        displayName: user.displayName,
-        photoUrl: user.photoUrl,
-      );
+    uid: user.uid,
+    displayName: user.displayName,
+    photoUrl: user.photoUrl,
+  );
 
   /// Reconstructs a DTO from a Firestore snapshot.
   ///
@@ -53,11 +49,8 @@ class UserProfileDto {
   }
 
   /// Maps this DTO to the domain [AppUser].
-  AppUser toDomain() => AppUser(
-        uid: uid,
-        displayName: displayName,
-        photoUrl: photoUrl,
-      );
+  AppUser toDomain() =>
+      AppUser(uid: uid, displayName: displayName, photoUrl: photoUrl);
 
   /// Serializes for a merge write.
   ///

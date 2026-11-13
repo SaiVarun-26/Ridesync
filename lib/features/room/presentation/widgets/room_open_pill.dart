@@ -6,25 +6,35 @@ import '../../../../core/widgets/pulse_indicator.dart';
 
 /// Shows whether a room still takes riders, with the live rider count.
 ///
-/// Open: a pulsing green dot, "Open to join". Locked: a still red dot,
-/// "Ride started".
+/// Open: a pulsing dot, "Open to join", or "Ride in progress" when the ride is
+/// already under way (riders can still join it). Closed: a still red dot,
+/// "Ride ended".
 class RoomOpenPill extends StatelessWidget {
-  const RoomOpenPill({super.key, required this.isOpen, required this.riders});
+  const RoomOpenPill({
+    super.key,
+    required this.isOpen,
+    required this.riders,
+    this.isUnderway = false,
+  });
 
   final bool isOpen;
   final int riders;
 
+  /// Whether the ride has already left the lobby.
+  final bool isUnderway;
+
   @override
   Widget build(BuildContext context) {
-    final color = isOpen ? AppColors.neonGreen : AppColors.warning;
+    final color = isOpen ? AppColors.success : AppColors.error;
     final theme = Theme.of(context);
     final count = '$riders ${riders == 1 ? 'rider' : 'riders'}';
+    final label = !isOpen
+        ? 'Ride ended'
+        : (isUnderway ? 'Ride in progress' : 'Open to join');
     return AnimatedContainer(
       duration: AppMotion.normal,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm - 1,
-      ),
+      curve: AppMotion.curve,
+      padding: AppSpacing.pill,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -33,17 +43,10 @@ class RoomOpenPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isOpen)
-            PulseIndicator(color: color, size: 7)
-          else
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-            ),
+          StatusDot(color: color, live: isOpen),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            isOpen ? 'Open to join' : 'Ride started',
+            label,
             style: theme.textTheme.labelMedium?.copyWith(
               color: color,
               fontWeight: FontWeight.w600,

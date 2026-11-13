@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rider_dot.dart';
 
 /// How a color appears to the current rider.
@@ -16,7 +17,7 @@ enum ColorTileState {
   taken,
 }
 
-/// A square tile showing one rider color as a glowing dot.
+/// A square tile showing one rider color as a dot.
 ///
 /// The current rider's color is ringed and glows; colors held by others are
 /// dimmed and disabled. Presentation only: claiming happens in the repository.
@@ -57,7 +58,6 @@ class ColorTile extends StatelessWidget {
         child: RiderDot(
           color: taken ? color.withValues(alpha: _takenAlpha) : color,
           size: _TileFrame.dotSize,
-          glow: !taken,
         ),
       ),
     );
@@ -95,7 +95,7 @@ class MoreColorsTile extends StatelessWidget {
         accent: selected,
         onTap: onTap,
         child: selected == null
-            ? const Icon(Icons.add, color: AppColors.textSecondary)
+            ? const Icon(Icons.add_rounded, color: AppColors.textSecondary)
             : Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -104,7 +104,7 @@ class MoreColorsTile extends StatelessWidget {
                     right: -AppSpacing.md,
                     top: -AppSpacing.md,
                     child: Icon(
-                      Icons.add,
+                      Icons.add_rounded,
                       size: _badgeIconSize,
                       color: AppColors.textSecondary,
                     ),
@@ -129,9 +129,6 @@ class _TileFrame extends StatelessWidget {
   static const double dotSize = 20;
 
   static const double _selectedBorderWidth = 2;
-  static const double _glowAlpha = 0.35;
-  static const double _glowBlur = 18;
-  static const double _glowSpread = -6;
 
   final Color? accent;
   final VoidCallback? onTap;
@@ -143,32 +140,26 @@ class _TileFrame extends StatelessWidget {
     final radius = BorderRadius.circular(AppRadius.md);
     return AspectRatio(
       aspectRatio: 1,
-      child: AnimatedContainer(
-        duration: AppMotion.normal,
-        curve: AppMotion.curve,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
-          borderRadius: radius,
-          border: Border.all(
-            color: selected ?? AppColors.divider,
-            width: selected == null ? 1 : _selectedBorderWidth,
-          ),
-          boxShadow: selected == null
-              ? null
-              : [
-                  BoxShadow(
-                    color: selected.withValues(alpha: _glowAlpha),
-                    blurRadius: _glowBlur,
-                    spreadRadius: _glowSpread,
-                  ),
-                ],
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: onTap,
+      child: PressableScale(
+        enabled: onTap != null,
+        child: AnimatedContainer(
+          duration: AppMotion.normal,
+          curve: AppMotion.curve,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceRaised,
             borderRadius: radius,
-            child: Center(child: child),
+            border: Border.all(
+              color: selected ?? AppColors.border,
+              width: selected == null ? 1 : _selectedBorderWidth,
+            ),
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: radius,
+              child: Center(child: child),
+            ),
           ),
         ),
       ),

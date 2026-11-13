@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/errors/result.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_dialogs.dart';
 import '../providers/room_providers.dart';
 
 /// Builds a room screen, given a callback that starts the leave flow and
@@ -42,22 +43,14 @@ class _RoomExitScopeState extends ConsumerState<RoomExitScope> {
 
   Future<void> _requestLeave() async {
     if (_isLeaving) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Leave this ride?'),
-        content: const Text('Your color will be released for other riders.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Stay'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.warning),
-            child: const Text('Leave'),
-          ),
-        ],
+      builder: (_) => const AppDialog(
+        title: 'Leave this ride?',
+        message: 'Your color will be released for other riders.',
+        cancelLabel: 'Stay',
+        confirmLabel: 'Leave',
+        destructive: true,
       ),
     );
     if (!(confirmed ?? false) || !mounted) return;
@@ -72,9 +65,7 @@ class _RoomExitScopeState extends ConsumerState<RoomExitScope> {
         context.go(AppRoutes.home);
       case Failed(:final failure):
         setState(() => _isLeaving = false);
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(failure.message)));
+        showAppSnackBar(context, failure.message);
     }
   }
 

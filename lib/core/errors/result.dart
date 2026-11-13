@@ -15,9 +15,9 @@ sealed class Result<T> {
 
   /// The value if successful, otherwise `null`.
   T? get valueOrNull => switch (this) {
-        Success<T>(:final value) => value,
-        Failed<T>() => null,
-      };
+    Success<T>(:final value) => value,
+    Failed<T>() => null,
+  };
 
   /// Folds both branches into a single value of type [R].
   R fold<R>({

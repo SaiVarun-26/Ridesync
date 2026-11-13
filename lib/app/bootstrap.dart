@@ -6,6 +6,7 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/firebase/firebase_config.dart';
+import '../core/theme/app_colors.dart';
 import '../core/firebase/firebase_initializer.dart';
 import '../firebase_options.dart';
 import 'app.dart';
@@ -48,7 +49,7 @@ Future<void> bootstrap() async {
         const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.light,
-          systemNavigationBarColor: Color(0xFF050505),
+          systemNavigationBarColor: AppColors.background,
           systemNavigationBarIconBrightness: Brightness.light,
         ),
       );

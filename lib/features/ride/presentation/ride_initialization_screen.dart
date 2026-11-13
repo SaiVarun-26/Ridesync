@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/router/app_routes.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/brand_mark.dart';
 import '../../../core/widgets/fade_slide_in.dart';
-import '../../../core/widgets/glow_button.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/pulse_indicator.dart';
+import '../../../core/widgets/ride_loader.dart';
 import '../../room/domain/room.dart';
 import '../../room/presentation/providers/room_providers.dart';
 import '../../room/presentation/room_flow.dart';
@@ -118,8 +118,7 @@ class _InitializationBody extends ConsumerWidget {
   final bool isOffline;
 
   static const double _contentMaxWidth = 300;
-  static const double _markSize = 72;
-  static const Duration _rowStagger = Duration(milliseconds: 90);
+  static const Duration _rowStagger = AppMotion.stagger;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -160,7 +159,7 @@ class _InitializationBody extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const BrandMark(size: _markSize, breathing: true),
+              const BrandMark(breathing: true),
               const SizedBox(height: AppSpacing.xxl),
               FadeSlideIn(
                 child: Text(
@@ -259,7 +258,7 @@ class _PermissionPanel extends StatelessWidget {
           style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: AppSpacing.xl),
-        GlowButton(label: 'Grant Permission', onPressed: onGrant),
+        AppButton(label: 'Grant Permission', onPressed: onGrant),
       ],
     );
   }
@@ -273,7 +272,6 @@ class _StatusLine extends StatelessWidget {
   final bool spinner;
 
   static const double _spinnerSize = 14;
-  static const double _strokeWidth = 1.5;
 
   @override
   Widget build(BuildContext context) {
@@ -281,16 +279,7 @@ class _StatusLine extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (spinner)
-          const SizedBox(
-            width: _spinnerSize,
-            height: _spinnerSize,
-            child: CircularProgressIndicator(
-              strokeWidth: _strokeWidth,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                AppColors.textSecondary,
-              ),
-            ),
-          )
+          const RideLoader(size: _spinnerSize)
         else
           const PulseIndicator(),
         const SizedBox(width: AppSpacing.md),

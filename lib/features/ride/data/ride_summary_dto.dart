@@ -128,8 +128,9 @@ abstract final class RideSummaryDto {
       durationMs: _double(value[RideSummaryPaths.durationMs]).toInt(),
       averageSpeedMps: _double(value[RideSummaryPaths.averageSpeedMps]),
       maxSpeedMps: _double(value[RideSummaryPaths.maxSpeedMps]),
-      longestDistanceMeters:
-          _double(value[RideSummaryPaths.longestDistanceMeters]),
+      longestDistanceMeters: _double(
+        value[RideSummaryPaths.longestDistanceMeters],
+      ),
       riderCount: _double(value[RideSummaryPaths.riderCount]).toInt(),
       startedAtMs: startedAt.toInt(),
       endedAtMs: endedAt.toInt(),

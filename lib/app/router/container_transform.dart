@@ -23,15 +23,12 @@ CustomTransitionPage<void> containerTransformPage({
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 520),
-    reverseTransitionDuration: const Duration(milliseconds: 380),
+    transitionDuration: AppMotion.springDuration,
+    reverseTransitionDuration: AppMotion.slow,
     transitionsBuilder: (context, animation, secondaryAnimation, page) {
       if (origin == null) {
         return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          ),
+          opacity: CurvedAnimation(parent: animation, curve: AppMotion.curve),
           child: page,
         );
       }
@@ -62,13 +59,13 @@ class _ContainerTransform extends StatefulWidget {
 class _ContainerTransformState extends State<_ContainerTransform> {
   late final CurvedAnimation _shape = CurvedAnimation(
     parent: widget.animation,
-    curve: Curves.easeInOutCubicEmphasized,
-    reverseCurve: Curves.easeInOutCubic,
+    curve: AppMotion.emphasized,
+    reverseCurve: AppMotion.move,
   );
   late final CurvedAnimation _content = CurvedAnimation(
     parent: widget.animation,
-    curve: const Interval(0.3, 0.8, curve: Curves.easeOut),
-    reverseCurve: const Interval(0, 0.5, curve: Curves.easeIn),
+    curve: const Interval(0.3, 0.8, curve: AppMotion.curve),
+    reverseCurve: const Interval(0, 0.5, curve: AppMotion.exit),
   );
 
   @override
@@ -92,7 +89,8 @@ class _ContainerTransformState extends State<_ContainerTransform> {
         final t = _shape.value.clamp(0.0, 1.0);
         final rect = Rect.lerp(widget.origin, full, _shape.value)!;
         final radius = BorderRadius.circular(
-          lerpDouble(AppRadius.card + 4, 0, t)!,
+          // Starts from the history card's own corners.
+          lerpDouble(AppRadius.lg, 0, t)!,
         );
         return Stack(
           children: [

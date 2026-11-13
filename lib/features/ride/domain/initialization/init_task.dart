@@ -35,11 +35,11 @@ class InitTaskUpdate {
 
   /// The task is waiting on an external condition and will resume by itself.
   const InitTaskUpdate.waiting(String message)
-      : this._(InitStepPhase.waiting, message: message);
+    : this._(InitStepPhase.waiting, message: message);
 
   /// The task needs the rider to act before it can be retried.
   const InitTaskUpdate.blocked(InitBlocker blocker)
-      : this._(InitStepPhase.blocked, blocker: blocker);
+    : this._(InitStepPhase.blocked, blocker: blocker);
 
   /// The task finished.
   const InitTaskUpdate.done() : this._(InitStepPhase.done);

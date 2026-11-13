@@ -16,7 +16,7 @@ class _RideHistorySkeletonState extends State<RideHistorySkeleton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1100),
+    duration: AppMotion.breath,
   )..repeat(reverse: true);
 
   @override
@@ -31,51 +31,49 @@ class _RideHistorySkeletonState extends State<RideHistorySkeleton>
       opacity: Tween<double>(
         begin: 0.45,
         end: 1,
-      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
+      ).animate(CurvedAnimation(parent: _controller, curve: AppMotion.ambient)),
       child: Container(
-        height: 112,
-        padding: const EdgeInsets.all(AppSpacing.md + 2),
+        height: 188,
+        padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.card + 4),
-          border: Border.all(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.border),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(14),
-              ),
+            Row(
+              children: [
+                _block(92, 92, 16),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _block(150, 16, 16),
+                      const SizedBox(height: AppSpacing.sm),
+                      _block(90, 11, 11),
+                      const SizedBox(height: AppSpacing.md),
+                      _block(70, 22, 22),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _bar(140, 14),
-                  const SizedBox(height: AppSpacing.sm),
-                  _bar(90, 10),
-                  const SizedBox(height: AppSpacing.md),
-                  _bar(190, 12),
-                ],
-              ),
-            ),
+            const Spacer(),
+            _block(double.infinity, 40, AppRadius.md),
           ],
         ),
       ),
     );
   }
 
-  Widget _bar(double width, double height) => Container(
+  Widget _block(double width, double height, double radius) => Container(
     width: width,
     height: height,
     decoration: BoxDecoration(
-      color: AppColors.surfaceElevated,
-      borderRadius: BorderRadius.circular(height),
+      color: AppColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(radius),
     ),
   );
 }

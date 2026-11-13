@@ -10,6 +10,7 @@ import '../../ride/data/ride_stats_dto.dart';
 import '../../ride/data/ride_summary_dto.dart';
 import '../../ride/domain/geo_point.dart';
 import '../../ride/domain/polyline.dart';
+import '../../ride/domain/speed_codec.dart';
 import '../domain/ride_history_entry.dart';
 import '../domain/ride_history_repository.dart';
 import 'json_cache.dart';
@@ -89,18 +90,62 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
 
   /// The rider's own route, or none if it cannot be read. The miniature is
   /// a nicety, so a missing route never stops the ride being recorded.
-  Future<List<GeoPoint>> _ownRoute(String uid, String code) async {
+  Future<({List<GeoPoint> points, List<double> speeds})> _ownRoute(
+    String uid,
+    String code,
+  ) async {
     try {
       final snapshot = await _database
-          .ref('${RideStatsPaths.routes(code)}/$uid/${RideStatsPaths.polyline}')
+          .ref('${RideStatsPaths.routes(code)}/$uid')
           .get()
           .timeout(timeout);
       final value = snapshot.value;
-      return value is String ? decodePolyline(value) : const [];
+      if (value is! Map) {
+        return (points: const <GeoPoint>[], speeds: const <double>[]);
+      }
+      final polyline = value[RideStatsPaths.polyline];
+      final speeds = value[RideStatsPaths.speeds];
+      return (
+        points: polyline is String
+            ? decodePolyline(polyline)
+            : const <GeoPoint>[],
+        speeds: speeds is String ? SpeedCodec.decode(speeds) : const <double>[],
+      );
     } on Object catch (e) {
       debugPrint('Reading the route for the preview failed: $e');
-      return const [];
+      return (points: const <GeoPoint>[], speeds: const <double>[]);
     }
+  }
+
+  @override
+  Future<RideHistoryEntry?> generatePreview({
+    required String uid,
+    required RideHistoryEntry entry,
+  }) async {
+    final route = await _ownRoute(uid, entry.code);
+    if (route.points.length < 2) return null;
+    final withPreview = entry.withRoutePreview(
+      route.points,
+      speedsMps: route.speeds,
+    );
+    try {
+      // Saved onto the ride's history entry so every device has it from now
+      // on. The rules only allow adding a preview, never changing one.
+      await _database
+          .ref(RideHistoryPaths.entry(uid, entry.code))
+          .update(<String, Object?>{
+            RideHistoryPaths.preview: encodePolyline(withPreview.routePreview),
+            if (withPreview.previewSpeedsMps.isNotEmpty)
+              RideHistoryPaths.previewSpeeds: SpeedCodec.encode(
+                withPreview.previewSpeedsMps,
+              ),
+          })
+          .timeout(timeout);
+    } on Object catch (e) {
+      // Not saved is fine: the preview is still shown for this session.
+      debugPrint('Saving the generated preview failed: $e');
+    }
+    return withPreview;
   }
 
   @override
@@ -128,7 +173,11 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
       // Not part of this ride (for example joined after it ended).
       if (entry == null) return const Success(null);
 
-      final withPreview = entry.withRoutePreview(await _ownRoute(uid, code));
+      final route = await _ownRoute(uid, code);
+      final withPreview = entry.withRoutePreview(
+        route.points,
+        speedsMps: route.speeds,
+      );
       await entryRef.set(RideHistoryDto.toValue(withPreview)).timeout(timeout);
       return const Success(null);
     } on TimeoutException catch (e) {

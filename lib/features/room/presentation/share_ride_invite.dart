@@ -2,7 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Builds the invite message shared from the lobby, with [code] filled in.
-String buildRideInviteText(String code) => '''
+String buildRideInviteText(String code) =>
+    '''
 🏍 Join my RideSync ride!
 
 Ride Code:

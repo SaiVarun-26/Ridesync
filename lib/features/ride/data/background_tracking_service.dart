@@ -28,7 +28,7 @@ enum TrackingStartResult {
 /// notification. It therefore holds no ride logic and talks to no database.
 class BackgroundTrackingService {
   BackgroundTrackingService({PermissionGate? permissions})
-      : _permissions = permissions ?? const PermissionGate();
+    : _permissions = permissions ?? const PermissionGate();
 
   final PermissionGate _permissions;
 
@@ -47,7 +47,8 @@ class BackgroundTrackingService {
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: _channelId,
         channelName: _channelName,
-        channelDescription: 'Keeps your ride tracking while the app is in the '
+        channelDescription:
+            'Keeps your ride tracking while the app is in the '
             'background.',
         onlyAlertOnce: true,
       ),

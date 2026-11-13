@@ -3,49 +3,43 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
 
-/// A frosted, translucent card that floats over the map.
+/// A panel that floats over the map and other content.
 ///
-/// Blurs whatever is behind it, adds a hairline border, and optionally a soft
-/// neon [glowColor].
+/// A translucent card-coloured surface that softly blurs what is behind it,
+/// edged with a hairline border. An [accent] swaps the border for a line in
+/// that colour, the way a panel is marked as belonging to someone. It has
+/// no gradient and no glow: only a very large, very faint shadow to lift it.
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(AppSpacing.lg),
-    this.glowColor,
+    this.accent,
     this.radius = AppRadius.lg,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final Color? glowColor;
+
+  /// Colour of the border; the neutral hairline when `null`.
+  final Color? accent;
   final double radius;
 
-  static const double _blurSigma = 20;
-  static const double _fillAlpha = 0.72;
-  static const double _borderAlpha = 0.08;
-  static const double _glowAlpha = 0.22;
-  static const double _glowBlur = 30;
-  static const double _glowSpread = -8;
+  // Kept moderate on purpose: panels sit over a live map that repaints every
+  // frame, and a blur has to be redone each time what is behind it changes.
+  static const double _blurSigma = 12;
+  static const double _fillAlpha = 0.82;
 
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(radius);
-    final glow = glowColor;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
-        boxShadow: glow == null
-            ? null
-            : [
-                BoxShadow(
-                  color: glow.withValues(alpha: _glowAlpha),
-                  blurRadius: _glowBlur,
-                  spreadRadius: _glowSpread,
-                ),
-              ],
+        boxShadow: AppShadows.rest,
       ),
       child: ClipRRect(
         borderRadius: borderRadius,
@@ -56,7 +50,7 @@ class GlassPanel extends StatelessWidget {
               color: AppColors.surface.withValues(alpha: _fillAlpha),
               borderRadius: borderRadius,
               border: Border.all(
-                color: AppColors.textPrimary.withValues(alpha: _borderAlpha),
+                color: accent?.withValues(alpha: 0.6) ?? AppColors.border,
               ),
             ),
             child: Padding(padding: padding, child: child),

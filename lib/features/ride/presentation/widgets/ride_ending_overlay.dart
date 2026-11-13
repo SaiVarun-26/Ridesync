@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/brand_mark.dart';
-import '../../../../core/widgets/glow_button.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/ride_loader.dart';
 import '../../domain/completion/ride_end_stage.dart';
 
 /// Full-screen wrap-up shown while a ride ends: three steps that tick off as
@@ -90,17 +91,17 @@ class RideEndingOverlay extends StatelessWidget {
                       Text(
                         error!,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: AppColors.warning,
+                          color: AppColors.error,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       if (onRetry != null)
-                        GlowButton(label: 'Try again', onPressed: onRetry),
+                        AppButton(label: 'Try again', onPressed: onRetry),
                       if (onDismiss != null) ...[
                         const SizedBox(height: AppSpacing.md),
-                        GlowButton(
+                        AppButton(
                           label: 'Back to ride',
-                          variant: GlowButtonVariant.secondary,
+                          variant: AppButtonVariant.secondary,
                           onPressed: onDismiss,
                         ),
                       ],
@@ -133,7 +134,7 @@ class _StepRow extends StatelessWidget {
       _StepState.pending => AppColors.textTertiary,
       _StepState.active => AppColors.textPrimary,
       _StepState.done => AppColors.textSecondary,
-      _StepState.failed => AppColors.warning,
+      _StepState.failed => AppColors.error,
     };
     return Row(
       children: [
@@ -141,35 +142,32 @@ class _StepRow extends StatelessWidget {
           width: _iconSize,
           height: _iconSize,
           child: AnimatedSwitcher(
-            duration: AppMotion.normal,
-            switchInCurve: Curves.easeOutBack,
+            duration: AppMotion.springDuration,
+            switchInCurve: AppMotion.spring,
+            switchOutCurve: AppMotion.exit,
             transitionBuilder: (child, animation) => ScaleTransition(
               scale: animation,
               child: FadeTransition(opacity: animation, child: child),
             ),
             child: switch (state) {
               _StepState.done => const Icon(
-                Icons.check_circle,
+                Icons.check_circle_rounded,
                 key: ValueKey('done'),
                 size: _iconSize,
-                color: AppColors.neonGreen,
+                color: AppColors.primary,
               ),
-              _StepState.active => const Padding(
+              _StepState.active => const RideLoader(
                 key: ValueKey('active'),
-                padding: EdgeInsets.all(2),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.2,
-                  color: AppColors.neonGreen,
-                ),
+                size: _iconSize,
               ),
               _StepState.failed => const Icon(
-                Icons.error_outline,
+                Icons.error_outline_rounded,
                 key: ValueKey('failed'),
                 size: _iconSize,
-                color: AppColors.warning,
+                color: AppColors.error,
               ),
               _StepState.pending => const Icon(
-                Icons.circle_outlined,
+                Icons.radio_button_unchecked_rounded,
                 key: ValueKey('pending'),
                 size: _iconSize,
                 color: AppColors.textTertiary,

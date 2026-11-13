@@ -7,5 +7,8 @@ abstract interface class SharedRouteRepository {
   Stream<PlannedRoute?> watch({required String code});
 
   /// Saves [route] for room [code], replacing any earlier one. Host only.
-  Future<Result<void>> save({required String code, required PlannedRoute route});
+  Future<Result<void>> save({
+    required String code,
+    required PlannedRoute route,
+  });
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/pulse_indicator.dart';
+import '../../../../core/widgets/ride_loader.dart';
 import '../../domain/initialization/init_task.dart';
 import '../../domain/initialization/ride_initializer.dart';
 
@@ -10,7 +11,7 @@ import '../../domain/initialization/ride_initializer.dart';
 /// message.
 ///
 /// The indicator morphs between states with a scale-and-fade, and a finished
-/// step lands on a glowing Electric Blue check.
+/// step lands on a solid success-green check.
 class InitStepRow extends StatelessWidget {
   const InitStepRow({super.key, required this.step});
 
@@ -34,8 +35,8 @@ class InitStepRow extends StatelessWidget {
           height: _indicatorSlot,
           child: AnimatedSwitcher(
             duration: AppMotion.normal,
-            switchInCurve: AppMotion.curve,
-            switchOutCurve: AppMotion.curve,
+            switchInCurve: AppMotion.spring,
+            switchOutCurve: AppMotion.exit,
             transitionBuilder: (child, animation) => FadeTransition(
               opacity: animation,
               child: ScaleTransition(scale: animation, child: child),
@@ -93,8 +94,6 @@ class _Indicator extends StatelessWidget {
   static const double _waitingSize = 8;
   static const double _checkSize = 20;
   static const double _checkIconSize = 13;
-  static const double _checkGlowAlpha = 0.55;
-  static const double _checkGlowBlur = 14;
 
   @override
   Widget build(BuildContext context) {
@@ -111,31 +110,18 @@ class _Indicator extends StatelessWidget {
             ),
           ),
         ),
-        InitStepPhase.running => const SizedBox(
-          width: _spinnerSize,
-          height: _spinnerSize,
-          child: CircularProgressIndicator(
-            strokeWidth: _ringWidth,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.route),
-          ),
-        ),
+        InitStepPhase.running => const RideLoader(size: _spinnerSize),
         InitStepPhase.waiting => const PulseIndicator(size: _waitingSize),
         InitStepPhase.blocked => const PulseIndicator(
           size: _waitingSize,
-          color: AppColors.warning,
+          color: AppColors.error,
         ),
         InitStepPhase.done => Container(
           width: _checkSize,
           height: _checkSize,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.route,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.route.withValues(alpha: _checkGlowAlpha),
-                blurRadius: _checkGlowBlur,
-              ),
-            ],
+            color: AppColors.primary,
           ),
           child: const Icon(
             Icons.check_rounded,

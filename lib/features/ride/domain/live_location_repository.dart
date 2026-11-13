@@ -13,7 +13,10 @@ abstract interface class LiveLocationRepository {
   Stream<RiderLocationChange> watchChanges({required String code});
 
   /// Shares this rider's [fix] with the room.
-  Future<Result<void>> publish({required String code, required LocationFix fix});
+  Future<Result<void>> publish({
+    required String code,
+    required LocationFix fix,
+  });
 
   /// Registers server-side removal of this rider's position if the client
   /// disconnects, so a dropped rider disappears for everyone.

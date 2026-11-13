@@ -34,14 +34,15 @@ class RtdbLiveLocationRepository implements LiveLocationRepository {
   RtdbLiveLocationRepository({
     required FirebaseDatabase database,
     required AuthRepository auth,
-  })  : _database = database,
-        _auth = auth;
+  }) : _database = database,
+       _auth = auth;
 
   final FirebaseDatabase _database;
   final AuthRepository _auth;
 
-  static const Failure _signedOut =
-      AuthFailure(message: 'You must be signed in.');
+  static const Failure _signedOut = AuthFailure(
+    message: 'You must be signed in.',
+  );
 
   /// Highest speed the rules accept (150 m/s, 540 km/h); anything faster is a
   /// GPS glitch.
@@ -67,13 +68,10 @@ class RtdbLiveLocationRepository implements LiveLocationRepository {
             ref.onChildChanged.listen(onUpsert, onError: controller.addError),
           )
           ..add(
-            ref.onChildRemoved.listen(
-              (event) {
-                final uid = event.snapshot.key;
-                if (uid != null) controller.add(RiderLocationRemoved(uid));
-              },
-              onError: controller.addError,
-            ),
+            ref.onChildRemoved.listen((event) {
+              final uid = event.snapshot.key;
+              if (uid != null) controller.add(RiderLocationRemoved(uid));
+            }, onError: controller.addError),
           );
       },
       onCancel: () async {
@@ -93,15 +91,19 @@ class RtdbLiveLocationRepository implements LiveLocationRepository {
   }) {
     // Clamped to the ranges the security rules accept, so one noisy GPS
     // reading cannot get an update rejected.
-    return _write((uid) => _myRef(code, uid).set(<String, Object?>{
-          LiveLocationPaths.latitude: fix.point.latitude,
-          LiveLocationPaths.longitude: fix.point.longitude,
-          LiveLocationPaths.heading:
-              (fix.headingDegrees ?? 0).clamp(0, _maxHeading).toDouble(),
-          LiveLocationPaths.speed:
-              (fix.speedMps ?? 0).clamp(0, maxSpeedMps).toDouble(),
-          LiveLocationPaths.lastUpdated: ServerValue.timestamp,
-        }));
+    return _write(
+      (uid) => _myRef(code, uid).set(<String, Object?>{
+        LiveLocationPaths.latitude: fix.point.latitude,
+        LiveLocationPaths.longitude: fix.point.longitude,
+        LiveLocationPaths.heading: (fix.headingDegrees ?? 0)
+            .clamp(0, _maxHeading)
+            .toDouble(),
+        LiveLocationPaths.speed: (fix.speedMps ?? 0)
+            .clamp(0, maxSpeedMps)
+            .toDouble(),
+        LiveLocationPaths.lastUpdated: ServerValue.timestamp,
+      }),
+    );
   }
 
   @override

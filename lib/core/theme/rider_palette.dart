@@ -31,14 +31,14 @@ class RiderColor {
 
 /// The fixed pool of rider colors. This is the single source of truth for what
 /// riders can claim in a lobby; a rider's color is their only identity in V1
-/// (no icons), so every color must read clearly as a glowing dot on black.
+/// (no icons), so every color must read clearly as a dot on black.
 ///
 /// Curation rules:
 /// - No reds: red is reserved for warnings.
 /// - No deep blues: Electric Blue (#2E6BFF) is reserved for the planned route,
 ///   so neighbouring blues are excluded to keep trails distinct from it.
 /// - No dull or dark tones: every entry is a bright neon that holds up on
-///   #050505.
+///   #000000.
 /// - No near-duplicates: tones that would be confused on a map were dropped,
 ///   which is why the pool stops at 21 rather than a round number.
 @immutable
@@ -54,11 +54,10 @@ abstract final class RiderPalette {
     // Featured.
     RiderColor(id: 'green', label: 'Neon Green', color: AppColors.neonGreen),
     RiderColor(id: 'orange', label: 'Orange', color: AppColors.orange),
-    RiderColor(id: 'purple', label: 'Purple', color: AppColors.purple),
     RiderColor(id: 'cyan', label: 'Cyber Cyan', color: AppColors.cyan),
     RiderColor(id: 'pink', label: 'Hot Pink', color: AppColors.pink),
-    // Extended.
     RiderColor(id: 'yellow', label: 'Volt', color: AppColors.yellow),
+    // Extended.
     RiderColor(id: 'lime', label: 'Lime', color: Color(0xFFB6FF3B)),
     RiderColor(id: 'mint', label: 'Mint', color: Color(0xFF7CFFB2)),
     RiderColor(id: 'aqua', label: 'Aqua', color: Color(0xFF00FFD5)),
@@ -67,13 +66,20 @@ abstract final class RiderPalette {
     RiderColor(id: 'peach', label: 'Peach', color: Color(0xFFFFB38A)),
     RiderColor(id: 'coral', label: 'Coral', color: Color(0xFFFF7A59)),
     RiderColor(id: 'rose', label: 'Rose', color: Color(0xFFFF8FC7)),
+    RiderColor(id: 'sky', label: 'Sky', color: Color(0xFF5CC8FF)),
+    RiderColor(id: 'ice', label: 'Ice', color: Color(0xFFA8F0FF)),
+    RiderColor(id: 'pearl', label: 'Pearl', color: Color(0xFFF2F2F2)),
+  ];
+
+  /// Colors that riders can no longer pick, because the purple family now
+  /// belongs to the app itself. They still resolve, so rides saved with them
+  /// keep their colors.
+  static const List<RiderColor> _retired = <RiderColor>[
+    RiderColor(id: 'purple', label: 'Purple', color: Color(0xFF9B5CFF)),
     RiderColor(id: 'magenta', label: 'Magenta', color: Color(0xFFFF3DF2)),
     RiderColor(id: 'orchid', label: 'Orchid', color: Color(0xFFE36BFF)),
     RiderColor(id: 'violet', label: 'Violet', color: Color(0xFFC77DFF)),
     RiderColor(id: 'lavender', label: 'Lavender', color: Color(0xFFB8A6FF)),
-    RiderColor(id: 'sky', label: 'Sky', color: Color(0xFF5CC8FF)),
-    RiderColor(id: 'ice', label: 'Ice', color: Color(0xFFA8F0FF)),
-    RiderColor(id: 'pearl', label: 'Pearl', color: Color(0xFFF2F2F2)),
   ];
 
   /// The featured colors shown inline in the lobby picker.
@@ -84,6 +90,9 @@ abstract final class RiderPalette {
   static RiderColor? colorById(String? id) {
     if (id == null) return null;
     for (final c in colors) {
+      if (c.id == id) return c;
+    }
+    for (final c in _retired) {
       if (c.id == id) return c;
     }
     return null;

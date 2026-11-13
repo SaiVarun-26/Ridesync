@@ -15,10 +15,7 @@ import 'package:flutter/foundation.dart';
 /// ([bootstrap]) supplies `DefaultFirebaseOptions.currentPlatform` once that
 /// file exists.
 class FirebaseInitializer {
-  const FirebaseInitializer({
-    this.databaseUrl,
-    this.useEmulators = false,
-  });
+  const FirebaseInitializer({this.databaseUrl, this.useEmulators = false});
 
   /// Explicit Realtime Database URL.
   ///

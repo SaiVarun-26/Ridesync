@@ -32,10 +32,10 @@ class RideNotificationContent {
 
   /// Encodes the content for the background isolate.
   Map<String, Object?> toJson() => <String, Object?>{
-        'distance': distanceText,
-        'speed': speedText,
-        'duration': durationText,
-      };
+    'distance': distanceText,
+    'speed': speedText,
+    'duration': durationText,
+  };
 
   /// Decodes content sent to the background isolate.
   static RideNotificationContent? fromJson(Object? data) {
