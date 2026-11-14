@@ -12,13 +12,15 @@ import '../thumbnail/route_thumbnail_painter.dart';
 /// The route is laid out once per ride (see [RouteThumbnailLayout]) and the
 /// result painted onto its own layer, so a list of them scrolls and presses
 /// without redrawing anything. While a ride's preview is still being built
-/// from its recorded route, the tile shows a quiet outline of one.
+/// from its recorded route, the tile shows a quiet outline of one; a ride that
+/// never moved shows a single marker where it stayed instead.
 class RouteThumbnail extends StatelessWidget {
   const RouteThumbnail({
     super.key,
     required this.points,
     this.speedsMps = const [],
     this.size = defaultSize,
+    this.stationary = false,
   });
 
   static const double defaultSize = 96;
@@ -29,6 +31,10 @@ class RouteThumbnail extends StatelessWidget {
   final List<double> speedsMps;
 
   final double size;
+
+  /// The ride covered no real distance, so there is no route to wait for:
+  /// with no points, a marker is drawn rather than the "on its way" outline.
+  final bool stationary;
 
   @override
   Widget build(BuildContext context) {
@@ -47,14 +53,25 @@ class RouteThumbnail extends StatelessWidget {
             child: AnimatedSwitcher(
               duration: AppMotion.normal,
               switchInCurve: AppMotion.curve,
-              child: layout == null
-                  ? const CustomPaint(
-                      key: ValueKey('pending'),
-                      painter: _PendingPainter(),
-                    )
-                  : CustomPaint(
+              // Each painter fills the whole tile. The switcher lays its
+              // children out loosely, and a childless CustomPaint given loose
+              // constraints shrinks to nothing, which drew the whole route
+              // into a single point.
+              child: layout != null
+                  ? SizedBox.expand(
                       key: ValueKey(layout),
-                      painter: RouteThumbnailPainter(layout),
+                      child: CustomPaint(
+                        painter: RouteThumbnailPainter(layout),
+                      ),
+                    )
+                  : stationary
+                  ? const SizedBox.expand(
+                      key: ValueKey('stationary'),
+                      child: CustomPaint(painter: _StationaryPainter()),
+                    )
+                  : const SizedBox.expand(
+                      key: ValueKey('pending'),
+                      child: CustomPaint(painter: _PendingPainter()),
                     ),
             ),
           ),
@@ -62,6 +79,32 @@ class RouteThumbnail extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A ride that never moved: the start marker in the middle of the tile with a
+/// faint ring around it, the same marker a route starts from.
+class _StationaryPainter extends CustomPainter {
+  const _StationaryPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final s = size.shortestSide;
+    canvas
+      ..drawCircle(
+        center,
+        s * 0.16,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..color = AppColors.primary.withValues(alpha: 0.35),
+      )
+      ..drawCircle(center, s * 0.055, Paint()..color = Colors.white)
+      ..drawCircle(center, s * 0.028, Paint()..color = AppColors.primary);
+  }
+
+  @override
+  bool shouldRepaint(_StationaryPainter old) => false;
 }
 
 /// A faint dashed outline of a route, with a dot at each end, shown while a

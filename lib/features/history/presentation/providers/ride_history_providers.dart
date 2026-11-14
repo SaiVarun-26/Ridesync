@@ -9,6 +9,7 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../room/presentation/providers/room_providers.dart';
 import '../../data/json_cache.dart';
 import '../../data/rtdb_ride_history_repository.dart';
+import '../../domain/recap_highlights.dart';
 import '../../domain/ride_history_entry.dart';
 import '../../domain/ride_history_repository.dart';
 import '../thumbnail/route_thumbnail_layout.dart';
@@ -180,6 +181,19 @@ class RideHistoryController extends Notifier<RideHistoryState> {
         ],
       );
     }
+  }
+
+  /// Shows [highlights] on ride [code]'s card, once they have been worked out.
+  void applyHighlights(String code, RecapHighlights highlights) {
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      entries: [
+        for (final e in state.entries)
+          e.code == code && e.highlights == null
+              ? e.withHighlights(highlights)
+              : e,
+      ],
+    );
   }
 
   /// Lays out each ride's route miniature ahead of time, so the cards draw

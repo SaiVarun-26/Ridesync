@@ -79,7 +79,7 @@
     "userRides": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".indexOn": ["endedAt"],
+        ".indexOn": ["endedAt", "distanceMeters", "maxSpeedMps"],
         "$code": {
           ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child($uid).exists() && root.child('rooms').child($code).child('meta').child('status').val() === 'ended' && root.child('rideSummaries').child($code).child('riders').child($uid).exists()",
           ".validate": "newData.hasChildren(['roomName','mode','startedAt','endedAt','durationMs','distanceMeters','averageSpeedMps','maxSpeedMps','riderCount']) && newData.child('roomName').val() === root.child('rideSummaries').child($code).child('roomName').val() && newData.child('mode').val() === root.child('rideSummaries').child($code).child('mode').val() && newData.child('endedAt').val() === root.child('rideSummaries').child($code).child('group').child('endedAt').val() && newData.child('durationMs').val() === root.child('rideSummaries').child($code).child('group').child('durationMs').val() && newData.child('riderCount').val() === root.child('rideSummaries').child($code).child('group').child('riderCount').val() && newData.child('distanceMeters').val() === root.child('rideSummaries').child($code).child('riders').child($uid).child('distanceMeters').val()",
@@ -99,6 +99,18 @@
           "previewSpeeds": {
             ".write": "auth != null && auth.uid === $uid && !data.exists()",
             ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "recap": {
+            ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists() && data.parent().child('roomName').exists()",
+            ".validate": "newData.hasChildren(['v','score','sentence'])",
+            "v": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100" },
+            "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+            "sentence": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 300" },
+            "achievements": { ".validate": "newData.isString() && newData.val().length <= 120" },
+            "weatherCode": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
+            "temperatureC": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 70" },
+            "isDay": { ".validate": "newData.isBoolean()" },
+            "$other": { ".validate": false }
           },
           "$other": { ".validate": false }
         }
@@ -142,6 +154,20 @@
             "$other": { ".validate": false }
           }
         },
+        "$other": { ".validate": false }
+      }
+    },
+    "rideWeather": {
+      "$code": {
+        ".read": "auth != null && (root.child('rooms').child($code).child('members').child(auth.uid).exists() || root.child('userRides').child(auth.uid).child($code).exists())",
+        ".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).exists() && (root.child('rooms').child($code).child('meta').child('status').val() === 'riding' || root.child('rooms').child($code).child('meta').child('status').val() === 'ending')",
+        ".validate": "newData.hasChildren(['temperatureC','code','capturedAt'])",
+        "temperatureC": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 70" },
+        "code": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
+        "humidity": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+        "windKmh": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 500" },
+        "isDay": { ".validate": "newData.isBoolean()" },
+        "capturedAt": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now + 60000" },
         "$other": { ".validate": false }
       }
     },

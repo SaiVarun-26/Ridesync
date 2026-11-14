@@ -1,4 +1,5 @@
 import '../../../core/errors/result.dart';
+import 'recap_highlights.dart';
 import 'ride_history_entry.dart';
 
 /// Reads and records a rider's finished rides.
@@ -28,4 +29,23 @@ abstract interface class RideHistoryRepository {
   /// Adds the finished ride [code] to [uid]'s history. Does nothing if it is
   /// already there or if [uid] was not part of the ride.
   Future<Result<void>> record({required String uid, required String code});
+
+  /// [uid]'s best rides across their whole history: the [count] longest and
+  /// the [count] with the highest top speed, without duplicates. Used for
+  /// personal records, so they hold against every ride, not only the ones
+  /// loaded on screen. Empty when they cannot be read; never throws.
+  Future<List<RideHistoryEntry>> personalBests({
+    required String uid,
+    int count = 3,
+  });
+
+  /// Saves [highlights] onto [uid]'s history entry for ride [code], so every
+  /// device can show them without working out the recap. Highlights are
+  /// written once and never changed. Returns whether they were saved; never
+  /// throws.
+  Future<bool> saveHighlights({
+    required String uid,
+    required String code,
+    required RecapHighlights highlights,
+  });
 }

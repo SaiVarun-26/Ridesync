@@ -6,6 +6,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_icon.dart';
 import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/ride_loader.dart';
+import '../../insights/presentation/providers/insights_providers.dart';
+import '../../insights/presentation/share/ride_share_sheet.dart';
 import '../domain/ride_history_entry.dart';
 import 'open_ride_details.dart';
 import 'providers/ride_history_providers.dart';
@@ -52,6 +54,8 @@ class _RideHistoryScreenState extends ConsumerState<RideHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final history = ref.watch(rideHistoryProvider);
+    // Fills in recap highlights for rides that do not have them yet.
+    ref.watch(recapHighlightsSyncProvider);
     final entries = history.entries;
 
     return Scaffold(
@@ -129,6 +133,8 @@ class _RideHistoryScreenState extends ConsumerState<RideHistoryScreen> {
                       code: entry.code,
                       origin: origin,
                     ),
+                    onShare: () =>
+                        showRideShareSheet(context, code: entry.code),
                   );
                   return KeyedSubtree(
                     key: ValueKey(entry.code),

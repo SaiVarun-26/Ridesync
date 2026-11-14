@@ -53,6 +53,8 @@ class FadeScaleIn extends StatelessWidget {
     required this.child,
     this.duration = AppMotion.entrance,
     this.blur = true,
+    this.delay = Duration.zero,
+    this.spring = false,
   });
 
   final Widget child;
@@ -61,19 +63,31 @@ class FadeScaleIn extends StatelessWidget {
   /// Whether the child also comes into focus from a light blur.
   final bool blur;
 
+  /// Time before this child starts animating in, to stagger several.
+  final Duration delay;
+
+  /// Whether the growth uses [AppMotion.spring], settling with a touch of
+  /// overshoot, for things that pop in (badges, chips). The fade stays
+  /// eased either way.
+  final bool spring;
+
   static const double _maxBlur = 6;
 
   @override
   Widget build(BuildContext context) {
+    final total = delay + duration;
+    final start = delay.inMicroseconds / total.inMicroseconds;
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
-      duration: duration,
-      curve: AppMotion.curve,
-      builder: (context, t, child) {
+      duration: total,
+      curve: Interval(start, 1),
+      builder: (context, p, child) {
+        final t = AppMotion.curve.transform(p);
+        final grow = spring ? AppMotion.spring.transform(p) : t;
         Widget content = Opacity(
           opacity: t,
           child: Transform.scale(
-            scale: AppMotion.enterScale + (1 - AppMotion.enterScale) * t,
+            scale: AppMotion.enterScale + (1 - AppMotion.enterScale) * grow,
             child: child,
           ),
         );

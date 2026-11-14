@@ -134,7 +134,6 @@ class _JoinRideScreenState extends ConsumerState<JoinRideScreen> {
                         child: AppTextField(
                           controller: _codeController,
                           enabled: !_isSubmitting,
-                          label: 'Room code',
                           hintText: '______',
                           textCapitalization: TextCapitalization.characters,
                           maxLength: RoomCodeGenerator.codeLength,

@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Ride sync, map tiles and the ride-start weather snapshot all use the
+         network, so release builds declare it here rather than relying on a
+         library manifest to bring it in. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Live rides need the rider's location while the app is open. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />

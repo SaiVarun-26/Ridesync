@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../insights/presentation/providers/insights_providers.dart';
 import '../../room/domain/room.dart';
 import '../../room/domain/room_status.dart';
 import '../../room/presentation/providers/room_providers.dart';
@@ -265,6 +266,15 @@ class RideMapController extends Notifier<RideMapState> {
   }
 
   void _onMyFix(LocationFix fix) {
+    if (state.myFix == null) {
+      // The ride's weather is taken once, where it starts. Fire and forget:
+      // it runs in the background and the ride never waits for it.
+      unawaited(
+        ref
+            .read(rideWeatherRecorderProvider)
+            .captureOnce(code: _code, at: fix.point),
+      );
+    }
     _stats.addFix(fix);
     final uid = _myUid;
     final now = _nowMs();

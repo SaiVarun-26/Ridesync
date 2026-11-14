@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,8 +13,14 @@ import '../../../core/widgets/app_icon.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/glass_panel.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/ride_loader.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../insights/domain/recap/ride_recap.dart';
+import '../../insights/presentation/providers/insights_providers.dart';
+import '../../insights/presentation/share/ride_share_sheet.dart';
+import '../../insights/presentation/widgets/recap_sections.dart';
+import '../../insights/presentation/widgets/rider_analytics_list.dart';
 import '../domain/ride_details.dart';
 import 'providers/ride_details_providers.dart';
 import 'route/ride_route_map.dart';
@@ -240,6 +247,8 @@ class _ContentState extends ConsumerState<_Content>
   Widget build(BuildContext context) {
     final summary = widget.details.summary;
     final myUid = ref.watch(authStateChangesProvider).value?.uid;
+    // Built in the background; its sections join the sheet when ready.
+    final recap = ref.watch(rideRecapProvider(summary.roomCode)).value;
     final colors = {
       for (final rider in summary.riders) rider.uid: riderColorOf(rider),
     };
@@ -302,6 +311,14 @@ class _ContentState extends ConsumerState<_Content>
                           ),
                   ),
                 ),
+                const SizedBox(width: AppSpacing.md),
+                AppIconButton(
+                  glass: true,
+                  icon: Icons.ios_share_rounded,
+                  tooltip: 'Share ride',
+                  onPressed: () =>
+                      showRideShareSheet(context, code: summary.roomCode),
+                ),
               ],
             ),
           ),
@@ -315,6 +332,7 @@ class _ContentState extends ConsumerState<_Content>
           builder: (context, controller) => _Sheet(
             controller: controller,
             details: widget.details,
+            recap: recap,
             myUid: myUid,
             selectedUid: _selectedUid,
             onSelect: _select,
@@ -388,6 +406,7 @@ class _Sheet extends StatelessWidget {
   const _Sheet({
     required this.controller,
     required this.details,
+    required this.recap,
     required this.myUid,
     required this.selectedUid,
     required this.onSelect,
@@ -397,6 +416,9 @@ class _Sheet extends StatelessWidget {
 
   final ScrollController controller;
   final RideDetails details;
+
+  /// The ride's recap, once built; `null` until then.
+  final RideRecap? recap;
   final String? myUid;
   final String? selectedUid;
   final ValueChanged<String?> onSelect;
@@ -410,6 +432,7 @@ class _Sheet extends StatelessWidget {
   /// How much later each list starts than the one before, as a fraction of
   /// [listsReveal].
   static const double _listStep = 0.14;
+  static const double _lastStart = 0.7;
 
   @override
   Widget build(BuildContext context) {
@@ -417,11 +440,14 @@ class _Sheet extends StatelessWidget {
     final theme = Theme.of(context);
 
     Widget section(int index, String title, Widget child, {String? hint}) {
+      // Later sections start no later than [_lastStart], so any number of
+      // them still finish inside the reveal.
+      final start = math.min((index - 1) * _listStep, _lastStart);
       final timing = listsReveal.drive(
         CurveTween(
           curve: Interval(
-            (index - 1) * _listStep,
-            ((index - 1) * _listStep + 0.55).clamp(0.0, 1.0),
+            start,
+            (start + 0.55).clamp(0.0, 1.0),
             curve: AppMotion.curve,
           ),
         ),
@@ -507,10 +533,71 @@ class _Sheet extends StatelessWidget {
               'FINISH ORDER',
               FinishOrderCard(riders: summary.riders, myUid: myUid),
             ),
-            section(4, 'COMING SOON', const ComingSoonCard()),
+            // The recap's sections, once it has been worked out. Each eases in
+            // as it arrives, so a slow recap never leaves a gap or a stub.
+            AnimatedSize(
+              duration: AppMotion.slow,
+              curve: AppMotion.curve,
+              alignment: Alignment.topCenter,
+              child: recap == null
+                  ? const SizedBox(width: double.infinity)
+                  : FadeSlideIn(
+                      key: const ValueKey('recap'),
+                      child: _RecapSections(recap: recap!, myUid: myUid),
+                    ),
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The recap part of the sheet: score and summary, achievements, insights,
+/// the route, the weather and each rider's analytics. Sections with nothing
+/// to say are left out rather than shown empty.
+class _RecapSections extends StatelessWidget {
+  const _RecapSections({required this.recap, required this.myUid});
+
+  final RideRecap recap;
+  final String? myUid;
+
+  @override
+  Widget build(BuildContext context) {
+    final route = recap.route;
+    final weather = recap.weather;
+    String? holder(String uid) => uid == myUid
+        ? 'You'
+        : recap.riders
+              .where((r) => r.uid == uid)
+              .map((r) => r.name)
+              .firstOrNull;
+    Widget block(String title, Widget child) => Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xxl),
+      child: DetailsSection(title: title, child: child),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        block('RECAP', RecapCard(recap: recap)),
+        if (recap.achievements.isNotEmpty)
+          block(
+            'ACHIEVEMENTS',
+            AchievementBadges(
+              achievements: recap.achievements,
+              holderName: recap.riders.length > 1 ? holder : null,
+            ),
+          ),
+        if (recap.insights.isNotEmpty)
+          block('INSIGHTS', InsightGrid(insights: recap.insights)),
+        if (route != null) block('ROUTE', RouteIntelligenceCard(route: route)),
+        if (weather != null)
+          block('WEATHER', WeatherSnapshotCard(weather: weather)),
+        block(
+          recap.riders.length > 1 ? 'RIDER ANALYTICS' : 'YOUR RIDE',
+          RiderAnalyticsList(recap: recap),
+        ),
+      ],
     );
   }
 }

@@ -2,6 +2,7 @@ import '../../ride/domain/geo_point.dart';
 import '../../ride/domain/polyline.dart';
 import '../../ride/domain/speed_codec.dart';
 import '../../room/domain/ride_mode.dart';
+import '../domain/recap_highlights.dart';
 import '../domain/ride_history_entry.dart';
 
 /// Realtime Database layout for a rider's ride history:
@@ -25,7 +26,57 @@ abstract final class RideHistoryPaths {
   static const String preview = 'preview';
   static const String previewSpeeds = 'previewSpeeds';
 
+  /// The recap highlights, a child map added once after the ride.
+  static const String recap = 'recap';
+  static const String recapVersion = 'v';
+  static const String recapScore = 'score';
+  static const String recapSentence = 'sentence';
+  static const String recapAchievements = 'achievements';
+  static const String recapWeatherCode = 'weatherCode';
+  static const String recapTemperatureC = 'temperatureC';
+  static const String recapIsDay = 'isDay';
+
   const RideHistoryPaths._();
+}
+
+/// Maps between [RecapHighlights] and its stored form.
+abstract final class RecapHighlightsDto {
+  static Map<String, Object?> toValue(RecapHighlights h) => {
+    RideHistoryPaths.recapVersion: RecapHighlights.version,
+    RideHistoryPaths.recapScore: h.score.clamp(0, 100),
+    RideHistoryPaths.recapSentence: h.sentence,
+    if (h.achievementIds.isNotEmpty)
+      RideHistoryPaths.recapAchievements: h.achievementIds
+          .take(RecapHighlights.maxAchievements)
+          .join(','),
+    if (h.weatherCode != null) RideHistoryPaths.recapWeatherCode: h.weatherCode,
+    if (h.temperatureC != null)
+      RideHistoryPaths.recapTemperatureC:
+          (h.temperatureC! * 10).roundToDouble() / 10,
+    if (h.isDay != null) RideHistoryPaths.recapIsDay: h.isDay,
+  };
+
+  /// The highlights in [value], or `null` if absent or unreadable.
+  static RecapHighlights? fromValue(Object? value) {
+    if (value is! Map) return null;
+    final score = value[RideHistoryPaths.recapScore];
+    final sentence = value[RideHistoryPaths.recapSentence];
+    if (score is! num || sentence is! String) return null;
+    final achievements = value[RideHistoryPaths.recapAchievements];
+    final weatherCode = value[RideHistoryPaths.recapWeatherCode];
+    final temperature = value[RideHistoryPaths.recapTemperatureC];
+    final isDay = value[RideHistoryPaths.recapIsDay];
+    return RecapHighlights(
+      score: score.toInt().clamp(0, 100),
+      sentence: sentence,
+      achievementIds: achievements is String && achievements.isNotEmpty
+          ? achievements.split(',')
+          : const [],
+      weatherCode: weatherCode is num ? weatherCode.toInt() : null,
+      temperatureC: temperature is num ? temperature.toDouble() : null,
+      isDay: isDay is bool ? isDay : null,
+    );
+  }
 }
 
 /// Maps between [RideHistoryEntry] and its stored form.
@@ -44,6 +95,8 @@ abstract final class RideHistoryDto {
       RideHistoryPaths.preview: encodePolyline(entry.routePreview),
     if (entry.previewSpeedsMps.isNotEmpty)
       RideHistoryPaths.previewSpeeds: SpeedCodec.encode(entry.previewSpeedsMps),
+    if (entry.highlights != null)
+      RideHistoryPaths.recap: RecapHighlightsDto.toValue(entry.highlights!),
   };
 
   /// The entry for ride [code], or `null` if [value] is absent or incomplete.
@@ -77,6 +130,7 @@ abstract final class RideHistoryDto {
       previewSpeedsMps: speeds.length == previewPoints.length
           ? speeds
           : const [],
+      highlights: RecapHighlightsDto.fromValue(value[RideHistoryPaths.recap]),
     );
   }
 

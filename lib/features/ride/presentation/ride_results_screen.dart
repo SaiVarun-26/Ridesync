@@ -15,6 +15,7 @@ import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_icon.dart';
+import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/section_label.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../history/domain/ride_details.dart';
@@ -23,6 +24,11 @@ import '../../history/presentation/providers/ride_history_providers.dart';
 import '../../history/presentation/providers/ride_transition_providers.dart';
 import '../../history/presentation/widgets/ride_details_sections.dart';
 import '../../history/presentation/widgets/speed_chart.dart';
+import '../../insights/domain/recap/ride_recap.dart';
+import '../../insights/presentation/providers/insights_providers.dart';
+import '../../insights/presentation/share/ride_share_sheet.dart';
+import '../../insights/presentation/widgets/recap_sections.dart';
+import '../../insights/presentation/widgets/rider_analytics_list.dart';
 import '../../room/presentation/providers/room_providers.dart';
 import '../../room/presentation/room_flow.dart';
 import '../../room/presentation/widgets/room_exit_scope.dart';
@@ -31,11 +37,13 @@ import '../domain/summary/ride_summary.dart';
 
 /// Where every rider lands when the host ends the ride.
 ///
-/// Makes finishing feel like something: a ring draws itself and checks off,
-/// the headline numbers count up, a chart draws the rider's speed across the
-/// ride, and bars show how the group compared. Reaching it also adds the ride
-/// to the rider's history, and from here they can open the full ride or go
-/// home.
+/// A reward screen for finishing: a ring draws itself and checks off, the
+/// headline numbers count up, then the recap joins: the ride's score and a
+/// written summary, achievements springing in, the rider's speed, insights,
+/// what the route was like, the weather, and every rider's analytics.
+/// Reaching it also adds the ride to the rider's history (with its recap
+/// highlights), and from here they can open the full ride, share a ride card,
+/// or go home.
 class RideResultsScreen extends ConsumerStatefulWidget {
   const RideResultsScreen({super.key, required this.roomCode});
 
@@ -92,6 +100,9 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
       currentPath: AppRoutes.resultsPath(_code),
     );
     final details = ref.watch(rideDetailsProvider(_code));
+    final recap = ref.watch(rideRecapProvider(_code));
+    // Saves this ride's highlights to its history entry once it is recorded.
+    ref.watch(recapHighlightsSyncProvider);
     final myUid = ref.watch(authStateChangesProvider).value?.uid;
 
     return RoomExitScope(
@@ -125,6 +136,9 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
                         key: const ValueKey('results'),
                         details: data,
                         myUid: myUid,
+                        // Arrives a moment after the results, from the
+                        // background; its sections join as it does.
+                        recap: recap.value,
                       ),
                     ),
                   ),
@@ -139,10 +153,26 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      AppButton(
-                        label: 'View ride',
-                        icon: Icons.route_rounded,
-                        onPressed: details.hasValue ? _viewRide : null,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppButton(
+                              label: 'View ride',
+                              icon: Icons.route_rounded,
+                              onPressed: details.hasValue ? _viewRide : null,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          AppButton(
+                            label: 'Share',
+                            icon: Icons.ios_share_rounded,
+                            variant: AppButtonVariant.secondary,
+                            expand: false,
+                            onPressed: details.hasValue
+                                ? () => showRideShareSheet(context, code: _code)
+                                : null,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.md),
                       AppButton(
@@ -225,13 +255,26 @@ class _Failed extends StatelessWidget {
   }
 }
 
-/// The results themselves, revealed in order by one controller: the headline,
-/// the counting numbers, the rider's standing, the speed chart, the group.
+/// The results themselves, revealed in order: the headline and counting
+/// numbers, the recap and score, the rider's standing, achievements, their
+/// speed, insights, the route, the weather and every rider's analytics.
+///
+/// The numbers come straight from the ride; the recap is worked out in the
+/// background and its sections join, each easing in, as soon as it is ready.
 class _Results extends StatefulWidget {
-  const _Results({super.key, required this.details, required this.myUid});
+  const _Results({
+    super.key,
+    required this.details,
+    required this.myUid,
+    this.recap,
+  });
 
   final RideDetails details;
   final String? myUid;
+
+  /// `null` until the recap is ready (or if it could not be made, in which
+  /// case its sections simply never appear).
+  final RideRecap? recap;
 
   @override
   State<_Results> createState() => _ResultsState();
@@ -264,7 +307,44 @@ class _ResultsState extends State<_Results>
   late final Animation<double> _standing = _span(900, 1500);
   // The chart line is drawn across, so it travels rather than arrives.
   late final Animation<double> _chart = _span(1100, 2000, AppMotion.move);
-  late final Animation<double> _group = _span(1500, 2400);
+
+  /// When the recap's sections start to join, and the gap between them.
+  static const Duration _recapStart = Duration(milliseconds: 700);
+  static const Duration _recapStep = Duration(milliseconds: 110);
+
+  /// A recap section, easing in at its place in the order once the recap is
+  /// ready; nothing at all before then.
+  Widget _recapSection(
+    int order,
+    String? title,
+    Widget? Function(RideRecap) build,
+  ) {
+    final recap = widget.recap;
+    final child = recap == null ? null : build(recap);
+    return AnimatedSize(
+      duration: AppMotion.slow,
+      curve: AppMotion.curve,
+      alignment: Alignment.topCenter,
+      child: child == null
+          ? const SizedBox(width: double.infinity)
+          : FadeSlideIn(
+              delay: _recapStart + _recapStep * order,
+              child: Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xxl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (title != null) ...[
+                      SectionLabel(title),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+                    child,
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
 
   @override
   void initState() {
@@ -310,6 +390,9 @@ class _ResultsState extends State<_Results>
     final speeds = route != null && route.hasSpeeds
         ? route.smoothedSpeedsMps
         : null;
+    final started = DateTime.fromMillisecondsSinceEpoch(
+      summary.group.startedAtMs,
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -332,10 +415,33 @@ class _ResultsState extends State<_Results>
                 color: AppColors.textSecondary,
               ),
             ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '${RideFormat.date(started)} · ${RideFormat.time(started)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.xxl),
         RideHeroStats(group: summary.group, progress: _numbers),
+        _recapSection(
+          0,
+          null,
+          (recap) => TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: AppMotion.entrance + _recapStart,
+            curve: Interval(
+              _recapStart.inMilliseconds /
+                  (AppMotion.entrance + _recapStart).inMilliseconds,
+              1,
+              curve: AppMotion.curve,
+            ),
+            builder: (context, t, _) =>
+                RecapCard(recap: recap, progress: AlwaysStoppedAnimation(t)),
+          ),
+        ),
         if (me != null) ...[
           const SizedBox(height: AppSpacing.xxl),
           _reveal(
@@ -343,6 +449,20 @@ class _ResultsState extends State<_Results>
             _Standing(rank: myIndex + 1, of: ranked.length, rider: me),
           ),
         ],
+        _recapSection(1, 'ACHIEVEMENTS', (recap) {
+          if (recap.achievements.isEmpty) return null;
+          String? holder(String uid) => uid == widget.myUid
+              ? 'You'
+              : recap.riders
+                    .where((r) => r.uid == uid)
+                    .map((r) => r.name)
+                    .firstOrNull;
+          return AchievementBadges(
+            achievements: recap.achievements,
+            delay: _recapStart + _recapStep,
+            holderName: recap.riders.length > 1 ? holder : null,
+          );
+        }),
         if (speeds != null && speeds.length > 3) ...[
           const SizedBox(height: AppSpacing.xxl),
           _reveal(
@@ -355,18 +475,32 @@ class _ResultsState extends State<_Results>
           const SizedBox(height: AppSpacing.md),
           SpeedChart(speedsMps: speeds, progress: _chart),
         ],
-        if (ranked.length > 1) ...[
-          const SizedBox(height: AppSpacing.xxl),
-          _reveal(
-            _group,
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: SectionLabel('THE GROUP'),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _GroupBars(riders: ranked, myUid: widget.myUid, progress: _group),
-        ],
+        _recapSection(
+          2,
+          'INSIGHTS',
+          (recap) => recap.insights.isEmpty
+              ? null
+              : InsightGrid(insights: recap.insights),
+        ),
+        _recapSection(
+          3,
+          'ROUTE',
+          (recap) => recap.route == null
+              ? null
+              : RouteIntelligenceCard(route: recap.route!),
+        ),
+        _recapSection(
+          4,
+          'WEATHER',
+          (recap) => recap.weather == null
+              ? null
+              : WeatherSnapshotCard(weather: recap.weather!),
+        ),
+        _recapSection(
+          5,
+          ranked.length > 1 ? 'RIDERS' : 'YOUR RIDE',
+          (recap) => RiderAnalyticsList(recap: recap),
+        ),
         const SizedBox(height: AppSpacing.lg),
       ],
     );
@@ -425,101 +559,6 @@ class _Standing extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// A bar for each rider, as long as their share of the furthest distance,
-/// growing as the section reveals.
-class _GroupBars extends StatelessWidget {
-  const _GroupBars({
-    required this.riders,
-    required this.myUid,
-    required this.progress,
-  });
-
-  final List<RiderRideSummary> riders;
-  final String? myUid;
-  final Animation<double> progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final furthest = riders.first.distanceMeters <= 0
-        ? 1.0
-        : riders.first.distanceMeters;
-    return AppCard(
-      child: Column(
-        children: [
-          for (final rider in riders.indexed) ...[
-            if (rider.$1 > 0) const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    riderNameOf(rider.$2) +
-                        (rider.$2.uid == myUid ? ' (you)' : ''),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Text(
-                  RideFormat.distance(rider.$2.distanceMeters),
-                  style: theme.textTheme.labelLarge,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _Bar(
-              fraction: rider.$2.distanceMeters / furthest,
-              color: riderColorOf(rider.$2),
-              progress: progress,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Bar extends StatelessWidget {
-  const _Bar({
-    required this.fraction,
-    required this.color,
-    required this.progress,
-  });
-
-  final double fraction;
-  final Color color;
-  final Animation<double> progress;
-
-  static const double _height = 8;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(_height),
-      child: SizedBox(
-        height: _height,
-        child: Stack(
-          children: [
-            const Positioned.fill(
-              child: ColoredBox(color: AppColors.surfaceRaised),
-            ),
-            AnimatedBuilder(
-              animation: progress,
-              builder: (context, _) => FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: (fraction * progress.value).clamp(0.0, 1.0),
-                child: DecoratedBox(decoration: BoxDecoration(color: color)),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
@@ -237,9 +238,13 @@ class _AppTextFieldState extends State<AppTextField>
         errorBorder: InputBorder.none,
         focusedErrorBorder: InputBorder.none,
         // Room on the right for the check; centred text reserves the same on
-        // the left so it stays centred. A label adds room on top.
+        // the left so it stays centred. Letter spacing also adds a gap after
+        // the last character, which would push centred text left by half of
+        // it, so that gap is added on the left too. A label adds room on top.
         contentPadding: EdgeInsets.fromLTRB(
-          centred ? _checkInset : _inset,
+          centred
+              ? _checkInset + math.max(0.0, style?.letterSpacing ?? 0)
+              : _inset,
           _hasLabel ? _inset + _labelSpace : _inset,
           _checkInset,
           _hasLabel ? _inset - AppSpacing.xs : _inset,

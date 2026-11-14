@@ -11,6 +11,7 @@ import '../../ride/data/ride_summary_dto.dart';
 import '../../ride/domain/geo_point.dart';
 import '../../ride/domain/polyline.dart';
 import '../../ride/domain/speed_codec.dart';
+import '../domain/recap_highlights.dart';
 import '../domain/ride_history_entry.dart';
 import '../domain/ride_history_repository.dart';
 import 'json_cache.dart';
@@ -88,6 +89,42 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
     }
   }
 
+  @override
+  Future<List<RideHistoryEntry>> personalBests({
+    required String uid,
+    int count = 3,
+  }) async {
+    // Two tiny indexed queries: the top few by distance and by top speed.
+    Future<List<RideHistoryEntry>> top(String field) async {
+      final snapshot = await _database
+          .ref(RideHistoryPaths.all(uid))
+          .orderByChild(field)
+          .limitToLast(count)
+          .get()
+          .timeout(timeout);
+      return [
+        for (final child in snapshot.children)
+          if (child.key != null)
+            ?RideHistoryDto.fromValue(child.key!, child.value),
+      ];
+    }
+
+    try {
+      final results = await Future.wait([
+        top(RideHistoryPaths.distanceMeters),
+        top(RideHistoryPaths.maxSpeedMps),
+      ]);
+      final byCode = <String, RideHistoryEntry>{
+        for (final list in results)
+          for (final entry in list) entry.code: entry,
+      };
+      return byCode.values.toList();
+    } on Object catch (e) {
+      debugPrint('Loading personal bests skipped: $e');
+      return const [];
+    }
+  }
+
   /// The rider's own route, or none if it cannot be read. The miniature is
   /// a nicety, so a missing route never stops the ride being recorded.
   Future<({List<GeoPoint> points, List<double> speeds})> _ownRoute(
@@ -146,6 +183,26 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
       debugPrint('Saving the generated preview failed: $e');
     }
     return withPreview;
+  }
+
+  @override
+  Future<bool> saveHighlights({
+    required String uid,
+    required String code,
+    required RecapHighlights highlights,
+  }) async {
+    try {
+      // The rules accept this child only once, and only on an entry that
+      // already exists, so it can never create a half-made history entry.
+      await _database
+          .ref('${RideHistoryPaths.entry(uid, code)}/${RideHistoryPaths.recap}')
+          .set(RecapHighlightsDto.toValue(highlights))
+          .timeout(timeout);
+      return true;
+    } on Object catch (e) {
+      debugPrint('Saving recap highlights skipped: $e');
+      return false;
+    }
   }
 
   @override

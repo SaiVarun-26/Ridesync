@@ -26,6 +26,14 @@ class RouteThumbnailLayout {
   /// Fewer points than this make no route.
   static const int minPoints = 2;
 
+  /// A route that never spread further than this is GPS drift around one
+  /// spot. Scaled up to fill a tile it would be a meaningless scribble, so it
+  /// gets no layout and the tile shows the ride as stationary instead.
+  static const double minExtentMeters = 25;
+
+  /// Metres in one degree of latitude.
+  static const double _metersPerDegree = 111320;
+
   /// Remembers layouts by the list of points they were made from, so a card
   /// that rebuilds (scrolling, pressing) never lays its route out again.
   static final Expando<RouteThumbnailLayout> _cache =
@@ -38,10 +46,14 @@ class RouteThumbnailLayout {
     List<double> speedsMps,
   ) {
     if (points.length < minPoints) return null;
-    return _cache[points] ??= _build(points, speedsMps);
+    final cached = _cache[points];
+    if (cached != null) return cached;
+    final built = _build(points, speedsMps);
+    if (built != null) _cache[points] = built;
+    return built;
   }
 
-  static RouteThumbnailLayout _build(
+  static RouteThumbnailLayout? _build(
     List<GeoPoint> points,
     List<double> speedsMps,
   ) {
@@ -64,6 +76,7 @@ class RouteThumbnailLayout {
     final width = math.max(maxX - minX, 1e-9);
     final height = math.max(maxY - minY, 1e-9);
     final side = math.max(width, height);
+    if (side * _metersPerDegree < minExtentMeters) return null;
     // Centre the shorter side so the route sits in the middle of the square.
     final offsetX = (side - width) / 2;
     final offsetY = (side - height) / 2;

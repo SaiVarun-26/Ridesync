@@ -4,7 +4,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/rider_palette.dart';
-import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/section_label.dart';
 import '../../../ride/domain/live/ride_format.dart';
 import '../../../ride/domain/summary/ride_summary.dart';
@@ -485,58 +484,6 @@ class FinishOrderCard extends StatelessWidget {
     if (!rider.finished || end == null) return 'No final data';
     if (firstEnd == null || end == firstEnd) return 'First';
     return RideFormat.gap(Duration(milliseconds: end - firstEnd));
-  }
-}
-
-/// Features that are planned but not available yet.
-class ComingSoonCard extends StatelessWidget {
-  const ComingSoonCard({super.key});
-
-  static const List<(IconData, String)> _items = [
-    (Icons.file_download_rounded, 'GPX export'),
-    (Icons.wb_sunny_rounded, 'Weather'),
-    (Icons.notes_rounded, 'Notes'),
-    (Icons.photo_library_rounded, 'Photos'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return _RowsCard(
-      children: [
-        for (final item in _items)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  item.$1,
-                  size: AppIconSize.medium,
-                  color: AppColors.textTertiary,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Text(
-                    item.$2,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-                Text(
-                  'Soon',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
   }
 }
 

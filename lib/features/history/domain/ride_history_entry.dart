@@ -1,6 +1,7 @@
 import '../../ride/domain/geo_point.dart';
 import '../../ride/domain/summary/ride_summary.dart';
 import '../../room/domain/ride_mode.dart';
+import 'recap_highlights.dart';
 import 'route_preview.dart';
 
 /// One finished ride in a rider's history: the numbers a history card shows.
@@ -22,7 +23,12 @@ class RideHistoryEntry {
     required this.riderCount,
     this.routePreview = const [],
     this.previewSpeedsMps = const [],
+    this.highlights,
   });
+
+  /// The ride's recap figures (score, sentence, achievements, weather), once
+  /// they have been worked out; `null` until then.
+  final RecapHighlights? highlights;
 
   /// A thinned copy of the rider's route for the card's miniature; empty for
   /// rides saved without one.
@@ -66,6 +72,26 @@ class RideHistoryEntry {
       previewSpeedsMps: speedsMps.length == points.length
           ? RoutePreview.thinValues(speedsMps)
           : const [],
+      highlights: highlights,
+    );
+  }
+
+  /// This entry with its recap [highlights].
+  RideHistoryEntry withHighlights(RecapHighlights highlights) {
+    return RideHistoryEntry(
+      code: code,
+      roomName: roomName,
+      mode: mode,
+      startedAtMs: startedAtMs,
+      endedAtMs: endedAtMs,
+      durationMs: durationMs,
+      distanceMeters: distanceMeters,
+      averageSpeedMps: averageSpeedMps,
+      maxSpeedMps: maxSpeedMps,
+      riderCount: riderCount,
+      routePreview: routePreview,
+      previewSpeedsMps: previewSpeedsMps,
+      highlights: highlights,
     );
   }
 

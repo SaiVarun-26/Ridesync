@@ -4,24 +4,46 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/app_icon_button.dart';
+import '../../../../core/widgets/fade_slide_in.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../insights/domain/achievements/achievement.dart';
+import '../../../insights/domain/score/ride_score.dart';
+import '../../../insights/domain/weather/weather_snapshot.dart';
+import '../../../insights/presentation/widgets/insight_visuals.dart';
+import '../../../insights/presentation/widgets/recap_sections.dart';
 import '../../../ride/domain/live/ride_format.dart';
+import '../../domain/recap_highlights.dart';
 import '../../domain/ride_history_entry.dart';
 import '../ride_mode_label.dart';
 import 'route_thumbnail.dart';
 
 /// One finished ride in a list: a miniature of its route beside its name,
-/// date and mode, with the ride's numbers beneath.
+/// date and mode, its recap (sentence, score, weather and best achievement)
+/// once worked out, with the ride's numbers beneath. A share button opens
+/// the ride's card without opening the ride.
 ///
 /// A translucent violet-tinted surface with a faint sheen and a hairline
 /// border. Pressing it lifts it: it scales in a touch while its shadow deepens
 /// and its border brightens. [onTap] is given the card's place on screen,
 /// which the details screen grows out of.
 class RideHistoryCard extends StatefulWidget {
-  const RideHistoryCard({super.key, required this.entry, required this.onTap});
+  const RideHistoryCard({
+    super.key,
+    required this.entry,
+    required this.onTap,
+    this.onShare,
+  });
 
   final RideHistoryEntry entry;
   final ValueChanged<Rect> onTap;
+
+  /// Opens the ride's share card straight from the list; no share button
+  /// when `null`.
+  final VoidCallback? onShare;
+
+  /// Rides shorter than this have no route worth drawing.
+  static const double stationaryMeters = 50;
 
   @override
   State<RideHistoryCard> createState() => _RideHistoryCardState();
@@ -73,6 +95,11 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
                       RouteThumbnail(
                         points: entry.routePreview,
                         speedsMps: entry.previewSpeedsMps,
+                        // Too short to have a route: shown as staying put
+                        // rather than as a route still on its way.
+                        stationary:
+                            entry.distanceMeters <
+                            RideHistoryCard.stationaryMeters,
                       ),
                       const SizedBox(width: AppSpacing.lg),
                       Expanded(
@@ -97,7 +124,26 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
                           ],
                         ),
                       ),
+                      if (widget.onShare != null)
+                        AppIconButton(
+                          icon: Icons.ios_share_rounded,
+                          tooltip: 'Share ride',
+                          color: AppColors.textSecondary,
+                          onPressed: widget.onShare,
+                        ),
                     ],
+                  ),
+                  // The recap, once it has been worked out: its sentence and
+                  // score, the weather, and the best achievement.
+                  AnimatedSize(
+                    duration: AppMotion.slow,
+                    curve: AppMotion.curve,
+                    alignment: Alignment.topCenter,
+                    child: entry.highlights == null
+                        ? const SizedBox(width: double.infinity)
+                        : FadeSlideIn(
+                            child: _Highlights(highlights: entry.highlights!),
+                          ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   DecoratedBox(
@@ -146,6 +192,63 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
   /// Speeds are shown without the unit on the card; the unit follows the
   /// number in smaller type elsewhere.
   static String _speed(double mps) => '${(mps * 3.6).round()}';
+}
+
+class _Highlights extends StatelessWidget {
+  const _Highlights({required this.highlights});
+
+  final RecapHighlights highlights;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final code = highlights.weatherCode;
+    final temperature = highlights.temperatureC;
+    final achievement = highlights.achievementIds
+        .map(AchievementKind.fromName)
+        .nonNulls
+        .firstOrNull;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            highlights.sentence,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              InsightPill(
+                icon: Icons.star_rounded,
+                label:
+                    '${highlights.score} · ${RideScore(highlights.score).label}',
+                accent: AppColors.primary,
+              ),
+              if (code != null)
+                InsightPill(
+                  icon: InsightVisuals.weather(
+                    WeatherCondition.fromWmo(code),
+                    isDay: highlights.isDay,
+                  ),
+                  label: temperature == null
+                      ? WeatherCondition.fromWmo(code).label
+                      : '${temperature.round()}°',
+                ),
+              if (achievement != null) AchievementChip(kind: achievement),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ModeChip extends StatelessWidget {
