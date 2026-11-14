@@ -60,9 +60,20 @@ class RideStats {
   double get averageSpeedMps =>
       movingTimeMs <= 0 ? 0 : distanceMeters / (movingTimeMs / 1000);
 
-  /// Total time since the ride started, including stops, as of [nowMs].
-  Duration elapsed(int nowMs) =>
-      Duration(milliseconds: math.max(0, nowMs - startedAtMs));
+  /// Total time since the ride started, including stops, as of [nowMs]. Once
+  /// the ride is finished it stops at [endedAtMs].
+  Duration elapsed(int nowMs) => Duration(
+    milliseconds: math.max(
+      0,
+      math.min(nowMs, endedAtMs ?? nowMs) - startedAtMs,
+    ),
+  );
+
+  /// Time spent stopped so far: everything in [elapsed] that was not moving.
+  Duration stoppedTime(int nowMs) {
+    final stopped = elapsed(nowMs).inMilliseconds - movingTimeMs;
+    return Duration(milliseconds: math.max(0, stopped));
+  }
 
   /// A copy with the given fields replaced.
   RideStats copyWith({

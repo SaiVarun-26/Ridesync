@@ -1,7 +1,7 @@
 import 'package:flutter/physics.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../feedback/app_haptics.dart';
 import '../theme/app_spacing.dart';
 
 /// Gives its child a physical press: it sinks and dims a little while a
@@ -106,7 +106,7 @@ class _PressableScaleState extends State<PressableScale>
     return Listener(
       onPointerDown: widget.enabled
           ? (_) {
-              if (widget.haptic) HapticFeedback.selectionClick();
+              if (widget.haptic) AppHaptics.selection();
               _set(true);
             }
           : null,

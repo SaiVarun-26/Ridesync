@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/router/app_routes.dart';
+import '../../../core/feedback/app_haptics.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/ride_loader.dart';
@@ -58,6 +59,13 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
   static const double _panelClearance = 8;
 
   @override
+  void initState() {
+    super.initState();
+    // The ride has started for this rider: the live map is opening.
+    AppHaptics.milestone();
+  }
+
+  @override
   void dispose() {
     _panelInset.dispose();
     super.dispose();
@@ -75,7 +83,12 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
   /// repeated calls while it runs.
   Future<void> _holdBeforeResults(Room room) {
     if (room.status != RoomStatus.ended) return Future<void>.value();
-    return _hold ??= Future<void>.delayed(_completeHold);
+    return _hold ??= () {
+      // The ride is over for everyone: mark it once, as the wrap-up
+      // completes.
+      AppHaptics.milestone();
+      return Future<void>.delayed(_completeHold);
+    }();
   }
 
   @override
@@ -165,6 +178,12 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                             duration:
                                 map.myStats?.elapsed(map.nowMs) ??
                                 Duration.zero,
+                            movingTime:
+                                map.myStats?.movingTime ?? Duration.zero,
+                            stoppedTime:
+                                map.myStats?.stoppedTime(map.nowMs) ??
+                                Duration.zero,
+                            averageSpeedMps: map.myStats?.averageSpeedMps ?? 0,
                             distanceMeters: map.myStats?.distanceMeters ?? 0,
                             riderCount: room?.members.length ?? 0,
                             isHost: isHost,
@@ -229,6 +248,7 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
         color: _color(rider.colorId),
         headingDegrees: rider.isMoving ? rider.headingDegrees : null,
         isMe: rider.isMe,
+        speedMps: rider.isMoving ? rider.speedMps : null,
       ),
   ];
 

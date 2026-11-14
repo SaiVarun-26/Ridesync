@@ -14,7 +14,8 @@ import 'slide_to_confirm.dart';
 ///
 /// Collapsed it is the speed and status row, taking the same room it always
 /// has, so the map stays clear. Tapping or dragging the handle opens it to
-/// show the ride's duration, distance and riders, and, for the host, the
+/// show the ride's duration, distance and riders, moving and stopped time and
+/// average moving speed, and, for the host, the
 /// slide that ends the ride. Ending the ride lives here rather than floating
 /// over the map.
 class RideControlPanel extends StatefulWidget {
@@ -30,7 +31,17 @@ class RideControlPanel extends StatefulWidget {
     required this.canEnd,
     required this.isEnding,
     required this.onEndRide,
+    this.movingTime = Duration.zero,
+    this.stoppedTime = Duration.zero,
+    this.averageSpeedMps = 0,
   });
+
+  /// Time spent actually moving, and time spent stopped, so far.
+  final Duration movingTime;
+  final Duration stoppedTime;
+
+  /// Average speed while moving (stops excluded).
+  final double averageSpeedMps;
 
   final double speedKmh;
   final bool isConnected;
@@ -101,6 +112,9 @@ class _RideControlPanelState extends State<RideControlPanel> {
             child: _expanded
                 ? _Details(
                     duration: widget.duration,
+                    movingTime: widget.movingTime,
+                    stoppedTime: widget.stoppedTime,
+                    averageSpeedMps: widget.averageSpeedMps,
                     distanceMeters: widget.distanceMeters,
                     riderCount: widget.riderCount,
                     isHost: widget.isHost,
@@ -160,6 +174,9 @@ class _Handle extends StatelessWidget {
 class _Details extends StatelessWidget {
   const _Details({
     required this.duration,
+    required this.movingTime,
+    required this.stoppedTime,
+    required this.averageSpeedMps,
     required this.distanceMeters,
     required this.riderCount,
     required this.isHost,
@@ -169,6 +186,9 @@ class _Details extends StatelessWidget {
   });
 
   final Duration duration;
+  final Duration movingTime;
+  final Duration stoppedTime;
+  final double averageSpeedMps;
   final double distanceMeters;
   final int riderCount;
   final bool isHost;
@@ -198,6 +218,20 @@ class _Details extends StatelessWidget {
                 value: RideFormat.distance(distanceMeters),
               ),
               _Figure(label: 'RIDERS', value: '$riderCount'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              _Figure(label: 'MOVING', value: RideFormat.duration(movingTime)),
+              _Figure(
+                label: 'STOPPED',
+                value: RideFormat.duration(stoppedTime),
+              ),
+              _Figure(
+                label: 'AVG SPEED',
+                value: RideFormat.speed(averageSpeedMps),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.xl),

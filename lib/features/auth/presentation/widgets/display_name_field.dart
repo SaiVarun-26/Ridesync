@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/feedback/app_haptics.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -101,7 +102,7 @@ class _DisplayNameFieldState extends State<DisplayNameField>
       widget.onSubmitted();
       return;
     }
-    HapticFeedback.lightImpact();
+    AppHaptics.light();
     _shake.forward(from: 0);
     _focus.requestFocus();
   }

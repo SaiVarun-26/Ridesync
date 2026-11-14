@@ -17,10 +17,37 @@ import 'ride_stats.dart';
 ///   is dropped.
 /// - After a gap longer than [resumeGap] (app killed, tunnel, long stop) the
 ///   next fix starts a new segment: no distance is invented across the gap.
-/// - Moving time credit per fix is capped at [maxMovingCreditMs], so a sparse
-///   fix cannot inflate it.
+/// - Moving time is credited for the time the segment actually took to ride
+///   at the fix's speed, never for the whole gap since the last fix. GPS only
+///   reports after real movement, so the first fix after a stop arrives after
+///   a long gap; crediting that gap would count the stop as riding and drag
+///   the average speed down. The credit is also capped at
+///   [maxMovingCreditMs].
+/// - A top speed is only accepted if it is physically reachable from the
+///   previous moving speed (at most [maxAccelerationMps2]), which rejects
+///   single-fix GPS speed spikes.
+///
+/// Average speed is distance over moving time (see
+/// [RideStats.averageSpeedMps]), so stops never lower it; stopped time is the
+/// rest of the ride's elapsed time ([RideStats.stoppedTime]).
 class RideStatsTracker {
   RideStatsTracker({RideStats? initial}) : _stats = initial;
+
+  /// Allowance on top of distance ÷ speed when crediting moving time, for
+  /// curves (GPS distance is a straight chord) and speed changes within the
+  /// segment.
+  static const double movingCreditSlack = 1.25;
+
+  /// The fastest believable change in speed between two fixes, in m/s². Well
+  /// beyond any bicycle, car or motorcycle; a GPS spike is far beyond it.
+  static const double maxAccelerationMps2 = 12;
+
+  /// Extra headroom on [maxAccelerationMps2] for the noise in any one reading.
+  static const double accelerationToleranceMps = 3;
+
+  /// Speed of the last moving fix, to judge whether a new top speed is real.
+  /// Not saved: after a restore the first moving fix only sets it.
+  double? _lastMovingSpeedMps;
 
   static const double maxAccuracyMeters = 30;
   static const double movingSpeedMps = 1;
@@ -82,18 +109,38 @@ class RideStatsTracker {
     final speed = fix.speedMps ?? impliedSpeed;
     final moving = speed >= movingSpeedMps && meters >= minSegmentMeters;
     if (!moving) {
+      _lastMovingSpeedMps = null;
       _stats = sampled;
       return true;
     }
 
+    final previousSpeed = _lastMovingSpeedMps;
+    _lastMovingSpeedMps = speed;
+    final reachable =
+        previousSpeed != null &&
+        speed <=
+            previousSpeed +
+                maxAccelerationMps2 * dtMs / 1000 +
+                accelerationToleranceMps;
     final isTopSpeed =
-        speed > current.maxSpeedMps && speed <= maxPlausibleSpeedMps;
+        reachable &&
+        speed > current.maxSpeedMps &&
+        speed <= maxPlausibleSpeedMps;
     _stats = sampled.copyWith(
       distanceMeters: current.distanceMeters + meters,
-      movingTimeMs: current.movingTimeMs + math.min(dtMs, maxMovingCreditMs),
+      movingTimeMs: current.movingTimeMs + movingCreditMs(meters, speed, dtMs),
       maxSpeedMps: isTopSpeed ? speed : null,
       topSpeedAtMs: isTopSpeed ? atMs : null,
     );
     return true;
+  }
+
+  /// Moving time to credit for riding [meters] at [speedMps], where the fix
+  /// arrived [dtMs] after the previous one: the time the segment takes at
+  /// that speed (with [movingCreditSlack]), never more than the gap itself or
+  /// [maxMovingCreditMs].
+  static int movingCreditMs(double meters, double speedMps, int dtMs) {
+    final ridingMs = (meters / speedMps * 1000 * movingCreditSlack).round();
+    return math.min(math.min(dtMs, ridingMs), maxMovingCreditMs);
   }
 }

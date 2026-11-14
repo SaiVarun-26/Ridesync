@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/semantics.dart';
-import 'package:flutter/services.dart';
 
+import '../../../../core/feedback/app_haptics.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_icon.dart';
@@ -88,7 +88,7 @@ class _SlideToConfirmState extends State<SlideToConfirm>
     _position.stop();
     _dragging = true;
     _lastStep = (_position.value.clamp(0.0, 1.0) * _hapticSteps).floor();
-    HapticFeedback.selectionClick();
+    AppHaptics.selection();
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
@@ -99,7 +99,7 @@ class _SlideToConfirmState extends State<SlideToConfirm>
     final step = (next * _hapticSteps).floor();
     if (step != _lastStep) {
       _lastStep = step;
-      HapticFeedback.selectionClick();
+      AppHaptics.selection();
     }
     if (next >= _confirmAt) _confirm();
   }
@@ -107,7 +107,7 @@ class _SlideToConfirmState extends State<SlideToConfirm>
   void _onDragEnd(DragEndDetails details) {
     if (!_dragging) return;
     _dragging = false;
-    HapticFeedback.lightImpact();
+    AppHaptics.light();
     _springBack(details.velocity.pixelsPerSecond.dx / _travel);
   }
 
@@ -127,7 +127,7 @@ class _SlideToConfirmState extends State<SlideToConfirm>
     if (_confirmed) return;
     _dragging = false;
     _confirmed = true;
-    HapticFeedback.heavyImpact();
+    AppHaptics.milestone();
     _position.animateTo(1, duration: AppMotion.micro, curve: AppMotion.curve);
     widget.onConfirmed();
   }

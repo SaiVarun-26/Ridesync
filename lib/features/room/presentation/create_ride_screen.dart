@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_routes.dart';
 import '../../../core/errors/result.dart';
+import '../../../core/feedback/app_haptics.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_dialogs.dart';
@@ -56,7 +56,7 @@ class _CreateRideScreenState extends ConsumerState<CreateRideScreen> {
     switch (result) {
       case Success(:final value):
         // The button shows a check for a moment before the lobby opens.
-        HapticFeedback.mediumImpact();
+        AppHaptics.success();
         setState(() => _created = true);
         await Future<void>.delayed(AppMotion.successHold);
         if (!mounted) return;

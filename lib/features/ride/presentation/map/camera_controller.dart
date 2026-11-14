@@ -17,6 +17,10 @@ import '../../domain/live/heading_smoother.dart';
 /// is completely independent of what is uploaded to the group. While the rider
 /// is stationary there is no heading, so rotation freezes instead of spinning.
 ///
+/// The centre does not lock rigidly onto the marker: it follows through a
+/// light, speed-aware low-pass filter (see [tick]), which takes out jitter
+/// without letting the rider slide around the screen at speed.
+///
 /// Both following and rotating pause while the rider pans the map themselves,
 /// and resume together after [resumeAfter] of no panning, easing back over
 /// [_returnDuration] instead of snapping. Pinch-zoom never interrupts either.
@@ -80,7 +84,10 @@ class FollowCameraController {
         _returnStart != null && now - _returnStart! < _returnDuration;
     final insetChanging =
         _insetChangedAt != null && now - _insetChangedAt! < _insetSettle;
-    return returning || insetChanging || _heading.isSettling;
+    return returning ||
+        insetChanging ||
+        _heading.isSettling ||
+        _lagPixels > _settledPixels;
   }
 
   /// Reports a map event; manual pans pause following and rotating.
@@ -88,20 +95,28 @@ class FollowCameraController {
     if (_panSources.contains(event.source)) {
       _pausedAt = now;
       _returnStart = null;
+      _lagPixels = 0;
     }
   }
 
   /// Moves and rotates the camera for the frame at [now].
   ///
   /// [target] is where this rider is drawn; [headingDegrees] is their drawn
-  /// direction of travel, or `null` while stationary.
-  void tick(GeoPoint? target, double? headingDegrees, Duration now) {
+  /// direction of travel, or `null` while stationary; [speedMps] is how fast
+  /// they are going, which sets how tightly the camera tracks them.
+  void tick(
+    GeoPoint? target,
+    double? headingDegrees,
+    Duration now, {
+    double speedMps = 0,
+  }) {
     if (target == null) return;
     if (_pausedAt != null) {
       if (!_shouldResume(now)) return;
       _pausedAt = null;
       _returnStart = now;
       _returnFrom = _map.camera.center;
+      _smoothed = null;
     }
 
     final camera = _map.camera;
@@ -114,7 +129,7 @@ class FollowCameraController {
       LatLng(target.latitude, target.longitude),
       rotation,
     );
-    final center = _easedCenter(goal, now);
+    final center = _followCenter(_easedCenter(goal, now), now, speedMps);
 
     final rotationChanged =
         _angleDelta(rotation, camera.rotation).abs() > _rotationEpsilon;
@@ -167,6 +182,55 @@ class FollowCameraController {
       from.longitude + (goal.longitude - from.longitude) * eased,
     );
   }
+
+  /// The camera centre this frame: [goal] seen through a light, velocity-aware
+  /// low-pass filter.
+  ///
+  /// The marker it follows already glides, but every tiny correction in it
+  /// would otherwise reach the whole map at once and read as jitter. The
+  /// filter absorbs those. Its time constant shrinks as speed rises, so the
+  /// rider stays put on screen at speed (lag in metres is speed × time
+  /// constant) while slow riding and standing still stay calm. Very large
+  /// moves, or the first frame, snap rather than drag across the map.
+  LatLng _followCenter(LatLng goal, Duration now, double speedMps) {
+    final previous = _smoothed;
+    final last = _smoothedAt;
+    _smoothedAt = now;
+    if (previous == null || last == null || _returnStart != null) {
+      return _smoothed = goal;
+    }
+    final camera = _map.camera;
+    final from = camera.projectAtZoom(previous, camera.zoom);
+    final to = camera.projectAtZoom(goal, camera.zoom);
+    final gap = to - from;
+    if (gap.distance > _snapPixels) return _smoothed = goal;
+
+    final dt = (now - last).inMicroseconds / Duration.microsecondsPerSecond;
+    final speedFactor = (speedMps / _fastSpeedMps).clamp(0.0, 1.0);
+    final tau =
+        _slowTimeConstant +
+        (_fastTimeConstant - _slowTimeConstant) * speedFactor;
+    final alpha = 1 - math.exp(-dt / tau);
+    _lagPixels = gap.distance * (1 - alpha);
+    return _smoothed = camera.unprojectAtZoom(from + gap * alpha, camera.zoom);
+  }
+
+  LatLng? _smoothed;
+  Duration? _smoothedAt;
+
+  /// How far the filtered centre still trails its goal, in screen pixels.
+  double _lagPixels = 0;
+
+  /// Time constants of the follow filter at rest and at [_fastSpeedMps].
+  static const double _slowTimeConstant = 0.32;
+  static const double _fastTimeConstant = 0.12;
+  static const double _fastSpeedMps = 20;
+
+  /// The filter stops easing once the camera is this close to its goal.
+  static const double _settledPixels = 0.3;
+
+  /// A jump bigger than this (a GPS reset, a resize) is taken at once.
+  static const double _snapPixels = 400;
 
   bool _shouldResume(Duration now) {
     final paused = _pausedAt;

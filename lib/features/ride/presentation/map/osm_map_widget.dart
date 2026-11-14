@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
+import '../../../../core/feedback/app_haptics.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../domain/geo_point.dart';
@@ -18,8 +19,12 @@ import 'trail_layer.dart';
 /// The dark OpenStreetMap live map: trails underneath, riders on top, camera
 /// following this rider.
 ///
-/// A single ticker drives marker motion and camera follow, and runs only while
-/// something is actually moving, so an idle map costs no frames.
+/// A single ticker drives marker motion, prediction, the markers' idle float
+/// and pulse, and camera follow. It runs while there are riders on the map
+/// and stops when there are none. While only the slow ambient motion is
+/// playing, markers repaint on every other frame. Map tiles and trails sit
+/// below the markers' own repaint boundary, so marker frames never repaint
+/// them.
 class OsmMapWidget extends StatefulWidget {
   const OsmMapWidget({
     super.key,
@@ -67,6 +72,10 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
   /// The other rider whose info card is open, if any.
   String? _selectedUid;
 
+  /// Alternates every frame; used to halve the marker frame rate while only
+  /// ambient motion is playing.
+  bool _idleFrame = false;
+
   /// How close a tap must land to a rider's dot to select it.
   static const double _tapRadius = 28;
 
@@ -94,7 +103,9 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
     super.didUpdateWidget(oldWidget);
     final now = _now;
     _interpolator.update(widget.markers, now);
-    if (_interpolator.isAnimating(now)) _ensureTicking();
+    if (_interpolator.isAnimating(now) || _interpolator.hasMarkers) {
+      _ensureTicking();
+    }
     // A rider who disconnects (or leaves) loses their marker; close their card
     // straight away rather than leaving it pointing at nothing.
     final selected = _selectedUid;
@@ -125,11 +136,16 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
         _interpolator.positionOf(uid, now),
         _interpolator.headingOf(uid, now),
         now,
+        speedMps: _interpolator.speedOf(uid, now),
       );
     }
-    _frames.value++;
-    final idle = !_interpolator.isAnimating(now) && !_camera.isEasing(now);
-    if (!idle) return;
+    final busy = _interpolator.isAnimating(now) || _camera.isEasing(now);
+    // While only the slow idle float and pulse are playing, markers repaint
+    // on every other frame: the motion looks the same and the GPU does half
+    // the work for most of a ride spent cruising or standing.
+    _idleFrame = !_idleFrame;
+    if (busy || _selectedUid != null || !_idleFrame) _frames.value++;
+    if (busy || _interpolator.hasMarkers) return;
     _ticker.stop();
     if (!_camera.isActive(now)) {
       // Paused by a manual pan: sleep until following may resume, instead of
@@ -163,7 +179,10 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
       hit = null;
     }
     setState(() => _selectedUid = hit);
-    if (hit != null) _ensureTicking();
+    if (hit != null) {
+      AppHaptics.selection();
+      _ensureTicking();
+    }
   }
 
   void _onMapEvent(MapEvent event) {
@@ -200,10 +219,14 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
           frames: _frames,
           clock: () => _now,
         ),
-        // Fades the card out when it closes; it scales and fades in itself.
+        // One animation drives the card both ways: it springs out of the dot
+        // on opening and shrinks back into it on closing. The card layer
+        // reads it from [_CardMotion], so it can scale about the dot itself.
         AnimatedSwitcher(
-          duration: AppMotion.fast,
-          switchOutCurve: AppMotion.exit,
+          duration: AppMotion.springDuration,
+          reverseDuration: AppMotion.normal,
+          transitionBuilder: (child, animation) =>
+              _CardMotion(animation: animation, child: child),
           layoutBuilder: (current, previous) =>
               Stack(fit: StackFit.expand, children: [...previous, ?current]),
           child: _selectedUid == null
@@ -245,13 +268,19 @@ class _RiderCardLayer extends StatelessWidget {
   final Widget card;
   final VoidCallback onGone;
 
+  /// The card's size, relative to rest, as it starts to open and finishes
+  /// closing.
+  static const double _closedScale = 0.82;
+
   @override
   Widget build(BuildContext context) {
     final camera = MapCamera.of(context);
+    final motion = _CardMotion.of(context);
     return IgnorePointer(
       child: AnimatedBuilder(
-        animation: frames,
-        builder: (context, _) {
+        animation: Listenable.merge([frames, motion]),
+        child: card,
+        builder: (context, child) {
           final position = interpolator.positionOf(uid, clock());
           if (position == null) {
             WidgetsBinding.instance.addPostFrameCallback((_) => onGone());
@@ -260,30 +289,44 @@ class _RiderCardLayer extends StatelessWidget {
           final anchor = camera.latLngToScreenOffset(
             LatLng(position.latitude, position.longitude),
           );
+          final t = motion.value;
+          // Opening springs (with a touch of overshoot); closing runs the
+          // same path back, accelerating into the dot.
+          final grow = motion.status == AnimationStatus.reverse
+              ? AppMotion.curve.transform(t)
+              : AppMotion.spring.transform(t);
           return CustomSingleChildLayout(
             delegate: _CardLayout(anchor),
-            child: TweenAnimationBuilder<double>(
-              key: ValueKey(uid),
-              tween: Tween(begin: 0, end: 1),
-              duration: AppMotion.springDuration,
-              curve: AppMotion.spring,
-              builder: (context, t, child) => Opacity(
-                // Fades in over the first part of the spring.
-                opacity: (t * 1.6).clamp(0.0, 1.0),
-                // Springs out of the dot it belongs to.
-                child: Transform.scale(
-                  scale: 0.82 + 0.18 * t,
-                  alignment: Alignment.bottomCenter,
-                  child: child,
-                ),
+            child: Opacity(
+              // Fully visible early in the spring, gone early on the way out.
+              opacity: (t * 1.6).clamp(0.0, 1.0),
+              child: Transform.scale(
+                scale: _closedScale + (1 - _closedScale) * grow,
+                alignment: Alignment.bottomCenter,
+                child: child,
               ),
-              child: card,
             ),
           );
         },
       ),
     );
   }
+}
+
+/// Hands the card's open/close animation from the switcher down to the card
+/// layer, which applies it around the rider's dot.
+class _CardMotion extends InheritedWidget {
+  const _CardMotion({required this.animation, required super.child});
+
+  final Animation<double> animation;
+
+  static Animation<double> of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_CardMotion>()?.animation ??
+      kAlwaysCompleteAnimation;
+
+  @override
+  bool updateShouldNotify(_CardMotion oldWidget) =>
+      oldWidget.animation != animation;
 }
 
 class _CardLayout extends SingleChildLayoutDelegate {

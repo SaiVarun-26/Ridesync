@@ -10,9 +10,13 @@ import 'marker_interpolator.dart';
 
 /// Paints every rider as a flat dot: translucent disc, colored center, and a
 /// subtle outer ring, with a small wedge showing the direction of travel.
+/// Resting markers float very slightly and send out a soft ring every few
+/// seconds; arriving ones spring up and ring once.
 ///
 /// Positions come from the shared [MarkerInterpolator] and are repainted on
-/// every [frames] tick, without rebuilding any widgets.
+/// every [frames] tick, without rebuilding any widgets. The layer sits on its
+/// own repaint boundary, so a marker frame never repaints the map tiles or
+/// trails underneath.
 class LiveMarkerLayer extends StatelessWidget {
   const LiveMarkerLayer({
     super.key,
@@ -31,13 +35,15 @@ class LiveMarkerLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size.infinite,
-      painter: _MarkerPainter(
-        interpolator: interpolator,
-        camera: MapCamera.of(context),
-        clock: clock,
-        repaint: frames,
+    return RepaintBoundary(
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _MarkerPainter(
+          interpolator: interpolator,
+          camera: MapCamera.of(context),
+          clock: clock,
+          repaint: frames,
+        ),
       ),
     );
   }
@@ -67,6 +73,16 @@ class _MarkerPainter extends CustomPainter {
   static const double _wedgeHalfWidth = 5;
   static const double _wedgeAlpha = 0.85;
 
+  /// How far the pulse ring travels past the outer ring, and how strong it
+  /// starts.
+  static const double _pulseSpread = 16;
+  static const double _pulseAlpha = 0.45;
+
+  /// The idle float: the dot lifts by at most this many pixels and the halo
+  /// grows by at most this fraction.
+  static const double _floatLift = 1.2;
+  static const double _haloBreath = 0.06;
+
   @override
   void paint(Canvas canvas, Size size) {
     final frames = interpolator.sample(clock());
@@ -84,10 +100,15 @@ class _MarkerPainter extends CustomPainter {
     final opacity = frame.opacity;
     final color = frame.color;
 
-    // A rider arriving pops in with a little elastic overshoot; a rider
-    // leaving shrinks away. Riders at rest take the plain path.
-    if (opacity < 1) {
-      final scale = AppMotion.spring.transform(opacity.clamp(0.0, 1.0));
+    // The soft ring sits on the rider's true position, outside the scale and
+    // float, so it always radiates from exactly where they are.
+    final pulse = frame.pulse;
+    if (pulse != null) _paintPulse(canvas, center, pulse, color, opacity);
+
+    // A rider arriving springs up from small; a rider leaving shrinks away.
+    // Riders at rest take the plain path.
+    final scale = frame.scale;
+    if (scale != 1) {
       canvas
         ..save()
         ..translate(center.dx, center.dy)
@@ -100,6 +121,27 @@ class _MarkerPainter extends CustomPainter {
     _paintRiderBody(canvas, center, frame, opacity, color);
   }
 
+  /// One soft ring expanding from the marker and fading as it goes. Flat
+  /// colour, no blur: it reads as a ripple, not a glow.
+  void _paintPulse(
+    Canvas canvas,
+    Offset center,
+    double progress,
+    Color color,
+    double opacity,
+  ) {
+    final t = AppMotion.curve.transform(progress);
+    final fade = (1 - progress) * (1 - progress);
+    canvas.drawCircle(
+      center,
+      _ringRadius + _pulseSpread * t,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _ringWidth
+        ..color = color.withValues(alpha: _pulseAlpha * fade * opacity),
+    );
+  }
+
   void _paintRiderBody(
     Canvas canvas,
     Offset center,
@@ -107,24 +149,27 @@ class _MarkerPainter extends CustomPainter {
     double opacity,
     Color color,
   ) {
+    // The halo breathes very slightly with the idle float.
     canvas.drawCircle(
       center,
-      _glowRadius,
+      _glowRadius * (1 + _haloBreath * frame.float),
       // A flat translucent disc, only enough to lift the dot off the map.
       Paint()..color = color.withValues(alpha: _glowAlpha * opacity),
     );
+    // The dot itself floats a hair above its true position.
+    final dot = center.translate(0, -_floatLift * (frame.float + 1) / 2);
 
     final heading = frame.headingDegrees;
     if (heading != null) {
       // The map may be rotated: add its rotation to get the on-screen
       // direction. While following, this is exactly "up", so this rider's
       // wedge always points forward and stays upright as the map turns.
-      _paintWedge(canvas, center, heading + camera.rotation, color, opacity);
+      _paintWedge(canvas, dot, heading + camera.rotation, color, opacity);
     }
 
     canvas
       ..drawCircle(
-        center,
+        dot,
         _ringRadius,
         Paint()
           ..style = PaintingStyle.stroke
@@ -132,12 +177,12 @@ class _MarkerPainter extends CustomPainter {
           ..color = color.withValues(alpha: _ringAlpha * opacity),
       )
       ..drawCircle(
-        center,
+        dot,
         _dotRadius + _backingWidth,
         Paint()..color = AppColors.background.withValues(alpha: opacity),
       )
       ..drawCircle(
-        center,
+        dot,
         _dotRadius,
         Paint()..color = color.withValues(alpha: opacity),
       );

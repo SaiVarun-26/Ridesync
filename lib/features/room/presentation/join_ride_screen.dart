@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/errors/result.dart';
+import '../../../core/feedback/app_haptics.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_button.dart';
@@ -85,7 +86,7 @@ class _JoinRideScreenState extends ConsumerState<JoinRideScreen> {
       case Success(:final value):
         // A new rider lands in the lobby; a rider coming back lands wherever
         // the room has got to. The button shows a check for a moment first.
-        HapticFeedback.mediumImpact();
+        AppHaptics.success();
         setState(() => _joined = true);
         await Future<void>.delayed(AppMotion.successHold);
         if (!mounted) return;
@@ -256,7 +257,7 @@ class _RoomCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               'This ride is already under way. You will join it live and show '
-              'up on everyone’s map straight away.',
+              'up on everyoneâ€™s map straight away.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AppColors.textSecondary,
               ),

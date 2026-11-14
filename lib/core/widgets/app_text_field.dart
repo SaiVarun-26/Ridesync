@@ -3,6 +3,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../feedback/app_haptics.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_icon.dart';
@@ -117,7 +118,7 @@ class _AppTextFieldState extends State<AppTextField>
     }
     final error = widget.errorText;
     if (error != null && error != oldWidget.errorText) {
-      HapticFeedback.lightImpact();
+      AppHaptics.light();
       _shake.forward(from: 0);
     }
   }

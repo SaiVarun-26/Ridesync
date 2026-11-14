@@ -2,6 +2,7 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../feedback/app_haptics.dart';
 import '../theme/app_spacing.dart';
 import 'app_icon.dart';
 
@@ -72,6 +73,11 @@ void showAppSnackBar(
   bool isError = true,
 }) {
   final color = isError ? AppColors.error : AppColors.success;
+  if (isError) {
+    AppHaptics.error();
+  } else {
+    AppHaptics.success();
+  }
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(
