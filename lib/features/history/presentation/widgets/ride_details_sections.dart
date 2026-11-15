@@ -4,6 +4,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/rider_palette.dart';
+import '../../../../core/widgets/app_icon.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/section_label.dart';
 import '../../../ride/domain/live/ride_format.dart';
 import '../../../ride/domain/summary/ride_summary.dart';
@@ -23,9 +25,12 @@ String riderNameOf(RiderRideSummary rider) {
 
 /// Title and time of the ride.
 class RideTitleBlock extends StatelessWidget {
-  const RideTitleBlock({super.key, required this.summary});
+  const RideTitleBlock({super.key, required this.summary, this.onEdit});
 
   final RideSummary summary;
+
+  /// Opens the rename dialog; no edit button when `null`.
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -37,13 +42,53 @@ class RideTitleBlock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          summary.roomName,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontSize: AppTypeScale.headline,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              // A new name fades in over the old one.
+              child: AnimatedSwitcher(
+                duration: AppMotion.normal,
+                switchInCurve: AppMotion.curve,
+                switchOutCurve: AppMotion.exit,
+                layoutBuilder: (current, previous) => Stack(
+                  alignment: Alignment.topLeft,
+                  children: [...previous, ?current],
+                ),
+                child: Text(
+                  summary.roomName,
+                  key: ValueKey(summary.roomName),
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontSize: AppTypeScale.headline,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            if (onEdit != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              Semantics(
+                button: true,
+                label: 'Rename ride',
+                excludeSemantics: true,
+                child: PressableScale(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onEdit,
+                    child: const Padding(
+                      padding: EdgeInsets.all(AppSpacing.xs),
+                      child: Icon(
+                        Icons.edit_rounded,
+                        size: AppIconSize.medium,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(

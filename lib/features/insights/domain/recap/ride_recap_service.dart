@@ -54,6 +54,12 @@ class RideRecapService {
     return recap;
   }
 
+  /// Drops every remembered recap of ride [code] (for any rider), so the next
+  /// request builds it again, for instance after the ride was renamed.
+  void forget(String code) {
+    _cache.removeWhere((key, _) => key.startsWith('$code|'));
+  }
+
   /// The recap for already loaded [details].
   Future<RideRecap> fromDetails(
     RideDetails details, {

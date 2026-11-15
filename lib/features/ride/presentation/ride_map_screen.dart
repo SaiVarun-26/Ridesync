@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/router/app_routes.dart';
+import '../../../core/errors/result.dart';
 import '../../../core/feedback/app_haptics.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -12,6 +13,8 @@ import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/ride_loader.dart';
 import '../../../core/theme/rider_palette.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../naming/presentation/naming_providers.dart';
+import '../../naming/presentation/ride_name_dialog.dart';
 import '../../room/domain/room.dart';
 import '../../room/domain/room_status.dart';
 import '../../room/presentation/providers/room_providers.dart';
@@ -193,12 +196,48 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
   /// repeated calls while it runs.
   Future<void> _holdBeforeResults(Room room) {
     if (room.status != RoomStatus.ended) return Future<void>.value();
-    // The ride is over for everyone. The completion scene plays (and gives
-    // its own haptic) until the hold runs out or the rider skips it.
-    return _hold ??= Future.any<void>([
+    return _hold ??= _finishSequence(room);
+  }
+
+  /// What happens once the ride has ended: the completion scene plays (and
+  /// gives its own haptic) until the hold runs out or the rider skips it; then
+  /// the host, and only the host, names the ride before everyone moves on to
+  /// the results.
+  Future<void> _finishSequence(Room room) async {
+    await Future.any<void>([
       Future<void>.delayed(_completeHold),
       _skipHold.future,
     ]);
+    final uid = ref.read(authStateChangesProvider).value?.uid;
+    if (!mounted || uid != room.hostUid || !room.namePending) return;
+    await _nameRide();
+  }
+
+  /// Asks the host for the ride's name, suggesting one from where it ended.
+  /// Saving names the ride for every rider; cancelling leaves it to be named
+  /// from the results.
+  Future<void> _nameRide() async {
+    final map = ref.read(rideMapControllerProvider(roomCode));
+    final uid = ref.read(authStateChangesProvider).value?.uid;
+    final trail = map.trails[uid]?.points;
+    final service = ref.read(rideNamingServiceProvider);
+    await showRideNameDialog(
+      context,
+      title: 'Ride Complete',
+      confirmLabel: 'Save Ride',
+      message: 'Give this ride a name. Everyone will see it in their history.',
+      suggestion: service.suggest(
+        start: trail == null || trail.isEmpty ? null : trail.first.point,
+        end: map.myFix?.point,
+      ),
+      onSave: (name) async {
+        final result = await service.nameRide(code: roomCode, name: name);
+        return switch (result) {
+          Success() => null,
+          Failed(:final failure) => failure.message,
+        };
+      },
+    );
   }
 
   void _openResults() {
@@ -476,7 +515,14 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                         : progress.stage == RideEndStage.complete
                         ? RideCompleteOverlay(
                             key: const ValueKey('complete'),
-                            rideName: room?.name ?? '',
+                            // Until the host names it, the name is only a
+                            // placeholder, so it is not shown.
+                            rideName: room?.namePending ?? false
+                                ? ''
+                                : room?.name ?? '',
+                            continueLabel: room?.namePending ?? false
+                                ? (isHost ? 'Name your ride' : 'View results')
+                                : 'View results',
                             distanceMeters: map.myStats?.distanceMeters ?? 0,
                             duration:
                                 map.myStats?.elapsed(

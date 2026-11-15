@@ -674,6 +674,8 @@ class FirebaseRoomRepository implements RoomRepository {
           RoomPaths.metaHostUid: hostUid,
           RoomPaths.metaStatus: RoomStatus.lobby.wireValue,
           RoomPaths.metaCreatedAt: ServerValue.timestamp,
+          // The host names the ride after it, from where it ended.
+          RoomPaths.metaNamePending: true,
         });
         return candidate;
       } on FirebaseException catch (e) {

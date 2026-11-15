@@ -218,6 +218,16 @@ class RideHistoryController extends Notifier<RideHistoryState> {
     );
   }
 
+  /// Shows [name] as ride [code]'s name, as soon as it is saved.
+  void applyName(String code, String name) {
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      entries: [
+        for (final e in state.entries) e.code == code ? e.withName(name) : e,
+      ],
+    );
+  }
+
   /// Shows [highlights] on ride [code]'s card, once they have been worked out.
   void applyHighlights(String code, RecapHighlights highlights) {
     if (!ref.mounted) return;

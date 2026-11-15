@@ -10,7 +10,12 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/brand_wordmark.dart';
 import '../../../core/widgets/fade_slide_in.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../../core/errors/result.dart';
+import '../../../core/feedback/app_haptics.dart';
+import '../../../core/widgets/app_dialogs.dart';
 import '../../history/presentation/widgets/previous_rides_section.dart';
+import 'ride_launcher.dart';
+import 'widgets/solo_ride_card.dart';
 
 /// Landing screen: the brand, a calm headline, the two ways into a ride, and
 /// the rider's previous rides underneath.
@@ -88,12 +93,14 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.xxxl),
                     FadeSlideIn(
                       delay: _stagger * 3,
-                      child: AppButton(
-                        label: 'Create Ride',
-                        icon: Icons.add_rounded,
-                        verticalPadding: _buttonPadding,
-                        onPressed: () => context.push(AppRoutes.create),
+                      child: SoloRideCard(
+                        onTap: () => context.push(AppRoutes.solo),
                       ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    FadeSlideIn(
+                      delay: _stagger * 3,
+                      child: const _CreateRideButton(),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     FadeSlideIn(
@@ -120,6 +127,52 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Creates a group ride and opens its lobby. The host names the ride after it,
+/// so there is nothing to fill in first.
+class _CreateRideButton extends ConsumerStatefulWidget {
+  const _CreateRideButton();
+
+  @override
+  ConsumerState<_CreateRideButton> createState() => _CreateRideButtonState();
+}
+
+class _CreateRideButtonState extends ConsumerState<_CreateRideButton> {
+  bool _creating = false;
+
+  /// The ride was created; the button shows a check until the lobby opens.
+  bool _created = false;
+
+  Future<void> _create() async {
+    if (_creating) return;
+    setState(() => _creating = true);
+    final result = await ref.read(rideLauncherProvider).startGroupRide();
+    if (!mounted) return;
+    switch (result) {
+      case Success(:final value):
+        AppHaptics.success();
+        setState(() => _created = true);
+        await Future<void>.delayed(AppMotion.successHold);
+        if (!mounted) return;
+        context.go(AppRoutes.lobbyPath(value.code));
+      case Failed(:final failure):
+        setState(() => _creating = false);
+        showAppSnackBar(context, failure.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppButton(
+      label: 'Host Ride',
+      icon: Icons.add_rounded,
+      verticalPadding: HomeScreen._buttonPadding,
+      isLoading: _creating,
+      isSuccess: _created,
+      onPressed: _create,
     );
   }
 }

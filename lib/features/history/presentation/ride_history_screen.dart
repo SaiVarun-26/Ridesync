@@ -6,6 +6,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_icon.dart';
 import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/ride_loader.dart';
+import '../../naming/presentation/naming_providers.dart';
 import '../../insights/presentation/providers/insights_providers.dart';
 import '../../insights/presentation/share/ride_share_sheet.dart';
 import '../domain/ride_history_entry.dart';
@@ -55,7 +56,10 @@ class _RideHistoryScreenState extends ConsumerState<RideHistoryScreen> {
   Widget build(BuildContext context) {
     final history = ref.watch(rideHistoryProvider);
     // Fills in recap highlights for rides that do not have them yet.
-    ref.watch(recapHighlightsSyncProvider);
+    ref
+      ..watch(recapHighlightsSyncProvider)
+      // Picks up the host's name for rides saved before it was given.
+      ..watch(pendingNameSyncProvider);
     final entries = history.entries;
 
     return Scaffold(

@@ -110,11 +110,22 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              entry.roomName,
-                              style: theme.textTheme.titleMedium,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            // A rename fades the new name in.
+                            AnimatedSwitcher(
+                              duration: AppMotion.normal,
+                              switchInCurve: AppMotion.curve,
+                              switchOutCurve: AppMotion.exit,
+                              layoutBuilder: (current, previous) => Stack(
+                                alignment: Alignment.topLeft,
+                                children: [...previous, ?current],
+                              ),
+                              child: Text(
+                                entry.roomName,
+                                key: ValueKey(entry.roomName),
+                                style: theme.textTheme.titleMedium,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.xs),
                             Text(

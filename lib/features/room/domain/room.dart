@@ -16,7 +16,12 @@ class Room {
     required this.mode,
     required this.members,
     required this.createdAt,
+    this.namePending = false,
   });
+
+  /// Whether the ride is still waiting for its host to give it a name, which
+  /// happens once, after the ride. Until then [name] is only a placeholder.
+  final bool namePending;
 
   /// The 6-character join code; also the room's database key.
   final String code;

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_dialogs.dart';
 import '../../../core/widgets/app_text_button.dart';
 import '../../../app/router/app_routes.dart';
@@ -25,6 +26,8 @@ import '../../history/presentation/providers/ride_transition_providers.dart';
 import '../../history/presentation/widgets/ride_details_sections.dart';
 import '../../history/presentation/widgets/speed_chart.dart';
 import '../../insights/domain/recap/ride_recap.dart';
+import '../../naming/presentation/naming_providers.dart';
+import '../../naming/presentation/ride_name_dialog.dart';
 import '../../insights/presentation/providers/insights_providers.dart';
 import '../../insights/presentation/share/ride_share_sheet.dart';
 import '../../insights/presentation/widgets/recap_sections.dart';
@@ -58,10 +61,71 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
 
   String get _code => widget.roomCode;
 
+  /// Whether this rider is the host of a ride nobody has named yet. Their
+  /// copy is saved to history only once it is named.
+  bool get _hostNeedsToName {
+    final summary = ref.read(rideDetailsProvider(_code)).value?.summary;
+    final uid = ref.read(authStateChangesProvider).value?.uid;
+    return summary != null && !summary.named && summary.hostUid == uid;
+  }
+
+  /// Asks the host for the ride's name and, once it is saved, saves the ride
+  /// to their history.
+  Future<void> _nameRide() async {
+    final details = ref.read(rideDetailsProvider(_code)).value;
+    final uid = ref.read(authStateChangesProvider).value?.uid;
+    if (details == null) return;
+    final points = details.routes[uid]?.points;
+    final service = ref.read(rideNamingServiceProvider);
+    final saved = await showRideNameDialog(
+      context,
+      title: 'Name your ride',
+      confirmLabel: 'Save Ride',
+      message: 'Everyone will see it in their history.',
+      suggestion: service.suggest(
+        start: points == null || points.isEmpty ? null : points.first,
+        end: points == null || points.isEmpty ? null : points.last,
+      ),
+      onSave: (name) async {
+        final result = await service.nameRide(code: _code, name: name);
+        return switch (result) {
+          Success() => null,
+          Failed(:final failure) => failure.message,
+        };
+      },
+    );
+    if (!saved || !mounted) return;
+    // The ride is named now: show it, and save it to history.
+    ref
+      ..invalidate(rideDetailsProvider(_code))
+      ..invalidate(rideRecapProvider(_code))
+      ..invalidate(recordRideHistoryProvider(_code));
+  }
+
   /// Goes home. Waits for the ride to be saved to history first, because the
   /// rider has to still be in the room for that write to be allowed.
   Future<void> _done() async {
     if (_leaving) return;
+    if (_hostNeedsToName) {
+      // Leaving now would leave the ride out of the host's history.
+      final leave = await showAppDialog<bool>(
+        context: context,
+        builder: (_) => const AppDialog(
+          title: 'Leave without saving?',
+          message:
+              'This ride has no name yet, so it is not in your history. '
+              'Name it to keep it.',
+          cancelLabel: 'Name ride',
+          confirmLabel: 'Leave',
+          destructive: true,
+        ),
+      );
+      if (!mounted) return;
+      if (leave != true) {
+        await _nameRide();
+        return;
+      }
+    }
     setState(() => _leaving = true);
     try {
       await ref.read(recordRideHistoryProvider(_code).future);
@@ -102,7 +166,13 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
     final details = ref.watch(rideDetailsProvider(_code));
     final recap = ref.watch(rideRecapProvider(_code));
     // Saves this ride's highlights to its history entry once it is recorded.
-    ref.watch(recapHighlightsSyncProvider);
+    ref
+      ..watch(recapHighlightsSyncProvider)
+      // Picks up the host's name as soon as it is given.
+      ..watch(pendingNameSyncProvider);
+    // The room's name updates live, so riders see the host's name arrive.
+    final room = ref.watch(roomStreamProvider(_code)).value;
+    final liveName = room == null || room.namePending ? null : room.name;
     final myUid = ref.watch(authStateChangesProvider).value?.uid;
 
     return RoomExitScope(
@@ -139,6 +209,7 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
                         // Arrives a moment after the results, from the
                         // background; its sections join as it does.
                         recap: recap.value,
+                        liveName: liveName,
                       ),
                     ),
                   ),
@@ -153,6 +224,16 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (details.value case final loaded?)
+                        if (!loaded.summary.named &&
+                            loaded.summary.hostUid == myUid) ...[
+                          AppButton(
+                            label: 'Name & save ride',
+                            icon: Icons.edit_rounded,
+                            onPressed: _nameRide,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
                       Row(
                         children: [
                           Expanded(
@@ -267,7 +348,11 @@ class _Results extends StatefulWidget {
     required this.details,
     required this.myUid,
     this.recap,
+    this.liveName,
   });
+
+  /// The ride's name as the room has it now, once the host has named it.
+  final String? liveName;
 
   final RideDetails details;
   final String? myUid;
@@ -409,7 +494,8 @@ class _ResultsState extends State<_Results>
             Text('Ride Complete', style: theme.textTheme.displaySmall),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              summary.roomName,
+              widget.liveName ??
+                  (summary.named ? summary.roomName : 'Waiting for the host to name this ride'),
               textAlign: TextAlign.center,
               style: theme.textTheme.titleMedium?.copyWith(
                 color: AppColors.textSecondary,

@@ -17,6 +17,7 @@ import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/ride_loader.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../insights/domain/recap/ride_recap.dart';
+import '../../naming/presentation/rename_ride_flow.dart';
 import '../../insights/presentation/providers/insights_providers.dart';
 import '../../insights/presentation/share/ride_share_sheet.dart';
 import '../../insights/presentation/widgets/recap_sections.dart';
@@ -338,6 +339,12 @@ class _ContentState extends ConsumerState<_Content>
             onSelect: _select,
             statsReveal: _statsReveal,
             listsReveal: _listsReveal,
+            onRename: () => renameRideFlow(
+              context,
+              ref,
+              code: summary.roomCode,
+              currentName: summary.roomName,
+            ),
           ),
         ),
       ],
@@ -412,7 +419,11 @@ class _Sheet extends StatelessWidget {
     required this.onSelect,
     required this.statsReveal,
     required this.listsReveal,
+    required this.onRename,
   });
+
+  /// Opens the rename dialog for this ride.
+  final VoidCallback onRename;
 
   final ScrollController controller;
   final RideDetails details;
@@ -509,7 +520,7 @@ class _Sheet extends StatelessWidget {
                   ),
                 ),
               ),
-            RideTitleBlock(summary: summary),
+            RideTitleBlock(summary: summary, onEdit: onRename),
             const SizedBox(height: AppSpacing.xl),
             RideHeroStats(group: summary.group, progress: statsReveal),
             section(

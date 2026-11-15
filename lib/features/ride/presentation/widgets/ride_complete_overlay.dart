@@ -30,7 +30,11 @@ class RideCompleteOverlay extends StatefulWidget {
     required this.averageSpeedMps,
     required this.accent,
     required this.onContinue,
+    this.continueLabel = 'View results',
   });
+
+  /// The label of the button that moves on.
+  final String continueLabel;
 
   final String rideName;
 
@@ -164,15 +168,16 @@ class _RideCompleteOverlayState extends State<RideCompleteOverlay>
                               style: theme.textTheme.headlineMedium,
                             ),
                             const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              widget.rideName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSecondary,
+                            if (widget.rideName.isNotEmpty)
+                              Text(
+                                widget.rideName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -212,7 +217,7 @@ class _RideCompleteOverlayState extends State<RideCompleteOverlay>
                         child: IgnorePointer(
                           ignoring: button < 0.6,
                           child: AppButton(
-                            label: 'View results',
+                            label: widget.continueLabel,
                             onPressed: widget.onContinue,
                           ),
                         ),

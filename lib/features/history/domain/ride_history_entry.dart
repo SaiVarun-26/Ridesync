@@ -25,7 +25,12 @@ class RideHistoryEntry {
     this.previewSpeedsMps = const [],
     this.highlights,
     this.colorId,
+    this.namePending = false,
   });
+
+  /// Whether this entry was saved before the host named the ride, so its
+  /// [roomName] is still a placeholder to be replaced by the host's name.
+  final bool namePending;
 
   /// The colour the rider had in this ride (see `RiderPalette`), so the ride
   /// is drawn in it everywhere. `null` for rides saved before it was
@@ -47,6 +52,8 @@ class RideHistoryEntry {
 
   /// The ride's room code, which also identifies its summary.
   final String code;
+
+  /// The ride's name: the host's name for it, or the rider's own.
   final String roomName;
   final RideMode mode;
   final int startedAtMs;
@@ -57,71 +64,57 @@ class RideHistoryEntry {
   final double maxSpeedMps;
   final int riderCount;
 
+  RideHistoryEntry _copy({
+    String? roomName,
+    List<GeoPoint>? routePreview,
+    List<double>? previewSpeedsMps,
+    RecapHighlights? highlights,
+    String? colorId,
+    bool? namePending,
+  }) {
+    return RideHistoryEntry(
+      code: code,
+      roomName: roomName ?? this.roomName,
+      mode: mode,
+      startedAtMs: startedAtMs,
+      endedAtMs: endedAtMs,
+      durationMs: durationMs,
+      distanceMeters: distanceMeters,
+      averageSpeedMps: averageSpeedMps,
+      maxSpeedMps: maxSpeedMps,
+      riderCount: riderCount,
+      routePreview: routePreview ?? this.routePreview,
+      previewSpeedsMps: previewSpeedsMps ?? this.previewSpeedsMps,
+      highlights: highlights ?? this.highlights,
+      colorId: colorId ?? this.colorId,
+      namePending: namePending ?? this.namePending,
+    );
+  }
+
   /// This entry with [points] (thinned) as its route miniature, and the
   /// matching [speedsMps] if they were recorded.
   RideHistoryEntry withRoutePreview(
     List<GeoPoint> points, {
     List<double> speedsMps = const [],
   }) {
-    return RideHistoryEntry(
-      code: code,
-      roomName: roomName,
-      mode: mode,
-      startedAtMs: startedAtMs,
-      endedAtMs: endedAtMs,
-      durationMs: durationMs,
-      distanceMeters: distanceMeters,
-      averageSpeedMps: averageSpeedMps,
-      maxSpeedMps: maxSpeedMps,
-      riderCount: riderCount,
+    return _copy(
       routePreview: RoutePreview.thin(points),
       previewSpeedsMps: speedsMps.length == points.length
           ? RoutePreview.thinValues(speedsMps)
           : const [],
-      highlights: highlights,
-      colorId: colorId,
     );
   }
 
   /// This entry with its recap [highlights].
-  RideHistoryEntry withHighlights(RecapHighlights highlights) {
-    return RideHistoryEntry(
-      code: code,
-      roomName: roomName,
-      mode: mode,
-      startedAtMs: startedAtMs,
-      endedAtMs: endedAtMs,
-      durationMs: durationMs,
-      distanceMeters: distanceMeters,
-      averageSpeedMps: averageSpeedMps,
-      maxSpeedMps: maxSpeedMps,
-      riderCount: riderCount,
-      routePreview: routePreview,
-      previewSpeedsMps: previewSpeedsMps,
-      highlights: highlights,
-      colorId: colorId,
-    );
-  }
+  RideHistoryEntry withHighlights(RecapHighlights highlights) =>
+      _copy(highlights: highlights);
 
   /// This entry with the rider's [colorId].
-  RideHistoryEntry withColorId(String colorId) {
-    return RideHistoryEntry(
-      code: code,
-      roomName: roomName,
-      mode: mode,
-      startedAtMs: startedAtMs,
-      endedAtMs: endedAtMs,
-      durationMs: durationMs,
-      distanceMeters: distanceMeters,
-      averageSpeedMps: averageSpeedMps,
-      maxSpeedMps: maxSpeedMps,
-      riderCount: riderCount,
-      routePreview: routePreview,
-      previewSpeedsMps: previewSpeedsMps,
-      highlights: highlights,
-      colorId: colorId,
-    );
-  }
+  RideHistoryEntry withColorId(String colorId) => _copy(colorId: colorId);
+
+  /// This entry under [name], which is no longer waiting for the host's.
+  RideHistoryEntry withName(String name) =>
+      _copy(roomName: name, namePending: false);
 
   DateTime get endedAt => DateTime.fromMillisecondsSinceEpoch(endedAtMs);
 
@@ -148,6 +141,7 @@ class RideHistoryEntry {
       maxSpeedMps: rider.maxSpeedMps,
       riderCount: group.riderCount,
       colorId: rider.colorId,
+      namePending: !summary.named,
     );
   }
 }

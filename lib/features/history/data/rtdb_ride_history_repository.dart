@@ -36,11 +36,12 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
   /// How long to wait for the database before treating the network as down.
   final Duration timeout;
 
-  static String _cacheKey(String uid) => 'history_$uid';
+  /// Where the newest page of [uid]'s history is kept on the device.
+  static String cacheKey(String uid) => 'history_$uid';
 
   @override
   Future<List<RideHistoryEntry>> cached(String uid) async {
-    return RideHistoryDto.pageFromJson(await _cache.read(_cacheKey(uid)));
+    return RideHistoryDto.pageFromJson(await _cache.read(cacheKey(uid)));
   }
 
   @override
@@ -78,7 +79,7 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
       final hasMore = entries.length > limit;
       final page = hasMore ? entries.sublist(0, limit) : entries;
       if (after == null) {
-        await _cache.write(_cacheKey(uid), RideHistoryDto.pageToJson(page));
+        await _cache.write(cacheKey(uid), RideHistoryDto.pageToJson(page));
       }
       return Success(RideHistoryPage(entries: page, hasMore: hasMore));
     } on TimeoutException catch (e) {
@@ -267,6 +268,12 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
       final entry = RideHistoryEntry.fromSummary(summary, uid);
       // Not part of this ride (for example joined after it ended).
       if (entry == null) return const Success(null);
+      // The host's copy is saved once they have named the ride (or chosen to
+      // name it from the results). Everyone else saves straight away, marked
+      // as waiting for the host's name.
+      if (!summary.named && summary.hostUid == uid) {
+        return const Success(null);
+      }
 
       final route = await _ownRoute(uid, code);
       final withPreview = entry.withRoutePreview(

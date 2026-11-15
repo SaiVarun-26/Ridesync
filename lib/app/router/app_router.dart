@@ -17,10 +17,10 @@ import '../../features/ride/presentation/ride_map_screen.dart';
 import '../../features/ride/presentation/ride_mode_screen.dart';
 import '../../features/ride/presentation/ride_results_screen.dart';
 import '../../features/ride_card/presentation/ride_card_screen.dart';
-import '../../features/room/presentation/create_ride_screen.dart';
 import '../../features/room/presentation/home_screen.dart';
 import '../../features/room/presentation/join_ride_screen.dart';
 import '../../features/room/presentation/lobby_screen.dart';
+import '../../features/room/presentation/solo_ride_screen.dart';
 import 'app_routes.dart';
 import 'container_transform.dart';
 
@@ -75,9 +75,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.create,
-        name: AppRoutes.createName,
-        pageBuilder: (context, state) => _page(state, const CreateRideScreen()),
+        path: AppRoutes.solo,
+        name: AppRoutes.soloName,
+        pageBuilder: (context, state) => _page(state, const SoloRideScreen()),
       ),
       GoRoute(
         path: AppRoutes.join,

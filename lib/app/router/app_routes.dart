@@ -10,7 +10,7 @@ abstract final class AppRoutes {
   static const String splash = '/';
   static const String onboarding = '/onboarding';
   static const String home = '/home';
-  static const String create = '/create';
+  static const String solo = '/solo';
   static const String join = '/join';
 
   /// `/lobby/:code`
@@ -47,7 +47,7 @@ abstract final class AppRoutes {
   static const String splashName = 'splash';
   static const String onboardingName = 'onboarding';
   static const String homeName = 'home';
-  static const String createName = 'create';
+  static const String soloName = 'solo';
   static const String joinName = 'join';
   static const String lobbyName = 'lobby';
   static const String rideModeName = 'rideMode';

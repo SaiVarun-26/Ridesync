@@ -14,6 +14,9 @@ abstract final class RideSummaryPaths {
   static const String group = 'group';
   static const String riders = 'riders';
 
+  /// Whether the host has named the ride (false while it still waits).
+  static const String named = 'named';
+
   // group fields
   static const String totalDistanceMeters = 'totalDistanceMeters';
   static const String durationMs = 'durationMs';
@@ -47,6 +50,7 @@ abstract final class RideSummaryDto {
       RideSummaryPaths.roomName: summary.roomName,
       RideSummaryPaths.hostUid: summary.hostUid,
       RideSummaryPaths.mode: summary.mode.wireValue,
+      RideSummaryPaths.named: summary.named,
       RideSummaryPaths.group: <String, Object?>{
         RideSummaryPaths.totalDistanceMeters: group.totalDistanceMeters,
         RideSummaryPaths.durationMs: group.durationMs,
@@ -115,6 +119,8 @@ abstract final class RideSummaryDto {
       mode: mode,
       group: group,
       riders: riders,
+      // Summaries written before ride names were set later are named.
+      named: value[RideSummaryPaths.named] != false,
     );
   }
 

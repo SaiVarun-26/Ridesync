@@ -100,7 +100,22 @@ class RideSummary {
     required this.mode,
     required this.group,
     required this.riders,
+    this.named = true,
   });
+
+  /// Whether the host has named the ride. `false` while [roomName] is still a
+  /// placeholder.
+  final bool named;
+
+  /// This summary under another [name], which counts as the ride's name.
+  RideSummary withName(String name) => RideSummary(
+    roomCode: roomCode,
+    roomName: name,
+    hostUid: hostUid,
+    mode: mode,
+    group: group,
+    riders: riders,
+  );
 
   final String roomCode;
   final String roomName;

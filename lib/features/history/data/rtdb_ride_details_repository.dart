@@ -13,6 +13,7 @@ import '../../ride/domain/speed_codec.dart';
 import '../domain/ride_details.dart';
 import '../domain/ride_details_repository.dart';
 import 'json_cache.dart';
+import 'ride_history_dto.dart';
 
 /// [RideDetailsRepository] on the Realtime Database.
 ///
@@ -23,15 +24,42 @@ class RtdbRideDetailsRepository implements RideDetailsRepository {
   RtdbRideDetailsRepository({
     required FirebaseDatabase database,
     required JsonCache cache,
+    String? Function()? currentUid,
     this.timeout = const Duration(seconds: 10),
   }) : _database = database,
-       _cache = cache;
+       _cache = cache,
+       _currentUid = currentUid;
 
   final FirebaseDatabase _database;
   final JsonCache _cache;
+  final String? Function()? _currentUid;
   final Duration timeout;
 
-  static String _cacheKey(String code) => 'details_$code';
+  /// The name the signed-in rider gave this ride, if they renamed it. It
+  /// stands in for the shared name wherever the ride is shown, so the details,
+  /// the recap and the share card all agree with their history.
+  Future<String?> _ownName(String code) async {
+    final uid = _currentUid?.call();
+    if (uid == null) return null;
+    try {
+      final entry = _database.ref(RideHistoryPaths.entry(uid, code));
+      final results = await Future.wait([
+        entry.child(RideHistoryPaths.roomName).get(),
+        entry.child(RideHistoryPaths.namePending).get(),
+      ]).timeout(timeout);
+      // A copy still waiting for the host's name holds only a placeholder,
+      // which must never hide the host's real name.
+      if (results[1].value == true) return null;
+      final value = results[0].value;
+      return value is String && value.trim().isNotEmpty ? value : null;
+    } on Object catch (e) {
+      debugPrint('Reading the rider\'s own ride name failed: $e');
+      return null;
+    }
+  }
+
+  /// Where ride [code]'s details are kept on the device.
+  static String cacheKey(String code) => 'details_$code';
 
   @override
   Future<Result<RideDetails>> load(String code) async {
@@ -46,15 +74,17 @@ class RtdbRideDetailsRepository implements RideDetailsRepository {
       final summarySnapshot = await summaryFuture;
       final routesSnapshot = await routesFuture;
 
-      final summary = RideSummaryDto.fromValue(code, summarySnapshot.value);
+      var summary = RideSummaryDto.fromValue(code, summarySnapshot.value);
       if (summary == null) {
         return const Failed(
           NotFoundFailure(message: 'Ride results not found.'),
         );
       }
+      final own = await _ownName(code);
+      if (own != null && own != summary.roomName) summary = summary.withName(own);
       final encoded = _encodedRoutes(routesSnapshot?.value);
 
-      await _cache.write(_cacheKey(code), {
+      await _cache.write(cacheKey(code), {
         'summary': RideSummaryDto.toValue(summary),
         'routes': encoded,
       });
@@ -78,7 +108,7 @@ class RtdbRideDetailsRepository implements RideDetailsRepository {
   }
 
   Future<Result<RideDetails>> _fromCache(String code, Object cause) async {
-    final json = await _cache.read(_cacheKey(code));
+    final json = await _cache.read(cacheKey(code));
     final summary = RideSummaryDto.fromValue(code, json?['summary']);
     if (summary == null) return Failed(NetworkFailure(cause: cause));
     return Success(

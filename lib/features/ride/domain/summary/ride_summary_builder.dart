@@ -46,6 +46,7 @@ abstract final class RideSummaryBuilder {
     return RideSummary(
       roomCode: room.code,
       roomName: room.name,
+      named: !room.namePending,
       hostUid: room.hostUid,
       // A ride only ends after a mode was chosen; free roam is the fallback
       // for a room that somehow has none recorded.

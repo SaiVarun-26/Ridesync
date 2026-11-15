@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/result.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../room/presentation/providers/room_providers.dart';
 import '../../data/rtdb_ride_details_repository.dart';
 import '../../domain/ride_details.dart';
@@ -12,6 +13,7 @@ final rideDetailsRepositoryProvider = Provider<RideDetailsRepository>((ref) {
   return RtdbRideDetailsRepository(
     database: ref.watch(firebaseDatabaseProvider),
     cache: ref.watch(rideCacheProvider),
+    currentUid: () => ref.read(authStateChangesProvider).value?.uid,
   );
 });
 

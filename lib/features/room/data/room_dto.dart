@@ -24,6 +24,9 @@ abstract final class RoomPaths {
   static const String metaMode = 'mode';
   static const String metaCreatedAt = 'createdAt';
 
+  /// Whether the ride still waits for its host to name it (after the ride).
+  static const String metaNamePending = 'namePending';
+
   // member fields
   static const String memberUid = 'uid';
   static const String memberDisplayName = 'displayName';
@@ -78,6 +81,7 @@ abstract final class RoomDto {
       mode: RideMode.fromWire(meta[RoomPaths.metaMode] as String?),
       members: members,
       createdAt: _asInt(meta[RoomPaths.metaCreatedAt]),
+      namePending: meta[RoomPaths.metaNamePending] == true,
     );
   }
 

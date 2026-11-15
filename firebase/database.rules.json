@@ -10,7 +10,8 @@
           ".validate": "newData.hasChildren(['code','name','hostUid','status','createdAt'])",
           "hostUid": { ".validate": "newData.val() === auth.uid || data.val() === auth.uid" },
           "status": { ".validate": "(newData.val() === 'lobby' || newData.val() === 'choosingMode' || newData.val() === 'planning' || newData.val() === 'initializing' || newData.val() === 'riding' || newData.val() === 'ending' || newData.val() === 'ended') && (newData.val() !== 'riding' || newData.parent().child('mode').val() !== 'guided' || root.child('rooms').child($code).child('route').child('encodedPolyline').exists()) && (newData.val() !== 'ending' || data.val() === 'riding') && (newData.val() !== 'ended' || (data.val() === 'ending' && root.child('rideSummaries').child($code).child('group').exists())) && (data.val() !== 'ended' || newData.val() === 'ended')" },
-          "mode": { ".validate": "newData.val() === 'guided' || newData.val() === 'free'" }
+          "mode": { ".validate": "newData.val() === 'guided' || newData.val() === 'free'" },
+          "namePending": { ".validate": "newData.isBoolean()" }
         },
         "members": {
           "$uid": {
@@ -93,8 +94,15 @@
         ".indexOn": ["endedAt", "distanceMeters", "maxSpeedMps"],
         "$code": {
           ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child($uid).exists() && root.child('rooms').child($code).child('meta').child('status').val() === 'ended' && root.child('rideSummaries').child($code).child('riders').child($uid).exists()",
-          ".validate": "newData.hasChildren(['roomName','mode','startedAt','endedAt','durationMs','distanceMeters','averageSpeedMps','maxSpeedMps','riderCount']) && newData.child('roomName').val() === root.child('rideSummaries').child($code).child('roomName').val() && newData.child('mode').val() === root.child('rideSummaries').child($code).child('mode').val() && newData.child('endedAt').val() === root.child('rideSummaries').child($code).child('group').child('endedAt').val() && newData.child('durationMs').val() === root.child('rideSummaries').child($code).child('group').child('durationMs').val() && newData.child('riderCount').val() === root.child('rideSummaries').child($code).child('group').child('riderCount').val() && newData.child('distanceMeters').val() === root.child('rideSummaries').child($code).child('riders').child($uid).child('distanceMeters').val()",
-          "roomName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
+          ".validate": "newData.hasChildren(['roomName','mode','startedAt','endedAt','durationMs','distanceMeters','averageSpeedMps','maxSpeedMps','riderCount']) && (data.exists() || (newData.child('roomName').val() === root.child('rideSummaries').child($code).child('roomName').val() && newData.child('mode').val() === root.child('rideSummaries').child($code).child('mode').val() && newData.child('endedAt').val() === root.child('rideSummaries').child($code).child('group').child('endedAt').val() && newData.child('durationMs').val() === root.child('rideSummaries').child($code).child('group').child('durationMs').val() && newData.child('riderCount').val() === root.child('rideSummaries').child($code).child('group').child('riderCount').val() && newData.child('distanceMeters').val() === root.child('rideSummaries').child($code).child('riders').child($uid).child('distanceMeters').val()))",
+          "roomName": {
+            ".write": "auth != null && auth.uid === $uid && data.exists() && newData.exists()",
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+          },
+          "namePending": {
+            ".write": "auth != null && auth.uid === $uid && data.exists() && !newData.exists()",
+            ".validate": "newData.val() === true"
+          },
           "mode": { ".validate": "newData.val() === 'guided' || newData.val() === 'free'" },
           "startedAt": { ".validate": "newData.isNumber() && newData.val() > 0" },
           "endedAt": { ".validate": "newData.isNumber() && newData.val() > 0" },
@@ -136,7 +144,14 @@
         ".read": "auth != null && (root.child('rooms').child($code).child('members').child(auth.uid).exists() || root.child('userRides').child(auth.uid).child($code).exists())",
         ".write": "auth != null && root.child('rooms').child($code).child('meta').child('hostUid').val() === auth.uid && root.child('rooms').child($code).child('meta').child('status').val() === 'ending' && !data.exists()",
         ".validate": "newData.hasChildren(['roomName','hostUid','mode','group','riders'])",
-        "roomName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
+        "roomName": {
+          ".write": "auth != null && data.exists() && data.parent().child('hostUid').val() === auth.uid && data.parent().child('named').val() === false",
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+        },
+        "named": {
+          ".write": "auth != null && data.exists() && data.parent().child('hostUid').val() === auth.uid && data.val() === false",
+          ".validate": "newData.isBoolean() && (!data.exists() || newData.val() === true)"
+        },
         "hostUid": { ".validate": "newData.isString() && newData.val() === root.child('rooms').child($code).child('meta').child('hostUid').val()" },
         "mode": { ".validate": "newData.val() === 'guided' || newData.val() === 'free'" },
         "group": {

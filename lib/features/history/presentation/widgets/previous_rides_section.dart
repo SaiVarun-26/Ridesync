@@ -7,6 +7,7 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_icon.dart';
+import '../../../naming/presentation/naming_providers.dart';
 import '../../../insights/presentation/providers/insights_providers.dart';
 import '../../../insights/presentation/share/ride_share_sheet.dart';
 import '../providers/ride_history_providers.dart';
@@ -29,7 +30,10 @@ class PreviousRidesSection extends ConsumerWidget {
     final theme = Theme.of(context);
     final history = ref.watch(rideHistoryProvider);
     // Fills in recap highlights for rides that do not have them yet.
-    ref.watch(recapHighlightsSyncProvider);
+    ref
+      ..watch(recapHighlightsSyncProvider)
+      // Picks up the host's name for rides saved before it was given.
+      ..watch(pendingNameSyncProvider);
     final entries = history.entries;
     final canViewAll = entries.length > previewCount || history.hasMore;
 

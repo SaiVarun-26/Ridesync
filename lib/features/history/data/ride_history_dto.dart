@@ -29,6 +29,9 @@ abstract final class RideHistoryPaths {
   /// The rider's colour id in this ride.
   static const String colorId = 'colorId';
 
+  /// Present (and true) while the ride waits for the host's name.
+  static const String namePending = 'namePending';
+
   /// The recap highlights, a child map added once after the ride.
   static const String recap = 'recap';
   static const String recapVersion = 'v';
@@ -95,6 +98,7 @@ abstract final class RideHistoryDto {
     RideHistoryPaths.maxSpeedMps: entry.maxSpeedMps,
     RideHistoryPaths.riderCount: entry.riderCount,
     if (entry.colorId != null) RideHistoryPaths.colorId: entry.colorId,
+    if (entry.namePending) RideHistoryPaths.namePending: true,
     if (entry.routePreview.isNotEmpty)
       RideHistoryPaths.preview: encodePolyline(entry.routePreview),
     if (entry.previewSpeedsMps.isNotEmpty)
@@ -137,6 +141,7 @@ abstract final class RideHistoryDto {
           : const [],
       highlights: RecapHighlightsDto.fromValue(value[RideHistoryPaths.recap]),
       colorId: colorId is String && colorId.isNotEmpty ? colorId : null,
+      namePending: value[RideHistoryPaths.namePending] == true,
     );
   }
 
