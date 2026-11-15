@@ -2,21 +2,26 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import 'route_thumbnail_layout.dart';
 
 /// Draws a [RouteThumbnailLayout]: the route itself and nothing else. No map,
 /// no tiles, no labels.
 ///
-/// A thin, clean line with rounded caps and joins, in the brand purple. Speed
-/// shows only as a slight change of tone along it (a little deeper where the
-/// rider was slow, a little lighter where they were fast), so the colour stays
-/// the brand's. A few small arrows show which way the ride went, with a start
-/// dot and a tiny chequered flag at the finish.
+/// A thin, clean line with rounded caps and joins, in the colour the rider had
+/// in that ride, so a card says whose ride it was at a glance. Speed shows only
+/// as a slight change of tone along it (a little deeper where the rider was
+/// slow, a little lighter where they were fast), so the colour stays theirs.
+/// A few small arrows show which way the ride went, with a start dot and a
+/// tiny chequered flag at the finish.
 class RouteThumbnailPainter extends CustomPainter {
-  RouteThumbnailPainter(this.layout);
+  RouteThumbnailPainter(this.layout, {required this.color})
+    : _tones = tonesOf(color);
 
   final RouteThumbnailLayout layout;
+
+  /// The rider's colour.
+  final Color color;
+  final List<Color> _tones;
 
   /// Room kept clear around the route, as a share of the tile, for the line
   /// and the markers.
@@ -24,14 +29,20 @@ class RouteThumbnailPainter extends CustomPainter {
 
   static const int _toneSteps = 10;
 
-  /// Slowest and fastest tones: the brand purple, a touch deeper and a touch
-  /// lighter. Close enough to read as one colour.
-  static final Color _slow = Color.lerp(AppColors.primary, Colors.black, 0.28)!;
-  static final Color _fast = Color.lerp(AppColors.primary, Colors.white, 0.42)!;
-  static final List<Color> _tones = [
-    for (var i = 0; i < _toneSteps; i++)
-      Color.lerp(_slow, _fast, i / (_toneSteps - 1))!,
-  ];
+  static final Map<Color, List<Color>> _toneCache = {};
+
+  /// Slowest to fastest tones of [color]: a touch deeper and a touch lighter.
+  /// Close enough to read as one colour.
+  static List<Color> tonesOf(Color color) {
+    return _toneCache.putIfAbsent(color, () {
+      final slow = Color.lerp(color, Colors.black, 0.28)!;
+      final fast = Color.lerp(color, Colors.white, 0.42)!;
+      return [
+        for (var i = 0; i < _toneSteps; i++)
+          Color.lerp(slow, fast, i / (_toneSteps - 1))!,
+      ];
+    });
+  }
 
   static const int _arrows = 3;
 
@@ -67,7 +78,7 @@ class RouteThumbnailPainter extends CustomPainter {
       for (final o in route.skip(1)) {
         path.lineTo(o.dx, o.dy);
       }
-      canvas.drawPath(path, paint(AppColors.primary));
+      canvas.drawPath(path, paint(color));
       return;
     }
 
@@ -138,7 +149,7 @@ class RouteThumbnailPainter extends CustomPainter {
     canvas
       ..drawCircle(at, stroke * 2.1, Paint()..color = Colors.black)
       ..drawCircle(at, stroke * 1.7, Paint()..color = Colors.white)
-      ..drawCircle(at, stroke * 0.8, Paint()..color = AppColors.primary);
+      ..drawCircle(at, stroke * 0.8, Paint()..color = color);
   }
 
   /// A tiny chequered flag standing on the last point.
@@ -185,5 +196,5 @@ class RouteThumbnailPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(RouteThumbnailPainter old) =>
-      !identical(old.layout, layout);
+      !identical(old.layout, layout) || old.color != color;
 }

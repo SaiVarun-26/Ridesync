@@ -26,6 +26,9 @@ abstract final class RideHistoryPaths {
   static const String preview = 'preview';
   static const String previewSpeeds = 'previewSpeeds';
 
+  /// The rider's colour id in this ride.
+  static const String colorId = 'colorId';
+
   /// The recap highlights, a child map added once after the ride.
   static const String recap = 'recap';
   static const String recapVersion = 'v';
@@ -91,6 +94,7 @@ abstract final class RideHistoryDto {
     RideHistoryPaths.averageSpeedMps: entry.averageSpeedMps,
     RideHistoryPaths.maxSpeedMps: entry.maxSpeedMps,
     RideHistoryPaths.riderCount: entry.riderCount,
+    if (entry.colorId != null) RideHistoryPaths.colorId: entry.colorId,
     if (entry.routePreview.isNotEmpty)
       RideHistoryPaths.preview: encodePolyline(entry.routePreview),
     if (entry.previewSpeedsMps.isNotEmpty)
@@ -109,6 +113,7 @@ abstract final class RideHistoryDto {
     final startedAt = value[RideHistoryPaths.startedAt];
     final preview = value[RideHistoryPaths.preview];
     final previewSpeeds = value[RideHistoryPaths.previewSpeeds];
+    final colorId = value[RideHistoryPaths.colorId];
     final previewPoints = preview is String
         ? decodePolyline(preview)
         : const <GeoPoint>[];
@@ -131,6 +136,7 @@ abstract final class RideHistoryDto {
           ? speeds
           : const [],
       highlights: RecapHighlightsDto.fromValue(value[RideHistoryPaths.recap]),
+      colorId: colorId is String && colorId.isNotEmpty ? colorId : null,
     );
   }
 

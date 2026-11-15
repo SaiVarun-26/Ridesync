@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/rider_palette.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/brand_wordmark.dart';
 import '../../../history/presentation/widgets/route_thumbnail.dart';
@@ -114,6 +115,9 @@ class RideShareCard extends StatelessWidget {
                           child: RouteThumbnail(
                             points: data.routePoints,
                             speedsMps: data.routeSpeedsMps,
+                            color: RiderPalette.colorById(
+                              data.routeColorId,
+                            )?.color,
                             size: side,
                           ),
                         );

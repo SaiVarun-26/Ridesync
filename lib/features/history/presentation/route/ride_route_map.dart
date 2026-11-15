@@ -319,6 +319,7 @@ class RideRouteMapState extends State<RideRouteMap> {
             child: FadeTransition(
               opacity: reveal.heat,
               child: SpeedLegend(
+                color: focus?.color ?? AppColors.textPrimary,
                 lowText: RideFormat.speed(_scale.lowMps),
                 highText: RideFormat.speed(_scale.highMps),
               ),
@@ -353,7 +354,7 @@ class RideRouteMapState extends State<RideRouteMap> {
           ),
         Marker(
           point: rider.latLngs.first,
-          child: appear(widget.reveal.startMarker, const StartMarker()),
+          child: appear(widget.reveal.startMarker, StartMarker(color: rider.color)),
         ),
         Marker(
           point: rider.latLngs.last,

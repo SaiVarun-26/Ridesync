@@ -24,7 +24,13 @@ class RideHistoryEntry {
     this.routePreview = const [],
     this.previewSpeedsMps = const [],
     this.highlights,
+    this.colorId,
   });
+
+  /// The colour the rider had in this ride (see `RiderPalette`), so the ride
+  /// is drawn in it everywhere. `null` for rides saved before it was
+  /// recorded, until it is looked up.
+  final String? colorId;
 
   /// The ride's recap figures (score, sentence, achievements, weather), once
   /// they have been worked out; `null` until then.
@@ -73,6 +79,7 @@ class RideHistoryEntry {
           ? RoutePreview.thinValues(speedsMps)
           : const [],
       highlights: highlights,
+      colorId: colorId,
     );
   }
 
@@ -92,6 +99,27 @@ class RideHistoryEntry {
       routePreview: routePreview,
       previewSpeedsMps: previewSpeedsMps,
       highlights: highlights,
+      colorId: colorId,
+    );
+  }
+
+  /// This entry with the rider's [colorId].
+  RideHistoryEntry withColorId(String colorId) {
+    return RideHistoryEntry(
+      code: code,
+      roomName: roomName,
+      mode: mode,
+      startedAtMs: startedAtMs,
+      endedAtMs: endedAtMs,
+      durationMs: durationMs,
+      distanceMeters: distanceMeters,
+      averageSpeedMps: averageSpeedMps,
+      maxSpeedMps: maxSpeedMps,
+      riderCount: riderCount,
+      routePreview: routePreview,
+      previewSpeedsMps: previewSpeedsMps,
+      highlights: highlights,
+      colorId: colorId,
     );
   }
 
@@ -119,6 +147,7 @@ class RideHistoryEntry {
       averageSpeedMps: rider.averageSpeedMps,
       maxSpeedMps: rider.maxSpeedMps,
       riderCount: group.riderCount,
+      colorId: rider.colorId,
     );
   }
 }

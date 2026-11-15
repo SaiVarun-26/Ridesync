@@ -72,6 +72,98 @@ class FollowCameraController {
   Duration? _returnStart;
   LatLng? _returnFrom;
 
+  /// Held by the app (an overview, a focused rider): following waits for
+  /// [resume] instead of resuming by itself.
+  bool _held = false;
+
+  /// The rider's own zoom, restored when following resumes after a hold.
+  double? _followZoom;
+  Duration? _zoomReturnStart;
+  double? _zoomReturnFrom;
+
+  _Flight? _flight;
+
+  static const Duration _flightDuration = Duration(milliseconds: 900);
+
+  /// Whether the camera is following the rider right now.
+  bool get isFollowing => _pausedAt == null && !_held;
+
+  /// Whether following waits for [resume].
+  bool get isHeld => _held;
+
+  /// Whether a [flyTo] is under way.
+  bool get isFlying => _flight != null;
+
+  /// Stops following until [resume] is called, remembering the rider's zoom.
+  void hold(Duration now) {
+    if (!_held) _followZoom ??= _map.camera.zoom;
+    _held = true;
+    _pausedAt ??= now;
+    _returnStart = null;
+    _lagPixels = 0;
+  }
+
+  /// Glides the camera to [center] at [zoom], keeping its rotation. Pair with
+  /// [hold] so following does not fight it.
+  void flyTo(LatLng center, double zoom, Duration now) {
+    final camera = _map.camera;
+    _flight = _Flight(
+      fromCenter: camera.center,
+      fromZoom: camera.zoom,
+      toCenter: center,
+      toZoom: zoom,
+      start: now,
+    );
+  }
+
+  /// Advances a [flyTo] to [now]; returns whether the camera moved.
+  bool stepFlight(Duration now) {
+    final flight = _flight;
+    if (flight == null) return false;
+    final t = (now - flight.start).inMicroseconds /
+        _flightDuration.inMicroseconds;
+    final eased = AppMotion.move.transform(t.clamp(0.0, 1.0));
+    final center = LatLng(
+      flight.fromCenter.latitude +
+          (flight.toCenter.latitude - flight.fromCenter.latitude) * eased,
+      flight.fromCenter.longitude +
+          (flight.toCenter.longitude - flight.fromCenter.longitude) * eased,
+    );
+    final zoom = flight.fromZoom + (flight.toZoom - flight.fromZoom) * eased;
+    _map.move(center, zoom);
+    if (t >= 1) _flight = null;
+    return true;
+  }
+
+  /// Follows the rider again straight away, easing back to them and to their
+  /// zoom.
+  void resume(Duration now) {
+    _held = false;
+    _flight = null;
+    if (_pausedAt != null) _pausedAt = now - resumeAfter;
+    if (_followZoom != null) {
+      _zoomReturnFrom = _map.camera.zoom;
+      _zoomReturnStart = now;
+    }
+  }
+
+  /// The zoom to use this frame: the camera's own, or easing back to the
+  /// rider's zoom after a hold.
+  double _zoomFor(Duration now, double current) {
+    final start = _zoomReturnStart;
+    final from = _zoomReturnFrom;
+    final goal = _followZoom;
+    if (start == null || from == null || goal == null) return current;
+    final t = (now - start).inMicroseconds / _returnDuration.inMicroseconds;
+    if (t >= 1) {
+      _zoomReturnStart = null;
+      _zoomReturnFrom = null;
+      _followZoom = null;
+      return goal;
+    }
+    return from + (goal - from) * AppMotion.curve.transform(t);
+  }
+
   /// Whether the camera will move this frame (following, or easing back).
   bool isActive(Duration now) => _pausedAt == null || _shouldResume(now);
 
@@ -86,6 +178,7 @@ class FollowCameraController {
         _insetChangedAt != null && now - _insetChangedAt! < _insetSettle;
     return returning ||
         insetChanging ||
+        _zoomReturnStart != null ||
         _heading.isSettling ||
         _lagPixels > _settledPixels;
   }
@@ -96,6 +189,8 @@ class FollowCameraController {
       _pausedAt = now;
       _returnStart = null;
       _lagPixels = 0;
+      // The rider took over: a glide in progress gives way.
+      _flight = null;
     }
   }
 
@@ -133,12 +228,14 @@ class FollowCameraController {
 
     final rotationChanged =
         _angleDelta(rotation, camera.rotation).abs() > _rotationEpsilon;
-    if (center != camera.center || rotationChanged) {
-      _map.moveAndRotate(center, camera.zoom, rotation);
+    final zoom = _zoomFor(now, camera.zoom);
+    if (center != camera.center || rotationChanged || zoom != camera.zoom) {
+      _map.moveAndRotate(center, zoom, rotation);
     }
   }
 
-  /// How long until following may resume; zero when not paused.
+  /// How long until following may resume; zero when not paused. Meaningless
+  /// while [isHeld]: a hold only ends with [resume].
   Duration timeUntilResume(Duration now) {
     final paused = _pausedAt;
     if (paused == null) return Duration.zero;
@@ -234,9 +331,26 @@ class FollowCameraController {
 
   bool _shouldResume(Duration now) {
     final paused = _pausedAt;
-    return paused != null && now - paused >= resumeAfter;
+    return !_held && paused != null && now - paused >= resumeAfter;
   }
 
   /// Signed shortest difference between two angles, in (-180, 180].
   static double _angleDelta(double a, double b) => ((a - b + 540) % 360) - 180;
+}
+
+/// One camera glide from one view to another.
+class _Flight {
+  const _Flight({
+    required this.fromCenter,
+    required this.fromZoom,
+    required this.toCenter,
+    required this.toZoom,
+    required this.start,
+  });
+
+  final LatLng fromCenter;
+  final double fromZoom;
+  final LatLng toCenter;
+  final double toZoom;
+  final Duration start;
 }

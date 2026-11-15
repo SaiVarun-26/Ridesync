@@ -142,6 +142,7 @@ class RideHistoryController extends Notifier<RideHistoryState> {
             isLoading: false,
           );
           unawaited(_fillMissingPreviews());
+          unawaited(_fillMissingColors());
         case Failed(:final failure):
           state = state.copyWith(
             isLoading: false,
@@ -175,12 +176,46 @@ class RideHistoryController extends Notifier<RideHistoryState> {
       if (!ref.mounted) return;
       if (filled == null) continue;
       _warm([filled]);
+      _replace(filled);
+    }
+  }
+
+  /// Rides whose colour has been looked up (or tried).
+  final Set<String> _colorTried = {};
+
+  /// Gives every ride saved before colours were recorded the colour its rider
+  /// had, taken from the ride's summary, one ride at a time.
+  Future<void> _fillMissingColors() async {
+    final uid = _uid;
+    if (uid == null) return;
+    for (final entry in List<RideHistoryEntry>.of(state.entries)) {
+      if (entry.colorId != null || !_colorTried.add(entry.code)) continue;
+      final filled = await _repository.resolveColor(uid: uid, entry: entry);
+      if (!ref.mounted) return;
+      if (filled == null) continue;
+      // Applied to whatever the entry is now (a preview may have arrived).
       state = state.copyWith(
         entries: [
-          for (final e in state.entries) e.code == filled.code ? filled : e,
+          for (final e in state.entries)
+            e.code == filled.code && e.colorId == null
+                ? e.withColorId(filled.colorId!)
+                : e,
         ],
       );
     }
+  }
+
+  void _replace(RideHistoryEntry filled) {
+    state = state.copyWith(
+      entries: [
+        for (final e in state.entries)
+          e.code == filled.code
+              ? (e.colorId != null && filled.colorId == null
+                    ? filled.withColorId(e.colorId!)
+                    : filled)
+              : e,
+      ],
+    );
   }
 
   /// Shows [highlights] on ride [code]'s card, once they have been worked out.
@@ -226,6 +261,7 @@ class RideHistoryController extends Notifier<RideHistoryState> {
             isLoadingMore: false,
           );
           unawaited(_fillMissingPreviews());
+          unawaited(_fillMissingColors());
         case Failed(:final failure):
           state = state.copyWith(isLoadingMore: false, error: failure.message);
       }

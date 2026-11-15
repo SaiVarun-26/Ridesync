@@ -18,9 +18,13 @@ class ShareCardData {
     required this.scoreLabel,
     this.routePoints = const [],
     this.routeSpeedsMps = const [],
+    this.routeColorId,
     this.badge,
     this.weatherLabel,
   });
+
+  /// The colour id of the rider whose route is drawn.
+  final String? routeColorId;
 
   final String title;
 
@@ -76,6 +80,7 @@ abstract final class ShareCardBuilder {
       scoreLabel: recap.score.label,
       routePoints: points,
       routeSpeedsMps: speeds,
+      routeColorId: recap.routeColorId,
       badge: recap.myAchievements.firstOrNull,
       weatherLabel: recap.weather?.summary,
     );

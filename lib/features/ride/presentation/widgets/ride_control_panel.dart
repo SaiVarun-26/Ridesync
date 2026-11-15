@@ -34,7 +34,17 @@ class RideControlPanel extends StatefulWidget {
     this.movingTime = Duration.zero,
     this.stoppedTime = Duration.zero,
     this.averageSpeedMps = 0,
+    this.leading,
+    this.routeFigures = const [],
   });
+
+  /// Shown above the speed row while the panel is closed or open (a guided
+  /// ride's route progress).
+  final Widget? leading;
+
+  /// Extra figures for a guided ride, as (label, value), shown in the open
+  /// panel.
+  final List<(String, String)> routeFigures;
 
   /// Time spent actually moving, and time spent stopped, so far.
   final Duration movingTime;
@@ -100,6 +110,7 @@ class _RideControlPanelState extends State<RideControlPanel> {
             onTap: _toggle,
             onDragEnd: _onHandleDragEnd,
           ),
+          ?widget.leading,
           RideStatusRow(
             speedKmh: widget.speedKmh,
             isConnected: widget.isConnected,
@@ -121,6 +132,7 @@ class _RideControlPanelState extends State<RideControlPanel> {
                     canEnd: widget.canEnd,
                     isEnding: widget.isEnding,
                     onEndRide: widget.onEndRide,
+                    routeFigures: widget.routeFigures,
                   )
                 : const SizedBox(width: double.infinity),
           ),
@@ -183,8 +195,10 @@ class _Details extends StatelessWidget {
     required this.canEnd,
     required this.isEnding,
     required this.onEndRide,
+    this.routeFigures = const [],
   });
 
+  final List<(String, String)> routeFigures;
   final Duration duration;
   final Duration movingTime;
   final Duration stoppedTime;
@@ -234,6 +248,15 @@ class _Details extends StatelessWidget {
               ),
             ],
           ),
+          if (routeFigures.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                for (final (label, value) in routeFigures)
+                  _Figure(label: label, value: value),
+              ],
+            ),
+          ],
           const SizedBox(height: AppSpacing.xl),
           if (canEnd)
             SlideToConfirm(

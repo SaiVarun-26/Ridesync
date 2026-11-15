@@ -7,7 +7,8 @@ import '../thumbnail/route_thumbnail_layout.dart';
 import '../thumbnail/route_thumbnail_painter.dart';
 
 /// The actual path a ride took, drawn small on a black tile with rounded
-/// corners: a thin purple line, arrows, a start and a finish.
+/// corners: a thin line in the rider's own colour, arrows, a start and a
+/// finish.
 ///
 /// The route is laid out once per ride (see [RouteThumbnailLayout]) and the
 /// result painted onto its own layer, so a list of them scrolls and presses
@@ -21,9 +22,15 @@ class RouteThumbnail extends StatelessWidget {
     this.speedsMps = const [],
     this.size = defaultSize,
     this.stationary = false,
+    this.color,
   });
 
   static const double defaultSize = 96;
+
+  /// The colour the rider had in this ride. While it is not known yet (a ride
+  /// saved before colours were recorded, being looked up) the route is drawn
+  /// in a neutral white; it is never the brand purple.
+  final Color? color;
 
   final List<GeoPoint> points;
 
@@ -39,6 +46,7 @@ class RouteThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final layout = RouteThumbnailLayout.of(points, speedsMps);
+    final tone = color ?? AppColors.textPrimary;
     return RepaintBoundary(
       child: SizedBox.square(
         dimension: size,
@@ -59,15 +67,17 @@ class RouteThumbnail extends StatelessWidget {
               // into a single point.
               child: layout != null
                   ? SizedBox.expand(
-                      key: ValueKey(layout),
+                      // The colour is part of the key, so a ride whose colour
+                      // arrives late fades into it instead of snapping.
+                      key: ValueKey((layout, tone)),
                       child: CustomPaint(
-                        painter: RouteThumbnailPainter(layout),
+                        painter: RouteThumbnailPainter(layout, color: tone),
                       ),
                     )
                   : stationary
-                  ? const SizedBox.expand(
-                      key: ValueKey('stationary'),
-                      child: CustomPaint(painter: _StationaryPainter()),
+                  ? SizedBox.expand(
+                      key: ValueKey(('stationary', tone)),
+                      child: CustomPaint(painter: _StationaryPainter(tone)),
                     )
                   : const SizedBox.expand(
                       key: ValueKey('pending'),
@@ -84,7 +94,9 @@ class RouteThumbnail extends StatelessWidget {
 /// A ride that never moved: the start marker in the middle of the tile with a
 /// faint ring around it, the same marker a route starts from.
 class _StationaryPainter extends CustomPainter {
-  const _StationaryPainter();
+  const _StationaryPainter(this.color);
+
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -97,14 +109,14 @@ class _StationaryPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.4
-          ..color = AppColors.primary.withValues(alpha: 0.35),
+          ..color = color.withValues(alpha: 0.35),
       )
       ..drawCircle(center, s * 0.055, Paint()..color = Colors.white)
-      ..drawCircle(center, s * 0.028, Paint()..color = AppColors.primary);
+      ..drawCircle(center, s * 0.028, Paint()..color = color);
   }
 
   @override
-  bool shouldRepaint(_StationaryPainter old) => false;
+  bool shouldRepaint(_StationaryPainter old) => old.color != color;
 }
 
 /// A faint dashed outline of a route, with a dot at each end, shown while a

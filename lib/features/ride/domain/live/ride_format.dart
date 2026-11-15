@@ -47,6 +47,16 @@ abstract final class RideFormat {
   static String compass(double degrees) =>
       _points[(((degrees % 360) + 360) % 360 / 45).round() % 8];
 
+  /// "Under 1 min", "25 min", or "1 h 12 min": a rough time still to go.
+  static String eta(Duration value) {
+    final minutes = (value.inSeconds / _secondsPerMinute).round();
+    if (minutes < 1) return 'Under 1 min';
+    if (minutes < 60) return '$minutes min';
+    final hours = minutes ~/ 60;
+    final rest = minutes % 60;
+    return rest == 0 ? '$hours h' : '$hours h $rest min';
+  }
+
   /// "12:04", or "1:12:04" once past an hour.
   static String duration(Duration value) {
     final total = value.inSeconds;

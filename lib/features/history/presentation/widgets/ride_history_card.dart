@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/rider_palette.dart';
 import '../../../../core/widgets/app_icon_button.dart';
 import '../../../../core/widgets/fade_slide_in.dart';
 import '../../../../core/widgets/pressable_scale.dart';
@@ -95,6 +96,9 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
                       RouteThumbnail(
                         points: entry.routePreview,
                         speedsMps: entry.previewSpeedsMps,
+                        // The colour this rider had in the ride, so it can
+                        // be told apart at a glance.
+                        color: RiderPalette.colorById(entry.colorId)?.color,
                         // Too short to have a route: shown as staying put
                         // rather than as a route still on its way.
                         stationary:

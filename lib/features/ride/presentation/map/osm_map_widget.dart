@@ -11,6 +11,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../domain/geo_point.dart';
 import 'camera_controller.dart';
+import 'live_map_commands.dart';
 import 'live_marker_layer.dart';
 import 'marker_interpolator.dart';
 import 'night_tile_layer.dart';
@@ -35,7 +36,33 @@ class OsmMapWidget extends StatefulWidget {
     required this.myUid,
     required this.riderCardBuilder,
     required this.bottomInset,
+    this.routeLayer,
+    this.headingOverride,
+    this.returnTarget,
+    this.commands,
+    this.completionPoint,
+    this.completionColor = AppColors.textPrimary,
   });
+
+  /// Once the ride is over: where it finished. A marker springs in there.
+  final GeoPoint? completionPoint;
+
+  /// The colour of the completion marker: the rider's own.
+  final Color completionColor;
+
+  /// Drawn between the tiles and the trails: a guided ride's route.
+  final Widget? routeLayer;
+
+  /// A steadier direction for the camera than GPS heading (the route's own
+  /// direction while on a guided route); `null` uses this rider's heading.
+  final double? headingOverride;
+
+  /// Off route: where to head back to. A dashed line runs to it from this
+  /// rider's marker.
+  final GeoPoint? returnTarget;
+
+  /// Lets the screen recenter the camera, frame the route or focus a point.
+  final LiveMapCommands? commands;
 
   /// Height of the bottom panel covering the map, in pixels. Read every frame
   /// by the camera and never rebuilds the map.
@@ -57,7 +84,8 @@ class OsmMapWidget extends StatefulWidget {
 }
 
 class _OsmMapWidgetState extends State<OsmMapWidget>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin
+    implements LiveMapTarget {
   final MapController _mapController = MapController();
   final MarkerInterpolator _interpolator = MarkerInterpolator();
   final ValueNotifier<int> _frames = ValueNotifier<int>(0);
@@ -91,6 +119,54 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
     _interpolator.update(widget.markers, _now);
     _camera.setBottomInset(widget.bottomInset.value, _now);
     widget.bottomInset.addListener(_onInsetChanged);
+    widget.commands?.attach(this);
+  }
+
+  /// Space kept around a framed route, beyond the panels over the map.
+  static const double _overviewMargin = 40;
+  static const double _overviewTop = 150;
+  static const double _focusZoom = 16;
+
+  @override
+  void recenter() {
+    if (!_mapReady) return;
+    _camera.resume(_now);
+    _ensureTicking();
+  }
+
+  @override
+  void showOverview(List<GeoPoint> points) {
+    if (!_mapReady || points.length < 2) return;
+    final fit = CameraFit.coordinates(
+      coordinates: [for (final p in points) LatLng(p.latitude, p.longitude)],
+      padding: EdgeInsets.fromLTRB(
+        _overviewMargin,
+        _overviewTop,
+        _overviewMargin,
+        widget.bottomInset.value + _overviewMargin,
+      ),
+      maxZoom: _initialZoom,
+    ).fit(_mapController.camera);
+    final now = _now;
+    _camera
+      ..hold(now)
+      ..flyTo(fit.center, fit.zoom, now);
+    _ensureTicking();
+  }
+
+  @override
+  void focus(GeoPoint point) {
+    if (!_mapReady) return;
+    final now = _now;
+    final zoom = _mapController.camera.zoom;
+    _camera
+      ..hold(now)
+      ..flyTo(
+        LatLng(point.latitude, point.longitude),
+        zoom < _focusZoom ? _focusZoom : zoom,
+        now,
+      );
+    _ensureTicking();
   }
 
   void _onInsetChanged() {
@@ -112,10 +188,16 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
     if (selected != null && !widget.markers.any((m) => m.uid == selected)) {
       _selectedUid = null;
     }
+    if (!identical(oldWidget.commands, widget.commands)) {
+      oldWidget.commands?.detach(this);
+      widget.commands?.attach(this);
+    }
+    if (oldWidget.headingOverride != widget.headingOverride) _ensureTicking();
   }
 
   @override
   void dispose() {
+    widget.commands?.detach(this);
     widget.bottomInset.removeListener(_onInsetChanged);
     _resumeTimer?.cancel();
     _ticker.dispose();
@@ -131,15 +213,23 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
   void _onFrame() {
     final now = _now;
     final uid = widget.myUid;
+    if (_mapReady) _camera.stepFlight(now);
     if (_mapReady && uid != null && _camera.isActive(now)) {
       _camera.tick(
         _interpolator.positionOf(uid, now),
-        _interpolator.headingOf(uid, now),
+        widget.headingOverride ?? _interpolator.headingOf(uid, now),
         now,
         speedMps: _interpolator.speedOf(uid, now),
       );
     }
-    final busy = _interpolator.isAnimating(now) || _camera.isEasing(now);
+    final following = widget.commands?.isFollowing;
+    if (following != null && following.value != _camera.isFollowing) {
+      following.value = _camera.isFollowing;
+    }
+    final busy =
+        _interpolator.isAnimating(now) ||
+        _camera.isEasing(now) ||
+        _camera.isFlying;
     // While only the slow idle float and pulse are playing, markers repaint
     // on every other frame: the motion looks the same and the GPU does half
     // the work for most of a ride spent cruising or standing.
@@ -147,7 +237,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
     if (busy || _selectedUid != null || !_idleFrame) _frames.value++;
     if (busy || _interpolator.hasMarkers) return;
     _ticker.stop();
-    if (!_camera.isActive(now)) {
+    if (!_camera.isActive(now) && !_camera.isHeld) {
       // Paused by a manual pan: sleep until following may resume, instead of
       // rendering idle frames.
       _resumeTimer?.cancel();
@@ -213,7 +303,32 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
       ),
       children: [
         const NightTileLayer(),
+        ?widget.routeLayer,
         TrailLayer(trails: widget.trails, nowMs: widget.nowMs),
+        if (widget.returnTarget != null && widget.myUid != null)
+          _ReturnLineLayer(
+            target: widget.returnTarget!,
+            uid: widget.myUid!,
+            interpolator: _interpolator,
+            frames: _frames,
+            clock: () => _now,
+          ),
+        if (widget.completionPoint != null)
+          MarkerLayer(
+            // Stays upright however the map is turned.
+            rotate: true,
+            markers: [
+              Marker(
+                point: LatLng(
+                  widget.completionPoint!.latitude,
+                  widget.completionPoint!.longitude,
+                ),
+                width: _CompletionMarker.size,
+                height: _CompletionMarker.size,
+                child: _CompletionMarker(color: widget.completionColor),
+              ),
+            ],
+          ),
         LiveMarkerLayer(
           interpolator: _interpolator,
           frames: _frames,
@@ -355,4 +470,196 @@ class _CardLayout extends SingleChildLayoutDelegate {
 
   @override
   bool shouldRelayout(_CardLayout oldDelegate) => oldDelegate.anchor != anchor;
+}
+
+/// Off route: a dashed line from this rider's marker back to the route, so
+/// the way back is obvious at a glance. It starts at the drawn (gliding)
+/// marker, so it never lags behind it.
+class _ReturnLineLayer extends StatelessWidget {
+  const _ReturnLineLayer({
+    required this.target,
+    required this.uid,
+    required this.interpolator,
+    required this.frames,
+    required this.clock,
+  });
+
+  final GeoPoint target;
+  final String uid;
+  final MarkerInterpolator interpolator;
+  final Listenable frames;
+  final Duration Function() clock;
+
+  @override
+  Widget build(BuildContext context) {
+    final camera = MapCamera.of(context);
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: _ReturnLinePainter(
+            camera: camera,
+            target: target,
+            from: () => interpolator.positionOf(uid, clock()),
+            repaint: frames,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReturnLinePainter extends CustomPainter {
+  _ReturnLinePainter({
+    required this.camera,
+    required this.target,
+    required this.from,
+    required Listenable repaint,
+  }) : super(repaint: repaint);
+
+  final MapCamera camera;
+  final GeoPoint target;
+  final GeoPoint? Function() from;
+
+  static const double _dash = 7;
+  static const double _gap = 6;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final start = from();
+    if (start == null) return;
+    final a = camera.latLngToScreenOffset(
+      LatLng(start.latitude, start.longitude),
+    );
+    final b = camera.latLngToScreenOffset(
+      LatLng(target.latitude, target.longitude),
+    );
+    final line = b - a;
+    final length = line.distance;
+    if (length < 4) return;
+    final unit = line / length;
+    final paint = Paint()
+      ..color = AppColors.textPrimary.withValues(alpha: 0.85)
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    // Start clear of the marker's ring.
+    for (var d = 14.0; d < length - 4; d += _dash + _gap) {
+      final end = d + _dash > length - 4 ? length - 4 : d + _dash;
+      canvas.drawLine(a + unit * d, a + unit * end, paint);
+    }
+    canvas
+      ..drawCircle(b, 6, Paint()..color = AppColors.background)
+      ..drawCircle(
+        b,
+        4.5,
+        Paint()
+          ..color = AppColors.textPrimary
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+  }
+
+  @override
+  bool shouldRepaint(_ReturnLinePainter old) =>
+      old.camera != camera || old.target != target;
+}
+
+/// Marks where the ride finished: a disc in the rider's colour with a check,
+/// which springs in, with one ring spreading out from it and fading.
+class _CompletionMarker extends StatefulWidget {
+  const _CompletionMarker({required this.color});
+
+  final Color color;
+
+  static const double size = 64;
+
+  @override
+  State<_CompletionMarker> createState() => _CompletionMarkerState();
+}
+
+class _CompletionMarkerState extends State<_CompletionMarker>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..forward();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final pop = AppMotion.spring.transform(
+            const Interval(0, 0.5).transform(_controller.value),
+          );
+          final ring = const Interval(0.25, 1).transform(_controller.value);
+          return CustomPaint(
+            painter: _CompletionPainter(
+              color: widget.color,
+              pop: pop,
+              ring: ring,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CompletionPainter extends CustomPainter {
+  const _CompletionPainter({
+    required this.color,
+    required this.pop,
+    required this.ring,
+  });
+
+  final Color color;
+  final double pop;
+  final double ring;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    const base = 14.0;
+    if (ring > 0 && ring < 1) {
+      canvas.drawCircle(
+        center,
+        base + (size.shortestSide / 2 - base) * Curves.easeOutCubic.transform(ring),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = color.withValues(alpha: 0.6 * (1 - ring)),
+      );
+    }
+    final r = base * pop;
+    canvas
+      ..drawCircle(center, r + 3, Paint()..color = AppColors.background)
+      ..drawCircle(center, r, Paint()..color = color);
+    if (pop > 0.6) {
+      final s = r * 0.42;
+      canvas.drawPath(
+        Path()
+          ..moveTo(center.dx - s, center.dy + s * 0.05)
+          ..lineTo(center.dx - s * 0.2, center.dy + s * 0.7)
+          ..lineTo(center.dx + s, center.dy - s * 0.6),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.6
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..color = AppColors.background,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CompletionPainter old) =>
+      old.pop != pop || old.ring != ring || old.color != color;
 }

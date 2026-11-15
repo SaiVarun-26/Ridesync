@@ -78,7 +78,6 @@ class _RoutePainter extends CustomPainter {
   final Animation<double> arrowsOpacity;
 
   static const int _colorSteps = 40;
-  static final List<Color> _heat = HeatPalette.steps(_colorSteps);
 
   static const double _lineWidth = 4.5;
   static const double _casingWidth = 8;
@@ -135,6 +134,8 @@ class _RoutePainter extends CustomPainter {
     final speeds = route.rider.heat;
     final drawLength = route.totalLength * progress;
     final heatMix = heat.value;
+    // Speed shows as lighter and deeper tones of this rider's own colour.
+    final tones = HeatPalette.steps(route.rider.color, _colorSteps);
 
     final casing = Path();
     final solid = Path();
@@ -197,7 +198,7 @@ class _RoutePainter extends CustomPainter {
         if (path == null) continue;
         canvas.drawPath(
           path,
-          _stroke(_heat[step].withValues(alpha: alpha * heatMix), _lineWidth),
+          _stroke(tones[step].withValues(alpha: alpha * heatMix), _lineWidth),
         );
       }
     }
@@ -286,15 +287,22 @@ class _RoutePainter extends CustomPainter {
 
 /// A speed legend: the colour bar from slow to fast with its range.
 class SpeedLegend extends StatelessWidget {
-  const SpeedLegend({super.key, required this.lowText, required this.highText});
+  const SpeedLegend({
+    super.key,
+    required this.lowText,
+    required this.highText,
+    required this.color,
+  });
 
   final String lowText;
   final String highText;
 
-  static final List<Color> _steps = HeatPalette.steps(16);
+  /// The colour of the rider the map is showing; the bar is its ramp.
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
+    final steps = HeatPalette.steps(color, 16);
     final label = Theme.of(context).textTheme.labelSmall
         ?.copyWith(color: AppColors.textSecondary);
     return ConstrainedBox(
@@ -311,8 +319,8 @@ class SpeedLegend extends StatelessWidget {
                 height: 6,
                 child: Row(
                   children: [
-                    for (final color in _steps)
-                      Expanded(child: ColoredBox(color: color)),
+                    for (final tone in steps)
+                      Expanded(child: ColoredBox(color: tone)),
                   ],
                 ),
               ),

@@ -4,14 +4,15 @@ import 'geo_point.dart';
 
 /// Contract for destination search and route computation.
 ///
-/// The UI only talks to this interface. The current implementation calls
-/// Google's Places and Routes REST APIs from the device; a server-backed
-/// implementation can replace it later without any UI change.
+/// The UI only talks to this interface. The current implementation uses free,
+/// open services built on OpenStreetMap data (see `OsmRouteRepository`); a
+/// server-backed or commercial implementation can replace it later without
+/// any UI change.
 abstract interface class RouteRepository {
-  /// Autocomplete suggestions for [query], ranked toward [near] when given.
+  /// Suggestions for [query], ranked toward [near] when given.
   ///
-  /// Pass [newSession] for the first query of a search, so the keystrokes and
-  /// the final selection are billed as one session.
+  /// [newSession] marks the first query of a search, for providers that bill
+  /// a whole search as one session.
   Future<Result<List<PlaceSuggestion>>> searchDestinations(
     String query, {
     GeoPoint? near,
@@ -20,6 +21,9 @@ abstract interface class RouteRepository {
 
   /// Resolves a suggestion to a named location.
   Future<Result<Destination>> resolveDestination(String placeId);
+
+  /// Names the place at [at] (a point picked on the map).
+  Future<Result<Destination>> describeLocation(GeoPoint at);
 
   /// Computes a riding route from [origin] to [destination].
   Future<Result<RouteEstimate>> computeRoute({

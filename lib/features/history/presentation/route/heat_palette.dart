@@ -1,48 +1,37 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-
-/// The speed colours of a route, all in the RideSync purple: a quiet, greyed
-/// purple when slow, the brand purple at pace, and a bright lifted purple when
-/// fast. One hue, so a route reads as part of the app rather than a rainbow,
-/// with enough change in brightness to show where the ride was quick.
+/// The speed tones of a route, all in the rider's own colour: a deeper tone
+/// when slow, the colour itself at pace, and a lifted, lighter tone when
+/// fast. One hue per rider, so a route is always recognisably theirs, with
+/// enough change in brightness to show where the ride was quick.
 ///
-/// Routes are drawn in short solid segments, each in the colour for its speed,
+/// Routes are drawn in short solid segments, each in the tone for its speed,
 /// so the ramp reads as smooth while every stroke stays one flat colour.
 abstract final class HeatPalette {
-  /// The brightest, fastest tone: the brand purple lifted toward white.
-  static final Color fastest = Color.lerp(
-    AppColors.primary,
-    Colors.white,
-    0.45,
-  )!;
+  static final Map<(Color, int), List<Color>> _cache = {};
 
-  /// The slowest tone: the brand purple faded toward grey, still clear on the
-  /// night map.
-  static final Color slowest = Color.lerp(
-    AppColors.primary,
-    AppColors.textSecondary,
-    0.7,
-  )!;
-
-  static final List<Color> _stops = [
-    slowest,
-    Color.lerp(AppColors.primary, AppColors.textSecondary, 0.35)!,
-    AppColors.primary,
-    fastest,
-  ];
-
-  /// The colour for a position [t] from 0 (slowest) to 1 (fastest).
-  static Color colorAt(double t) {
+  /// The colour for a position [t] from 0 (slowest) to 1 (fastest) in the
+  /// ramp of [base].
+  static Color colorAt(Color base, double t) {
+    final stops = _stops(base);
     final clamped = t.clamp(0.0, 1.0);
-    final scaled = clamped * (_stops.length - 1);
-    final index = scaled.floor().clamp(0, _stops.length - 2);
-    return Color.lerp(_stops[index], _stops[index + 1], scaled - index)!;
+    final scaled = clamped * (stops.length - 1);
+    final index = scaled.floor().clamp(0, stops.length - 2);
+    return Color.lerp(stops[index], stops[index + 1], scaled - index)!;
   }
 
-  /// [steps] evenly spaced colours, slowest first. Computed once by callers
-  /// that group route segments by colour.
-  static List<Color> steps(int steps) => [
-    for (var i = 0; i < steps; i++) colorAt(i / (steps - 1)),
+  /// [steps] evenly spaced tones of [base], slowest first. Cached per colour,
+  /// so callers that group route segments by tone can ask every frame.
+  static List<Color> steps(Color base, int steps) {
+    return _cache.putIfAbsent((base, steps), () => [
+      for (var i = 0; i < steps; i++) colorAt(base, i / (steps - 1)),
+    ]);
+  }
+
+  static List<Color> _stops(Color base) => [
+    Color.lerp(base, Colors.black, 0.35)!,
+    Color.lerp(base, Colors.black, 0.15)!,
+    base,
+    Color.lerp(base, Colors.white, 0.45)!,
   ];
 }

@@ -10,10 +10,18 @@ import '../ride_map_controller.dart';
 
 /// Top of the live map: the ride's name and code.
 class RideMapHeader extends StatelessWidget {
-  const RideMapHeader({super.key, required this.rideName, required this.code});
+  const RideMapHeader({
+    super.key,
+    required this.rideName,
+    required this.code,
+    this.trailing,
+  });
 
   final String rideName;
   final String code;
+
+  /// A control at the end of the header (the safety button).
+  final Widget? trailing;
 
   static const double _codeSpacing = 3;
 
@@ -43,6 +51,10 @@ class RideMapHeader extends StatelessWidget {
               letterSpacing: _codeSpacing,
             ),
           ),
+          if (trailing != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            trailing!,
+          ],
         ],
       ),
     );

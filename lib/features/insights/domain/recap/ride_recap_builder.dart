@@ -120,6 +120,7 @@ class RideRecapBuilder {
       mySpeed: mySpeed,
       routePoints: routeData?.points ?? const [],
       routeSpeedsMps: routeData?.speedsMps ?? const [],
+      routeUid: routeData == null ? null : routeUid,
     );
   }
 

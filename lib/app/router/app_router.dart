@@ -16,7 +16,6 @@ import '../../features/ride/presentation/ride_initialization_screen.dart';
 import '../../features/ride/presentation/ride_map_screen.dart';
 import '../../features/ride/presentation/ride_mode_screen.dart';
 import '../../features/ride/presentation/ride_results_screen.dart';
-import '../../features/ride/presentation/ride_screen.dart';
 import '../../features/ride_card/presentation/ride_card_screen.dart';
 import '../../features/room/presentation/create_ride_screen.dart';
 import '../../features/room/presentation/home_screen.dart';
@@ -145,8 +144,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.ride,
         name: AppRoutes.rideName,
         pageBuilder: (context, state) {
-          final rideId = state.pathParameters['rideId'] ?? '';
-          return _page(state, RideScreen(rideId: rideId), NavMotion.flow);
+          // A guided ride: the room code is the ride id.
+          final code = state.pathParameters['rideId'] ?? '';
+          return _page(
+            state,
+            RideMapScreen(roomCode: code, guided: true),
+            NavMotion.flow,
+          );
         },
       ),
       GoRoute(

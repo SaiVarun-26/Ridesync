@@ -38,6 +38,17 @@
           "distanceMeters": { ".validate": "newData.isNumber() && newData.val() >= 0" },
           "durationSeconds": { ".validate": "newData.isNumber() && newData.val() >= 0" },
           "$other": { ".validate": false }
+        },
+        "signals": {
+          "$uid": {
+            ".write": "auth != null && $uid === auth.uid && root.child('rooms').child($code).child('members').child(auth.uid).exists() && (!newData.exists() || root.child('rooms').child($code).child('meta').child('status').val() === 'riding')",
+            ".validate": "newData.hasChildren(['kind','at'])",
+            "kind": { ".validate": "newData.val() === 'attention' || newData.val() === 'regroup' || newData.val() === 'followMe' || newData.val() === 'ok'" },
+            "at": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+            "latitude": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
+            "longitude": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
+            "$other": { ".validate": false }
+          }
         }
       }
     },
@@ -99,6 +110,10 @@
           "previewSpeeds": {
             ".write": "auth != null && auth.uid === $uid && !data.exists()",
             ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "colorId": {
+            ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists() && data.parent().child('roomName').exists()",
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 24"
           },
           "recap": {
             ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists() && data.parent().child('roomName').exists()",

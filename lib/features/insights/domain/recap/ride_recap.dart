@@ -29,7 +29,19 @@ class RideRecap {
     this.mySpeed,
     this.routePoints = const [],
     this.routeSpeedsMps = const [],
+    this.routeUid,
   });
+
+  /// Whose route [routePoints] is, so it can be drawn in their colour.
+  final String? routeUid;
+
+  /// The colour id of the rider whose route is shown.
+  String? get routeColorId {
+    for (final rider in summary.riders) {
+      if (rider.uid == routeUid) return rider.colorId;
+    }
+    return null;
+  }
 
   final RideSummary summary;
   final String? myUid;

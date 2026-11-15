@@ -186,6 +186,44 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
   }
 
   @override
+  Future<RideHistoryEntry?> resolveColor({
+    required String uid,
+    required RideHistoryEntry entry,
+  }) async {
+    try {
+      // The colour the rider claimed is part of the ride's summary.
+      final snapshot = await _database
+          .ref(
+            '${RideSummaryPaths.summary(entry.code)}/${RideSummaryPaths.riders}'
+            '/$uid/${RideSummaryPaths.colorId}',
+          )
+          .get()
+          .timeout(timeout);
+      final colorId = snapshot.value;
+      if (colorId is! String || colorId.isEmpty) return null;
+      final withColor = entry.withColorId(colorId);
+      try {
+        // Saved onto the history entry so every device has it from now on.
+        // The rules only allow adding it, never changing it.
+        await _database
+            .ref(
+              '${RideHistoryPaths.entry(uid, entry.code)}/'
+              '${RideHistoryPaths.colorId}',
+            )
+            .set(colorId)
+            .timeout(timeout);
+      } on Object catch (e) {
+        // Not saved is fine: the colour is still shown for this session.
+        debugPrint('Saving the ride colour failed: $e');
+      }
+      return withColor;
+    } on Object catch (e) {
+      debugPrint('Looking up the ride colour failed: $e');
+      return null;
+    }
+  }
+
+  @override
   Future<bool> saveHighlights({
     required String uid,
     required String code,

@@ -10,14 +10,18 @@ import '../../../../core/theme/rider_palette.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/pulse_indicator.dart';
+import '../../../room/domain/ride_mode.dart';
+import '../../../room/presentation/providers/room_providers.dart';
+import '../../domain/geo_point.dart';
+import '../../domain/guidance/route_geometry.dart';
 import '../../domain/live/connection_quality.dart';
 import '../../domain/live/relative_position.dart';
 import '../../domain/live/ride_format.dart';
-import '../../domain/stats/ride_stats.dart';
+import '../../domain/live/rider_trail.dart';
 import '../../domain/stats/ride_stats_tracker.dart';
+import '../providers/guidance_providers.dart';
 import '../providers/ride_map_providers.dart';
 import '../ride_map_controller.dart';
-import '../providers/rider_stats_providers.dart';
 
 /// The frosted card shown when a rider taps another rider's dot.
 ///
@@ -76,34 +80,46 @@ class _RiderInfoCardState extends ConsumerState<RiderInfoCard>
     super.dispose();
   }
 
+  /// The last answer, which keeps "nearby" steady as riders drift past each
+  /// other.
+  RelativeDirection? _previous;
+
+  /// A rider's current stretch of trail as plain points: everything since
+  /// they were last away, oldest first.
+  static List<GeoPoint> _pathOf(RiderTrail? trail) {
+    final points = trail?.points;
+    if (points == null || points.isEmpty) return const [];
+    var from = 0;
+    for (var i = points.length - 1; i > 0; i--) {
+      if (points[i].startsSegment) {
+        from = i;
+        break;
+      }
+    }
+    return [for (var i = from; i < points.length; i++) points[i].point];
+  }
+
   /// Where [rider] is relative to this rider, from both riders' live GPS
-  /// positions; `null` until this rider has a fix.
-  ///
-  /// Progression is this rider's live distance covered against the other
-  /// rider's last saved distance, projected forward at their current speed to
-  /// cover the time since it was saved.
-  static RelativePosition? _relativeTo(
+  /// positions and the path they share; `null` until this rider has a fix.
+  /// Who hosts, who joined first and how far either has ridden play no part.
+  RelativePosition? _relativeTo(
     RideMapState map,
     LiveRider rider,
-    RideStats? theirs,
+    String myUid,
+    RouteGeometry? route,
   ) {
     final me = map.myFix;
     if (me == null) return null;
-    final theirProgress = theirs == null
-        ? null
-        : RelativePosition.projectProgress(
-            savedMeters: theirs.distanceMeters,
-            savedAtMs: theirs.lastSampleAtMs,
-            speedMps: rider.speedMps,
-            nowMs: DateTime.now().millisecondsSinceEpoch,
-          );
     final moving = (me.speedMps ?? 0) >= RideStatsTracker.movingSpeedMps;
     return RelativePosition.between(
       me: me.point,
       other: rider.point,
-      myProgressMeters: map.myStats?.distanceMeters,
-      theirProgressMeters: theirProgress,
+      route: route,
+      myTrail: _pathOf(map.trails[myUid]),
+      theirTrail: _pathOf(map.trails[rider.uid]),
       myHeadingDegrees: moving ? me.headingDegrees : null,
+      theirHeadingDegrees: rider.isMoving ? rider.headingDegrees : null,
+      previous: _previous,
     );
   }
 
@@ -114,8 +130,19 @@ class _RiderInfoCardState extends ConsumerState<RiderInfoCard>
     final map = ref.watch(rideMapControllerProvider(roomCode));
     final rider = map.riders[uid];
     if (rider == null) return const SizedBox.shrink();
-    final allStats = ref.watch(roomRideStatsProvider(roomCode)).value;
-    final relative = _relativeTo(map, rider, allStats?[uid]);
+    final guided =
+        ref.watch(roomStreamProvider(roomCode)).value?.mode == RideMode.guided;
+    final route = guided
+        ? ref.watch(routeGuideProvider(roomCode)).value?.geometry
+        : null;
+    String? myUid;
+    for (final r in map.riders.values) {
+      if (r.isMe) myUid = r.uid;
+    }
+    final relative = myUid == null
+        ? null
+        : _relativeTo(map, rider, myUid, route);
+    _previous = relative?.direction;
 
     final palette = RiderPalette.colorById(rider.colorId);
     final accent = palette?.color ?? AppColors.textPrimary;
@@ -362,9 +389,12 @@ class _RelativeDistance extends StatelessWidget {
     final theme = Theme.of(context);
     final value = relative;
     final caption = theme.textTheme.labelSmall?.copyWith(
-      color: value?.direction == RelativeDirection.unknown || value == null
-          ? AppColors.textTertiary
-          : AppColors.primary,
+      color: switch (value?.direction) {
+        null || RelativeDirection.unknown => AppColors.textTertiary,
+        RelativeDirection.nearby => AppColors.textSecondary,
+        RelativeDirection.ahead || RelativeDirection.behind =>
+          AppColors.primary,
+      },
       fontWeight: FontWeight.w600,
     );
     return Semantics(
