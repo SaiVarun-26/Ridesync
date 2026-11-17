@@ -38,6 +38,8 @@ import 'safety/safety_controller.dart';
 import 'widgets/ride_complete_overlay.dart';
 import 'widgets/guidance/guidance_cards.dart';
 import 'widgets/guidance/route_progress_strip.dart';
+import 'widgets/leaderboard/live_leaderboard.dart';
+import 'widgets/leaderboard/ride_event_banner.dart';
 import 'widgets/ride_control_panel.dart';
 import 'widgets/ride_ending_overlay.dart';
 import 'widgets/ride_map_overlays.dart';
@@ -446,7 +448,24 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                                 ),
                         ),
                       ),
-                      const Spacer(),
+                      // The leaderboard takes the free space between the
+                      // cards above and the controls below, so whatever
+                      // opens or grows around it, it never covers them. On
+                      // the left and narrow, it stays clear of this rider's
+                      // marker in the middle and the map buttons on the
+                      // right.
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.sm),
+                          child: Align(
+                            alignment: Alignment.topLeft,
+                            child: LiveLeaderboard(
+                              roomCode: roomCode,
+                              maxWidth: _leaderboardWidth(context),
+                            ),
+                          ),
+                        ),
+                      ),
                       _MapControls(
                         commands: _commands,
                         onOverview: guide == null
@@ -500,6 +519,17 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+              // Riders leaving or rejoining the path: a banner that slides
+              // down over the header for a few seconds.
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: RideEventBanner(roomCode: roomCode),
                   ),
                 ),
               ),
@@ -589,6 +619,16 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
         speedMps: rider.isMoving ? rider.speedMps : null,
       ),
   ];
+
+  /// Widest the leaderboard may be: it stops short of the middle of the
+  /// screen, where the camera keeps this rider's marker, by the marker's
+  /// size and a margin.
+  static double _leaderboardWidth(BuildContext context) {
+    const markerClearance = 34.0;
+    const widest = 220.0;
+    final half = MediaQuery.sizeOf(context).width / 2;
+    return math.min(widest, half - AppSpacing.lg - markerClearance);
+  }
 
   /// The open panel's route figures: what is left, how far along, and how
   /// far from the planned line.

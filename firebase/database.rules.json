@@ -88,6 +88,23 @@
         }
       }
     },
+    "rideEvents": {
+      "$code": {
+        ".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).exists()",
+        "$uid": {
+          "$eventId": {
+            ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).exists() && root.child('rooms').child($code).child('meta').child('status').val() === 'riding'",
+            ".validate": "newData.hasChildren(['kind','mode','at'])",
+            "kind": { ".validate": "newData.val() === 'left' || newData.val() === 'rejoined'" },
+            "mode": { ".validate": "newData.val() === 'guided' || newData.val() === 'free'" },
+            "at": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+            "latitude": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
+            "longitude": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
+            "$other": { ".validate": false }
+          }
+        }
+      }
+    },
     "userRides": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

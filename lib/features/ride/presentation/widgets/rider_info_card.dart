@@ -19,6 +19,7 @@ import '../../domain/live/relative_position.dart';
 import '../../domain/live/ride_format.dart';
 import '../../domain/live/rider_trail.dart';
 import '../../domain/stats/ride_stats_tracker.dart';
+import '../leaderboard/leaderboard_controller.dart';
 import '../providers/guidance_providers.dart';
 import '../providers/ride_map_providers.dart';
 import '../ride_map_controller.dart';
@@ -139,8 +140,25 @@ class _RiderInfoCardState extends ConsumerState<RiderInfoCard>
     for (final r in map.riders.values) {
       if (r.isMe) myUid = r.uid;
     }
+    // The leaderboard's gap, when both share a path, so the card and the
+    // board always tell the same story.
+    final gap = ref.watch(
+      leaderboardControllerProvider(
+        roomCode,
+      ).select((s) => s.entryOf(uid)?.gapMeters),
+    );
+    final me = map.myFix?.point;
     final relative = myUid == null
         ? null
+        : gap != null && me != null
+        ? RelativePosition(
+            meters: math.max(gap.abs(), me.distanceMetersTo(rider.point)),
+            direction: gap.abs() < RelativePosition.nearbyMeters
+                ? RelativeDirection.nearby
+                : gap > 0
+                ? RelativeDirection.ahead
+                : RelativeDirection.behind,
+          )
         : _relativeTo(map, rider, myUid, route);
     _previous = relative?.direction;
 
