@@ -5,29 +5,25 @@ import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/rider_palette.dart';
+import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/app_icon_button.dart';
-import '../../../../core/widgets/fade_slide_in.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../insights/domain/achievements/achievement.dart';
-import '../../../insights/domain/score/ride_score.dart';
-import '../../../insights/domain/weather/weather_snapshot.dart';
-import '../../../insights/presentation/widgets/insight_visuals.dart';
 import '../../../insights/presentation/widgets/recap_sections.dart';
 import '../../../ride/domain/live/ride_format.dart';
-import '../../domain/recap_highlights.dart';
 import '../../domain/ride_history_entry.dart';
-import '../ride_mode_label.dart';
 import 'route_thumbnail.dart';
 
-/// One finished ride in a list: a miniature of its route beside its name,
-/// date and mode, its recap (sentence, score, weather and best achievement)
-/// once worked out, with the ride's numbers beneath. A share button opens
-/// the ride's card without opening the ride.
+/// One finished ride in a list, readable in a glance.
 ///
-/// A translucent violet-tinted surface with a faint sheen and a hairline
-/// border. Pressing it lifts it: it scales in a touch while its shadow deepens
-/// and its border brightens. [onTap] is given the card's place on screen,
-/// which the details screen grows out of.
+/// The route, drawn in this rider's colour, sits beside what the ride was
+/// (its name and when) and, for a group ride, who rode and where this rider
+/// finished. Beneath, the ride's figures, each shown once: distance and
+/// duration, plus the top speed for a solo ride (a group ride's speeds live
+/// in its standings). The best achievement, if any, is a small badge.
+///
+/// Pressing it lifts it; [onTap] is given the card's place on screen, which
+/// the details page grows out of.
 class RideHistoryCard extends StatefulWidget {
   const RideHistoryCard({
     super.key,
@@ -53,6 +49,8 @@ class RideHistoryCard extends StatefulWidget {
 class _RideHistoryCardState extends State<RideHistoryCard> {
   bool _lifted = false;
 
+  static const double _thumb = 104;
+
   void _open(BuildContext context) {
     final box = context.findRenderObject();
     if (box is! RenderBox || !box.attached) return;
@@ -64,288 +62,266 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
     final entry = widget.entry;
     final theme = Theme.of(context);
     final radius = BorderRadius.circular(AppRadius.lg);
-    return PressableScale(
-      onPressedChanged: (down) => setState(() => _lifted = down),
-      child: AnimatedContainer(
-        duration: AppMotion.fast,
-        curve: AppMotion.curve,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: radius,
-          border: Border.all(
-            color: _lifted
-                ? AppColors.primary.withValues(alpha: 0.7)
-                : AppColors.border,
-          ),
-          // Very large and very faint: only enough to lift the card off the
-          // page. Deepens a little while pressed.
-          boxShadow: _lifted ? AppShadows.lifted : AppShadows.rest,
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: () => _open(context),
-            borderRadius: radius,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      RouteThumbnail(
-                        points: entry.routePreview,
-                        speedsMps: entry.previewSpeedsMps,
-                        // The colour this rider had in the ride, so it can
-                        // be told apart at a glance.
-                        color: RiderPalette.colorById(entry.colorId)?.color,
-                        // Too short to have a route: shown as staying put
-                        // rather than as a route still on its way.
-                        stationary:
-                            entry.distanceMeters <
-                            RideHistoryCard.stationaryMeters,
-                      ),
-                      const SizedBox(width: AppSpacing.lg),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // A rename fades the new name in.
-                            AnimatedSwitcher(
-                              duration: AppMotion.normal,
-                              switchInCurve: AppMotion.curve,
-                              switchOutCurve: AppMotion.exit,
-                              layoutBuilder: (current, previous) => Stack(
-                                alignment: Alignment.topLeft,
-                                children: [...previous, ?current],
-                              ),
-                              child: Text(
-                                entry.roomName,
-                                key: ValueKey(entry.roomName),
-                                style: theme.textTheme.titleMedium,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              RideFormat.date(entry.endedAt),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            _ModeChip(label: entry.mode.label),
-                          ],
-                        ),
-                      ),
-                      if (widget.onShare != null)
-                        AppIconButton(
-                          icon: Icons.ios_share_rounded,
-                          tooltip: 'Share ride',
-                          color: AppColors.textSecondary,
-                          onPressed: widget.onShare,
-                        ),
-                    ],
-                  ),
-                  // The recap, once it has been worked out: its sentence and
-                  // score, the weather, and the best achievement.
-                  AnimatedSize(
-                    duration: AppMotion.slow,
-                    curve: AppMotion.curve,
-                    alignment: Alignment.topCenter,
-                    child: entry.highlights == null
-                        ? const SizedBox(width: double.infinity)
-                        : FadeSlideIn(
-                            child: _Highlights(highlights: entry.highlights!),
-                          ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceRaised,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.md,
-                      ),
-                      child: Row(
-                        children: [
-                          _Figure(
-                            value: RideFormat.distance(entry.distanceMeters),
-                            label: 'DISTANCE',
-                          ),
-                          _Figure(
-                            value: RideFormat.duration(entry.duration),
-                            label: 'TIME',
-                          ),
-                          _Figure(
-                            value: _speed(entry.averageSpeedMps),
-                            unit: 'km/h',
-                            label: 'AVG SPEED',
-                          ),
-                          _Figure(
-                            value: _speed(entry.maxSpeedMps),
-                            unit: 'km/h',
-                            label: 'TOP SPEED',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Speeds are shown without the unit on the card; the unit follows the
-  /// number in smaller type elsewhere.
-  static String _speed(double mps) => '${(mps * 3.6).round()}';
-}
-
-class _Highlights extends StatelessWidget {
-  const _Highlights({required this.highlights});
-
-  final RecapHighlights highlights;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final code = highlights.weatherCode;
-    final temperature = highlights.temperatureC;
-    final achievement = highlights.achievementIds
+    final color = RiderPalette.colorById(entry.colorId)?.color;
+    final achievement = entry.highlights?.achievementIds
         .map(AchievementKind.fromName)
         .nonNulls
         .firstOrNull;
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            highlights.sentence,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
+    final ended = entry.endedAt;
+    final started = DateTime.fromMillisecondsSinceEpoch(entry.startedAtMs);
+    final group = entry.isGroup;
+
+    return Semantics(
+      button: true,
+      label: [
+        entry.roomName,
+        RideFormat.date(ended),
+        if (group) '${entry.riderCount} riders',
+        if (group && entry.position != null)
+          'you finished ${entry.position} of ${entry.riderCount}',
+        RideFormat.distance(entry.distanceMeters),
+        RideFormat.duration(entry.duration),
+      ].join(', '),
+      child: PressableScale(
+        onPressedChanged: (down) => setState(() => _lifted = down),
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          curve: AppMotion.curve,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: radius,
+            border: Border.all(
+              color: _lifted
+                  ? (color ?? AppColors.primary).withValues(alpha: 0.7)
+                  : AppColors.border,
+            ),
+            boxShadow: _lifted ? AppShadows.lifted : AppShadows.rest,
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: () => _open(context),
+              borderRadius: radius,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RouteThumbnail(
+                      points: entry.routePreview,
+                      speedsMps: entry.previewSpeedsMps,
+                      color: color,
+                      size: _thumb,
+                      // Too short to have a route: shown as staying put
+                      // rather than as a route still on its way.
+                      stationary:
+                          entry.distanceMeters <
+                          RideHistoryCard.stationaryMeters,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: SizedBox(
+                        height: _thumb,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  // A rename fades the new name in.
+                                  child: AnimatedSwitcher(
+                                    duration: AppMotion.normal,
+                                    switchInCurve: AppMotion.curve,
+                                    switchOutCurve: AppMotion.exit,
+                                    layoutBuilder: (current, previous) => Stack(
+                                      alignment: Alignment.topLeft,
+                                      children: [...previous, ?current],
+                                    ),
+                                    child: Text(
+                                      entry.roomName,
+                                      key: ValueKey(entry.roomName),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.titleMedium,
+                                    ),
+                                  ),
+                                ),
+                                if (widget.onShare != null)
+                                  SizedBox(
+                                    width: 32,
+                                    height: 24,
+                                    child: OverflowBox(
+                                      maxWidth: AppIconButton.size,
+                                      maxHeight: AppIconButton.size,
+                                      child: AppIconButton(
+                                        icon: Icons.ios_share_rounded,
+                                        tooltip: 'Share ride',
+                                        color: AppColors.textTertiary,
+                                        onPressed: widget.onShare,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${RideFormat.date(ended)} · '
+                              '${RideFormat.time(started)}',
+                              maxLines: 1,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Wrap(
+                              spacing: AppSpacing.xs,
+                              runSpacing: AppSpacing.xs,
+                              children: [
+                                if (group) ...[
+                                  _Tag(
+                                    icon: Icons.groups_rounded,
+                                    label: '${entry.riderCount}',
+                                  ),
+                                  if (entry.position != null)
+                                    _Tag(
+                                      icon: entry.position == 1
+                                          ? Icons.emoji_events_rounded
+                                          : null,
+                                      label: entry.position == 1
+                                          ? '1st'
+                                          : '#${entry.position} of '
+                                                '${entry.riderCount}',
+                                      highlight: entry.position == 1,
+                                    ),
+                                ] else
+                                  const _Tag(
+                                    icon: Icons.person_rounded,
+                                    label: 'Solo',
+                                  ),
+                                if (achievement != null)
+                                  AchievementChip(kind: achievement),
+                              ],
+                            ),
+                            const Spacer(),
+                            Row(
+                              children: [
+                                _Figure(
+                                  value: _distance(entry.distanceMeters),
+                                  unit: entry.distanceMeters < 1000 ? 'm' : 'km',
+                                ),
+                                const SizedBox(width: AppSpacing.lg),
+                                _Figure(
+                                  value: RideFormat.duration(entry.duration),
+                                ),
+                                if (!group && entry.maxSpeedMps > 0) ...[
+                                  const SizedBox(width: AppSpacing.lg),
+                                  _Figure(
+                                    icon: Icons.bolt_rounded,
+                                    value: '${(entry.maxSpeedMps * 3.6).round()}',
+                                    unit: 'km/h',
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              InsightPill(
-                icon: Icons.star_rounded,
-                label:
-                    '${highlights.score} · ${RideScore(highlights.score).label}',
-                accent: AppColors.primary,
-              ),
-              if (code != null)
-                InsightPill(
-                  icon: InsightVisuals.weather(
-                    WeatherCondition.fromWmo(code),
-                    isDay: highlights.isDay,
-                  ),
-                  label: temperature == null
-                      ? WeatherCondition.fromWmo(code).label
-                      : '${temperature.round()}°',
-                ),
-              if (achievement != null) AchievementChip(kind: achievement),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
+
+  static String _distance(double meters) => meters < 1000
+      ? '${meters.round()}'
+      : (meters / 1000).toStringAsFixed(meters >= 100000 ? 0 : 1);
 }
 
-class _ModeChip extends StatelessWidget {
-  const _ModeChip({required this.label});
+/// A small pill: who rode, or where this rider finished.
+class _Tag extends StatelessWidget {
+  const _Tag({required this.label, this.icon, this.highlight = false});
 
   final String label;
+  final IconData? icon;
+  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
+    final color = highlight ? AppColors.primary : AppColors.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        horizontal: AppSpacing.sm,
+        vertical: 3,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
+        color: highlight
+            ? AppColors.primary.withValues(alpha: 0.14)
+            : AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.primary,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.4,
+        border: Border.all(
+          color: highlight
+              ? AppColors.primary.withValues(alpha: 0.5)
+              : AppColors.border,
         ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: highlight ? AppColors.textPrimary : color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _Figure extends StatelessWidget {
-  const _Figure({required this.value, required this.label, this.unit});
+  const _Figure({required this.value, this.unit, this.icon});
 
   final String value;
-  final String label;
-
-  /// A small unit set after the value, when it has one.
   final String? unit;
-
-  static const double _valueSize = 16;
-  static const double _labelSpacing = 1.1;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(value, style: AppTypography.stat(fontSize: _valueSize)),
-                if (unit != null) ...[
-                  const SizedBox(width: AppSpacing.xxs),
-                  Text(
-                    unit!,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontSize: AppTypeScale.micro,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            label,
-            maxLines: 1,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textTertiary,
-              letterSpacing: _labelSpacing,
-              fontSize: AppTypeScale.micro,
-            ),
-          ),
-        ],
+    return Flexible(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            if (icon != null)
+              Icon(icon, size: AppIconSize.small, color: AppColors.textSecondary),
+            Text(value, style: AppTypography.stat(fontSize: 20)),
+            if (unit != null) ...[
+              const SizedBox(width: 2),
+              Text(
+                unit!,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

@@ -85,8 +85,20 @@ class FollowCameraController {
 
   static const Duration _flightDuration = Duration(milliseconds: 900);
 
-  /// Whether the camera is following the rider right now.
-  bool get isFollowing => _pausedAt == null && !_held;
+  /// Whether the rider has turned the map with two fingers. The camera keeps
+  /// following their position but holds the bearing they chose, until
+  /// [resume] (the follow button) brings heading-up back.
+  bool _manualBearing = false;
+
+  /// Easing the bearing back to heading-up after [resume]: pending until a
+  /// heading is known, then from [_bearingReturnFrom] since
+  /// [_bearingReturnStart].
+  bool _bearingReturnPending = false;
+  Duration? _bearingReturnStart;
+  double? _bearingReturnFrom;
+
+  /// Whether the camera is following the rider right now, heading-up.
+  bool get isFollowing => _pausedAt == null && !_held && !_manualBearing;
 
   /// Whether following waits for [resume].
   bool get isHeld => _held;
@@ -140,6 +152,10 @@ class FollowCameraController {
   void resume(Duration now) {
     _held = false;
     _flight = null;
+    if (_manualBearing) {
+      _manualBearing = false;
+      _bearingReturnPending = true;
+    }
     if (_pausedAt != null) _pausedAt = now - resumeAfter;
     if (_followZoom != null) {
       _zoomReturnFrom = _map.camera.zoom;
@@ -179,12 +195,21 @@ class FollowCameraController {
     return returning ||
         insetChanging ||
         _zoomReturnStart != null ||
+        _bearingReturnStart != null ||
         _heading.isSettling ||
         _lagPixels > _settledPixels;
   }
 
-  /// Reports a map event; manual pans pause following and rotating.
+  /// Reports a map event; manual pans pause following and rotating, and a
+  /// two-finger turn keeps the bearing the rider chose.
   void onMapEvent(MapEvent event, Duration now) {
+    if ((event is MapEventRotateStart || event is MapEventRotate) &&
+        event.source == MapEventSource.onMultiFinger) {
+      _manualBearing = true;
+      _bearingReturnPending = false;
+      _bearingReturnStart = null;
+      _bearingReturnFrom = null;
+    }
     if (_panSources.contains(event.source)) {
       _pausedAt = now;
       _returnStart = null;
@@ -218,7 +243,16 @@ class FollowCameraController {
     final smoothed = _heading.step(headingDegrees, now);
     // Heading-up: turning the map counter-clockwise by the heading puts the
     // direction of travel at the top of the screen.
-    final rotation = smoothed == null ? camera.rotation : -smoothed;
+    // Turned by hand: keep the rider's bearing.
+    final heading = _manualBearing || smoothed == null
+        ? camera.rotation
+        : -smoothed;
+    if (_bearingReturnPending && !_manualBearing && smoothed != null) {
+      _bearingReturnPending = false;
+      _bearingReturnFrom = camera.rotation;
+      _bearingReturnStart = now;
+    }
+    final rotation = _easedRotation(heading, now);
 
     final goal = _centerFor(
       LatLng(target.latitude, target.longitude),
@@ -260,6 +294,21 @@ class FollowCameraController {
     );
     final riderPixels = camera.projectAtZoom(rider, camera.zoom);
     return camera.unprojectAtZoom(riderPixels - worldOffset, camera.zoom);
+  }
+
+  /// [goal], eased in by the shortest turn from the rider's own bearing after
+  /// the follow button, so heading-up returns without a jump.
+  double _easedRotation(double goal, Duration now) {
+    final from = _bearingReturnFrom;
+    final start = _bearingReturnStart;
+    if (from == null || start == null) return goal;
+    final t = (now - start).inMicroseconds / _returnDuration.inMicroseconds;
+    if (t >= 1) {
+      _bearingReturnFrom = null;
+      _bearingReturnStart = null;
+      return goal;
+    }
+    return from + _angleDelta(goal, from) * AppMotion.curve.transform(t);
   }
 
   /// [goal], eased in from where the camera was when following resumed.

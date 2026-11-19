@@ -66,6 +66,9 @@
           "sampleCount": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
           "startedAt": { ".validate": "newData.isNumber() && newData.val() > 0" },
           "updatedAt": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+          "topSpeedLatitude": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
+          "topSpeedLongitude": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
+          "topSpeedDistance": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
           "lastLatitude": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
           "lastLongitude": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
           "lastSampleAt": { ".validate": "newData.isNumber() && newData.val() > 0" },
@@ -83,6 +86,7 @@
           ".validate": "newData.hasChildren(['polyline','updatedAt'])",
           "polyline": { ".validate": "newData.isString() && newData.val().length <= 60000" },
           "speeds": { ".validate": "newData.isString() && newData.val().length <= 3200" },
+          "times": { ".validate": "newData.isString() && newData.val().length <= 16000" },
           "updatedAt": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
           "$other": { ".validate": false }
         }
@@ -135,6 +139,10 @@
           "previewSpeeds": {
             ".write": "auth != null && auth.uid === $uid && !data.exists()",
             ".validate": "newData.isString() && newData.val().length <= 100"
+          },
+          "position": {
+            ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists() && data.parent().child('roomName').exists()",
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100"
           },
           "colorId": {
             ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists() && data.parent().child('roomName').exists()",
@@ -194,6 +202,9 @@
             "averageSpeedMps": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150" },
             "maxSpeedMps": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150" },
             "topSpeedAt": { ".validate": "newData.isNumber() && newData.val() > 0" },
+            "topSpeedLatitude": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
+            "topSpeedLongitude": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
+            "topSpeedDistance": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
             "sampleCount": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
             "startedAt": { ".validate": "newData.isNumber() && newData.val() > 0" },
             "endedAt": { ".validate": "newData.isNumber() && newData.val() > 0" },

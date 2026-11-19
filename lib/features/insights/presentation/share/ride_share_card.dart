@@ -6,17 +6,17 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/rider_palette.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/brand_wordmark.dart';
-import '../../../history/presentation/widgets/route_thumbnail.dart';
 import '../../domain/share/share_card.dart';
 import '../widgets/insight_visuals.dart';
+import 'share_route_map.dart';
 
 /// The shareable ride card, in story format (9:16).
 ///
 /// Always laid out at exactly [size] logical pixels, whatever the screen, so
 /// the exported image looks the same on every phone; it is shown scaled down
 /// as a preview and captured at [exportPixelRatio] (1080 × 1920). Pure black
-/// with the RideSync purple, the route drawn large, the ride's figures and
-/// the brand: built to be posted, not screenshotted.
+/// with the RideSync purple, the ride on the real night map, the ride's
+/// figures and the brand: built to be posted, not screenshotted.
 class RideShareCard extends StatelessWidget {
   const RideShareCard({super.key, required this.data});
 
@@ -27,8 +27,8 @@ class RideShareCard extends StatelessWidget {
   /// Renders the card at 1080 × 1920.
   static const double exportPixelRatio = 3;
 
-  /// The route's size when there is room for it.
-  static const double _routeSize = 280;
+  /// The map's height when there is room for it.
+  static const double _routeSize = 300;
 
   @override
   Widget build(BuildContext context) {
@@ -103,22 +103,21 @@ class RideShareCard extends StatelessWidget {
                     ),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final side = [
-                          constraints.maxWidth,
-                          constraints.maxHeight,
-                          _routeSize,
-                        ].reduce((a, b) => a < b ? a : b);
-                        if (data.routePoints.length < 2 || side < 48) {
+                        final height = constraints.maxHeight < _routeSize
+                            ? constraints.maxHeight
+                            : _routeSize;
+                        if (data.routePoints.length < 2 || height < 48) {
                           return const SizedBox.shrink();
                         }
                         return Center(
-                          child: RouteThumbnail(
+                          child: ShareRouteMap(
                             points: data.routePoints,
-                            speedsMps: data.routeSpeedsMps,
-                            color: RiderPalette.colorById(
-                              data.routeColorId,
-                            )?.color,
-                            size: side,
+                            color:
+                                RiderPalette.colorById(
+                                  data.routeColorId,
+                                )?.color ??
+                                AppColors.textPrimary,
+                            size: Size(constraints.maxWidth, height),
                           ),
                         );
                       },

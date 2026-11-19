@@ -5,10 +5,14 @@ import 'speed_scale.dart';
 /// One rider's recorded route: where they went and, when it was recorded, how
 /// fast at each point.
 class RiderRoute {
-  RiderRoute({required this.points, List<double> speedsMps = const []})
-    : speedsMps = speedsMps.length == points.length
-          ? speedsMps
-          : const <double>[];
+  RiderRoute({
+    required this.points,
+    List<double> speedsMps = const [],
+    List<int> timesMs = const [],
+  }) : speedsMps = speedsMps.length == points.length
+           ? speedsMps
+           : const <double>[],
+       timesMs = timesMs.length == points.length ? timesMs : const <int>[];
 
   final List<GeoPoint> points;
 
@@ -17,6 +21,12 @@ class RiderRoute {
   final List<double> speedsMps;
 
   bool get hasSpeeds => speedsMps.isNotEmpty;
+
+  /// When the rider was at each point (epoch millis), in step with [points].
+  /// Empty for rides recorded before times were kept.
+  final List<int> timesMs;
+
+  bool get hasTimes => timesMs.isNotEmpty;
 
   /// [speedsMps] with GPS noise evened out, for colouring the route.
   late final List<double> smoothedSpeedsMps = SpeedScale.smooth(

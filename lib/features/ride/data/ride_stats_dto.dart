@@ -29,6 +29,12 @@ abstract final class RideStatsPaths {
   // rideRoutes fields
   static const String polyline = 'polyline';
   static const String speeds = 'speeds';
+  static const String times = 'times';
+
+  // top-speed fields (rideStats, copied into the ride summary)
+  static const String topSpeedLatitude = 'topSpeedLatitude';
+  static const String topSpeedLongitude = 'topSpeedLongitude';
+  static const String topSpeedDistance = 'topSpeedDistance';
 
   const RideStatsPaths._();
 }
@@ -47,12 +53,19 @@ abstract final class RideStatsDto {
     final topSpeedAt = value[RideStatsPaths.topSpeedAt];
     final lastSampleAt = value[RideStatsPaths.lastSampleAt];
     final endedAt = value[RideStatsPaths.endedAt];
+    final topLat = value[RideStatsPaths.topSpeedLatitude];
+    final topLng = value[RideStatsPaths.topSpeedLongitude];
+    final topDistance = value[RideStatsPaths.topSpeedDistance];
     return RideStats(
       startedAtMs: startedAt.toInt(),
       distanceMeters: _number(value[RideStatsPaths.distanceMeters]),
       movingTimeMs: _number(value[RideStatsPaths.movingTimeMs]).toInt(),
       maxSpeedMps: _number(value[RideStatsPaths.maxSpeedMps]),
       topSpeedAtMs: topSpeedAt is num ? topSpeedAt.toInt() : null,
+      topSpeedPoint: topLat is num && topLng is num
+          ? GeoPoint(latitude: topLat.toDouble(), longitude: topLng.toDouble())
+          : null,
+      topSpeedDistanceMeters: topDistance is num ? topDistance.toDouble() : null,
       sampleCount: _number(value[RideStatsPaths.sampleCount]).toInt(),
       lastPoint: lat is num && lng is num
           ? GeoPoint(latitude: lat.toDouble(), longitude: lng.toDouble())
@@ -80,6 +93,7 @@ abstract final class RideStatsDto {
       RideStatsPaths.startedAt: stats.startedAtMs,
       RideStatsPaths.updatedAt: updatedAt,
       RideStatsPaths.topSpeedAt: ?topSpeedAt,
+      ...topSpeedFields(stats.topSpeedPoint, stats.topSpeedDistanceMeters),
       if (point != null) RideStatsPaths.lastLatitude: point.latitude,
       if (point != null) RideStatsPaths.lastLongitude: point.longitude,
       RideStatsPaths.lastSampleAt: ?lastSampleAt,
@@ -87,6 +101,14 @@ abstract final class RideStatsDto {
       RideStatsPaths.endedAt: ?endedAt,
     };
   }
+
+  /// Where top speed was reached, as stored on the stats and the summary.
+  static Map<String, Object?> topSpeedFields(GeoPoint? point, double? along) =>
+      <String, Object?>{
+        RideStatsPaths.topSpeedLatitude: ?point?.latitude,
+        RideStatsPaths.topSpeedLongitude: ?point?.longitude,
+        RideStatsPaths.topSpeedDistance: ?along,
+      };
 
   static double _number(Object? value) => value is num ? value.toDouble() : 0;
 }

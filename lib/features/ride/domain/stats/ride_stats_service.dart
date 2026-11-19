@@ -206,7 +206,11 @@ class RideStatsService {
   void _apply(LocationFix fix) {
     if (!_tracker.add(fix)) return;
     _statsVersion++;
-    _route.add(fix.point, speedMps: fix.speedMps ?? 0);
+    _route.add(
+      fix.point,
+      speedMps: fix.speedMps ?? 0,
+      atMs: fix.timestamp.millisecondsSinceEpoch,
+    );
     final stats = _tracker.stats;
     if (stats != null && !_updates.isClosed) _updates.add(stats);
   }
@@ -264,12 +268,21 @@ class RideStatsService {
     final path = _route.path;
     final points = List<GeoPoint>.of(path.points);
     final speeds = List<double>.of(path.speedsMps);
-    final end = _tracker.stats?.lastPoint;
+    final times = List<int>.of(path.timesMs);
+    final stats = _tracker.stats;
+    final end = stats?.lastPoint;
     if (end != null && (points.isEmpty || points.last != end)) {
       points.add(end);
       // The rider has come to rest at the end of the ride.
       speeds.add(0);
+      if (times.isNotEmpty) {
+        times.add(stats?.lastSampleAtMs ?? times.last);
+      }
     }
-    return RecordedPath(points: points, speedsMps: speeds);
+    return RecordedPath(
+      points: points,
+      speedsMps: speeds,
+      timesMs: times.length == points.length ? times : const [],
+    );
   }
 }

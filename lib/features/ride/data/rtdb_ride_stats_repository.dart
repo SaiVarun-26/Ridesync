@@ -9,6 +9,7 @@ import '../../../core/errors/result.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../domain/polyline.dart';
 import '../domain/speed_codec.dart';
+import '../domain/time_codec.dart';
 import '../domain/stats/recorded_route.dart';
 import '../domain/stats/ride_stats.dart';
 import '../domain/stats/ride_stats_repository.dart';
@@ -70,9 +71,11 @@ class RtdbRideStatsRepository implements RideStatsRepository {
       if (encoded is! String) return const RecordedPath();
       final points = decodePolyline(encoded);
       final speeds = value[RideStatsPaths.speeds];
+      final times = value[RideStatsPaths.times];
       return RecordedPath(
         points: points,
         speedsMps: speeds is String ? SpeedCodec.decode(speeds) : const [],
+        timesMs: times is String ? TimeCodec.decode(times) : const [],
       );
     });
   }
@@ -88,6 +91,8 @@ class RtdbRideStatsRepository implements RideStatsRepository {
           RideStatsPaths.polyline: encodePolyline(route.points),
           if (route.hasSpeeds)
             RideStatsPaths.speeds: SpeedCodec.encode(route.speedsMps),
+          if (route.hasTimes)
+            RideStatsPaths.times: TimeCodec.encode(route.timesMs),
           RideStatsPaths.updatedAt: ServerValue.timestamp,
         },
       );

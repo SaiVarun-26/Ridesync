@@ -46,10 +46,28 @@ class _RideShareSheetState extends ConsumerState<_RideShareSheet> {
   /// How much of the screen the card preview may take.
   static const double _previewShare = 0.62;
 
+  /// When the card was first shown; its map tiles need a moment to arrive.
+  DateTime? _shownAt;
+
+  /// The card is captured no sooner than this after it appears, so the map
+  /// in the image has its tiles.
+  static const Duration _tilesSettle = Duration(milliseconds: 1500);
+
   Future<void> _share(ShareCardData data) async {
-    final boundary = _cardKey.currentContext?.findRenderObject();
-    if (boundary is! RenderRepaintBoundary || _sharing) return;
+    if (_cardKey.currentContext?.findRenderObject()
+            is! RenderRepaintBoundary ||
+        _sharing) {
+      return;
+    }
     setState(() => _sharing = true);
+    final shown = _shownAt ?? DateTime.now();
+    final wait = _tilesSettle - DateTime.now().difference(shown);
+    if (!wait.isNegative) await Future<void>.delayed(wait);
+    final boundary = _cardKey.currentContext?.findRenderObject();
+    if (!mounted || boundary is! RenderRepaintBoundary) {
+      if (mounted) setState(() => _sharing = false);
+      return;
+    }
     try {
       await RideCardSharer.share(
         boundary: boundary,
@@ -110,6 +128,7 @@ class _RideShareSheetState extends ConsumerState<_RideShareSheet> {
                 ),
               ),
               data: (value) {
+                _shownAt ??= DateTime.now();
                 final data = ShareCardBuilder.fromRecap(value);
                 return Column(
                   key: const ValueKey('card'),

@@ -189,20 +189,35 @@ class RideHistoryController extends Notifier<RideHistoryState> {
     final uid = _uid;
     if (uid == null) return;
     for (final entry in List<RideHistoryEntry>.of(state.entries)) {
-      if (entry.colorId != null || !_colorTried.add(entry.code)) continue;
-      final filled = await _repository.resolveColor(uid: uid, entry: entry);
+      final missing =
+          entry.colorId == null || (entry.isGroup && entry.position == null);
+      if (!missing || !_colorTried.add(entry.code)) continue;
+      final filled = await _repository.resolveMissing(uid: uid, entry: entry);
       if (!ref.mounted) return;
       if (filled == null) continue;
       // Applied to whatever the entry is now (a preview may have arrived).
       state = state.copyWith(
         entries: [
           for (final e in state.entries)
-            e.code == filled.code && e.colorId == null
-                ? e.withColorId(filled.colorId!)
-                : e,
+            e.code == filled.code ? _merge(e, filled) : e,
         ],
       );
     }
+  }
+
+  /// [current] with whatever [filled] adds that it lacks.
+  static RideHistoryEntry _merge(
+    RideHistoryEntry current,
+    RideHistoryEntry filled,
+  ) {
+    var merged = current;
+    if (merged.colorId == null && filled.colorId != null) {
+      merged = merged.withColorId(filled.colorId!);
+    }
+    if (merged.position == null && filled.position != null) {
+      merged = merged.withPosition(filled.position!);
+    }
+    return merged;
   }
 
   void _replace(RideHistoryEntry filled) {

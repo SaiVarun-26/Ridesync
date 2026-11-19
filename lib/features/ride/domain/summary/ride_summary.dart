@@ -1,4 +1,5 @@
 import '../../../room/domain/ride_mode.dart';
+import '../geo_point.dart';
 
 /// The whole group's figures for a finished ride.
 class GroupRideSummary {
@@ -59,7 +60,14 @@ class RiderRideSummary {
     required this.startedAtMs,
     required this.endedAtMs,
     required this.finished,
+    this.topSpeedPoint,
+    this.topSpeedDistanceMeters,
   });
+
+  /// Where [maxSpeedMps] was reached, and how far into the ride. `null` for
+  /// rides recorded before it was kept.
+  final GeoPoint? topSpeedPoint;
+  final double? topSpeedDistanceMeters;
 
   final String uid;
   final String? displayName;

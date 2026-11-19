@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../geo_point.dart';
 import '../location_fix.dart';
 import 'ride_stats.dart';
 
@@ -131,6 +132,12 @@ class RideStatsTracker {
       movingTimeMs: current.movingTimeMs + movingCreditMs(meters, speed, dtMs),
       maxSpeedMps: isTopSpeed ? speed : null,
       topSpeedAtMs: isTopSpeed ? atMs : null,
+      topSpeedPoint: isTopSpeed
+          ? GeoPoint(latitude: point.latitude, longitude: point.longitude)
+          : null,
+      topSpeedDistanceMeters: isTopSpeed
+          ? current.distanceMeters + meters
+          : null,
     );
     return true;
   }

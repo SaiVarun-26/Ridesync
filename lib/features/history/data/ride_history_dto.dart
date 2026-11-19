@@ -29,6 +29,9 @@ abstract final class RideHistoryPaths {
   /// The rider's colour id in this ride.
   static const String colorId = 'colorId';
 
+  /// The rider's finishing position in a group ride.
+  static const String position = 'position';
+
   /// Present (and true) while the ride waits for the host's name.
   static const String namePending = 'namePending';
 
@@ -99,6 +102,7 @@ abstract final class RideHistoryDto {
     RideHistoryPaths.riderCount: entry.riderCount,
     if (entry.colorId != null) RideHistoryPaths.colorId: entry.colorId,
     if (entry.namePending) RideHistoryPaths.namePending: true,
+    if (entry.position != null) RideHistoryPaths.position: entry.position,
     if (entry.routePreview.isNotEmpty)
       RideHistoryPaths.preview: encodePolyline(entry.routePreview),
     if (entry.previewSpeedsMps.isNotEmpty)
@@ -142,6 +146,10 @@ abstract final class RideHistoryDto {
       highlights: RecapHighlightsDto.fromValue(value[RideHistoryPaths.recap]),
       colorId: colorId is String && colorId.isNotEmpty ? colorId : null,
       namePending: value[RideHistoryPaths.namePending] == true,
+      position: switch (value[RideHistoryPaths.position]) {
+        final num p when p >= 1 => p.toInt(),
+        _ => null,
+      },
     );
   }
 

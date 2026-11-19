@@ -10,6 +10,7 @@ import '../../ride/data/ride_stats_dto.dart';
 import '../../ride/data/ride_summary_dto.dart';
 import '../../ride/domain/polyline.dart';
 import '../../ride/domain/speed_codec.dart';
+import '../../ride/domain/time_codec.dart';
 import '../domain/ride_details.dart';
 import '../domain/ride_details_repository.dart';
 import 'json_cache.dart';
@@ -129,10 +130,12 @@ class RtdbRideDetailsRepository implements RideDetailsRepository {
       final polyline = route[RideStatsPaths.polyline];
       if (polyline is! String || polyline.isEmpty) return;
       final speeds = route[RideStatsPaths.speeds];
+      final times = route[RideStatsPaths.times];
       result[uid] = <String, Object?>{
         RideStatsPaths.polyline: polyline,
         if (speeds is String && speeds.isNotEmpty)
           RideStatsPaths.speeds: speeds,
+        if (times is String && times.isNotEmpty) RideStatsPaths.times: times,
       };
     });
     return result;
@@ -145,9 +148,11 @@ class RtdbRideDetailsRepository implements RideDetailsRepository {
       final points = decodePolyline(route[RideStatsPaths.polyline]! as String);
       if (points.isEmpty) return;
       final speeds = route[RideStatsPaths.speeds];
+      final times = route[RideStatsPaths.times];
       routes[uid] = RiderRoute(
         points: points,
         speedsMps: speeds is String ? SpeedCodec.decode(speeds) : const [],
+        timesMs: times is String ? TimeCodec.decode(times) : const [],
       );
     });
     return routes;

@@ -2,6 +2,7 @@ import '../../ride/domain/geo_point.dart';
 import '../../ride/domain/summary/ride_summary.dart';
 import '../../room/domain/ride_mode.dart';
 import 'recap_highlights.dart';
+import 'ride_details.dart';
 import 'route_preview.dart';
 
 /// One finished ride in a rider's history: the numbers a history card shows.
@@ -26,7 +27,16 @@ class RideHistoryEntry {
     this.highlights,
     this.colorId,
     this.namePending = false,
+    this.position,
   });
+
+  /// Where this rider finished in a group ride (1 for the furthest), by the
+  /// distance each rider covered. `null` for solo rides, and for older rides
+  /// until it is looked up.
+  final int? position;
+
+  /// Whether more than one rider took part.
+  bool get isGroup => riderCount > 1;
 
   /// Whether this entry was saved before the host named the ride, so its
   /// [roomName] is still a placeholder to be replaced by the host's name.
@@ -71,6 +81,7 @@ class RideHistoryEntry {
     RecapHighlights? highlights,
     String? colorId,
     bool? namePending,
+    int? position,
   }) {
     return RideHistoryEntry(
       code: code,
@@ -88,6 +99,7 @@ class RideHistoryEntry {
       highlights: highlights ?? this.highlights,
       colorId: colorId ?? this.colorId,
       namePending: namePending ?? this.namePending,
+      position: position ?? this.position,
     );
   }
 
@@ -111,6 +123,9 @@ class RideHistoryEntry {
 
   /// This entry with the rider's [colorId].
   RideHistoryEntry withColorId(String colorId) => _copy(colorId: colorId);
+
+  /// This entry with the rider's finishing [position].
+  RideHistoryEntry withPosition(int position) => _copy(position: position);
 
   /// This entry under [name], which is no longer waiting for the host's.
   RideHistoryEntry withName(String name) =>
@@ -142,7 +157,17 @@ class RideHistoryEntry {
       riderCount: group.riderCount,
       colorId: rider.colorId,
       namePending: !summary.named,
+      position: positionIn(summary, riderUid),
     );
+  }
+
+  /// Where [riderUid] finished in [summary]: their place by distance covered,
+  /// or `null` for a solo ride.
+  static int? positionIn(RideSummary summary, String riderUid) {
+    if (summary.riders.length < 2) return null;
+    final ranked = RideRankings.rank(summary.riders, RankMetric.distance);
+    final index = ranked.indexWhere((r) => r.uid == riderUid);
+    return index < 0 ? null : index + 1;
   }
 }
 

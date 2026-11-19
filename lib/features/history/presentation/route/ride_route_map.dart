@@ -67,7 +67,18 @@ class RideRouteMap extends StatefulWidget {
     this.reveal = const RouteReveal(),
     this.onReady,
     this.onInteract,
+    this.extraMarkers = const [],
+    this.interactive = true,
   });
+
+  /// Drawn above the routes, turning with the map (a top-speed marker).
+  final List<Marker> extraMarkers;
+
+  /// Whether the viewer can pan, zoom and turn the map. A map shown as a card
+  /// in a scrolling page is still: the page scrolls over it, taps still pick a
+  /// rider, and only [RideRouteMapState.showPoint] and
+  /// [RideRouteMapState.fitRoute] move it.
+  final bool interactive;
 
   final RideDetails details;
 
@@ -97,7 +108,8 @@ class RideRouteMap extends StatefulWidget {
   State<RideRouteMap> createState() => RideRouteMapState();
 }
 
-class RideRouteMapState extends State<RideRouteMap> {
+class RideRouteMapState extends State<RideRouteMap>
+    with SingleTickerProviderStateMixin {
   final MapController _controller = MapController();
   final ValueNotifier<double> _rotation = ValueNotifier<double>(0);
 
@@ -133,8 +145,55 @@ class RideRouteMapState extends State<RideRouteMap> {
     }
   }
 
+  late final AnimationController _glide = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  )..addListener(_onGlide);
+  LatLng? _glideFrom;
+  LatLng? _glideTo;
+  double? _glideFromZoom;
+  double? _glideToZoom;
+
+  /// Glides the map, turned north-up, so [point] sits in the middle of the
+  /// part of the map left uncovered by [RideRouteMap.topInset] and
+  /// [RideRouteMap.bottomInset].
+  void showPoint(LatLng point, {double minZoom = 15.5}) {
+    _cameraIntroDone = true;
+    _controller.rotate(0);
+    final camera = _controller.camera;
+    final zoom = math.max(camera.zoom, minZoom);
+    final shift = (widget.bottomInset - widget.topInset) / 2;
+    _glideFrom = camera.center;
+    _glideFromZoom = camera.zoom;
+    _glideTo = camera.unprojectAtZoom(
+      camera.projectAtZoom(point, zoom) + Offset(0, shift),
+      zoom,
+    );
+    _glideToZoom = zoom;
+    _glide.forward(from: 0);
+  }
+
+  void _onGlide() {
+    final from = _glideFrom;
+    final to = _glideTo;
+    final fromZoom = _glideFromZoom;
+    final toZoom = _glideToZoom;
+    if (from == null || to == null || fromZoom == null || toZoom == null) {
+      return;
+    }
+    final t = AppMotion.move.transform(_glide.value);
+    _controller.move(
+      LatLng(
+        from.latitude + (to.latitude - from.latitude) * t,
+        from.longitude + (to.longitude - from.longitude) * t,
+      ),
+      fromZoom + (toZoom - fromZoom) * t,
+    );
+  }
+
   @override
   void dispose() {
+    _glide.dispose();
     widget.reveal.camera.removeListener(_onCameraIntro);
     _rotation.dispose();
     _controller.dispose();
@@ -239,6 +298,7 @@ class RideRouteMapState extends State<RideRouteMap> {
   void _onPointerDown() {
     // The viewer has taken over: stop easing the camera.
     _cameraIntroDone = true;
+    _glide.stop();
     widget.onInteract?.call();
   }
 
@@ -272,14 +332,15 @@ class RideRouteMapState extends State<RideRouteMap> {
                 backgroundColor: AppColors.background,
                 minZoom: 3,
                 maxZoom: NightTileLayer.maxZoom,
-                interactionOptions: const InteractionOptions(
-                  flags:
-                      InteractiveFlag.drag |
-                      InteractiveFlag.flingAnimation |
-                      InteractiveFlag.pinchMove |
-                      InteractiveFlag.pinchZoom |
-                      InteractiveFlag.doubleTapZoom |
-                      InteractiveFlag.rotate,
+                interactionOptions: InteractionOptions(
+                  flags: widget.interactive
+                      ? InteractiveFlag.drag |
+                            InteractiveFlag.flingAnimation |
+                            InteractiveFlag.pinchMove |
+                            InteractiveFlag.pinchZoom |
+                            InteractiveFlag.doubleTapZoom |
+                            InteractiveFlag.rotate
+                      : InteractiveFlag.none,
                 ),
                 onMapReady: _onMapReady,
                 onTap: _onTap,
@@ -299,11 +360,14 @@ class RideRouteMapState extends State<RideRouteMap> {
                   arrowsOpacity: reveal.arrows,
                 ),
                 if (focus != null) _markers(focus),
+                if (widget.extraMarkers.isNotEmpty)
+                  MarkerLayer(rotate: true, markers: widget.extraMarkers),
               ],
             ),
           ),
         ),
-        Positioned(
+        if (widget.interactive)
+          Positioned(
           top: widget.topInset + AppSpacing.sm,
           right: AppSpacing.lg,
           child: _MapButtons(

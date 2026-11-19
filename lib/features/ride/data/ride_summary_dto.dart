@@ -1,5 +1,7 @@
 import '../../room/domain/ride_mode.dart';
+import '../domain/geo_point.dart';
 import '../domain/summary/ride_summary.dart';
+import 'ride_stats_dto.dart';
 
 /// Realtime Database layout for a finished ride's summary:
 ///
@@ -77,6 +79,10 @@ abstract final class RideSummaryDto {
       RideSummaryPaths.averageSpeedMps: rider.averageSpeedMps,
       RideSummaryPaths.maxSpeedMps: rider.maxSpeedMps,
       RideSummaryPaths.topSpeedAt: ?rider.topSpeedAtMs,
+      ...RideStatsDto.topSpeedFields(
+        rider.topSpeedPoint,
+        rider.topSpeedDistanceMeters,
+      ),
       RideSummaryPaths.sampleCount: rider.sampleCount,
       RideSummaryPaths.startedAt: ?rider.startedAtMs,
       RideSummaryPaths.endedAt: ?rider.endedAtMs,
@@ -150,6 +156,9 @@ abstract final class RideSummaryDto {
     final topSpeedAt = value[RideSummaryPaths.topSpeedAt];
     final startedAt = value[RideSummaryPaths.startedAt];
     final endedAt = value[RideSummaryPaths.endedAt];
+    final topLat = value[RideStatsPaths.topSpeedLatitude];
+    final topLng = value[RideStatsPaths.topSpeedLongitude];
+    final topDistance = value[RideStatsPaths.topSpeedDistance];
     return RiderRideSummary(
       uid: uid,
       displayName: name is String ? name : null,
@@ -164,6 +173,10 @@ abstract final class RideSummaryDto {
       startedAtMs: startedAt is num ? startedAt.toInt() : null,
       endedAtMs: endedAt is num ? endedAt.toInt() : null,
       finished: value[RideSummaryPaths.finished] == true,
+      topSpeedPoint: topLat is num && topLng is num
+          ? GeoPoint(latitude: topLat.toDouble(), longitude: topLng.toDouble())
+          : null,
+      topSpeedDistanceMeters: topDistance is num ? topDistance.toDouble() : null,
     );
   }
 

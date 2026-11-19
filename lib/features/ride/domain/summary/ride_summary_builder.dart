@@ -78,6 +78,8 @@ abstract final class RideSummaryBuilder {
       averageSpeedMps: stats?.averageSpeedMps ?? 0,
       maxSpeedMps: stats?.maxSpeedMps ?? 0,
       topSpeedAtMs: stats?.topSpeedAtMs,
+      topSpeedPoint: stats?.topSpeedPoint,
+      topSpeedDistanceMeters: stats?.topSpeedDistanceMeters,
       sampleCount: stats?.sampleCount ?? 0,
       startedAtMs: stats?.startedAtMs,
       endedAtMs: stats?.endedAtMs,

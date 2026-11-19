@@ -5,6 +5,7 @@ import '../analysis/ride_insights.dart';
 import '../analysis/rider_analytics.dart';
 import '../analysis/route_profile.dart';
 import '../score/ride_score.dart';
+import '../story/ride_story_builder.dart';
 import 'recap_narrator.dart';
 import 'ride_recap.dart';
 
@@ -121,6 +122,11 @@ class RideRecapBuilder {
       routePoints: routeData?.points ?? const [],
       routeSpeedsMps: routeData?.speedsMps ?? const [],
       routeUid: routeData == null ? null : routeUid,
+      story: RideStoryBuilder.build(
+        details: details,
+        myUid: myUid,
+        riders: riders,
+      ),
     );
   }
 

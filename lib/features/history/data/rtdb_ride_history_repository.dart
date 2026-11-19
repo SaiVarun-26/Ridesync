@@ -187,39 +187,67 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
   }
 
   @override
-  Future<RideHistoryEntry?> resolveColor({
+  Future<RideHistoryEntry?> resolveMissing({
     required String uid,
     required RideHistoryEntry entry,
   }) async {
     try {
-      // The colour the rider claimed is part of the ride's summary.
+      // The colour the rider claimed, and every rider's distance (for their
+      // finishing place), are part of the ride's summary: one small read.
       final snapshot = await _database
           .ref(
-            '${RideSummaryPaths.summary(entry.code)}/${RideSummaryPaths.riders}'
-            '/$uid/${RideSummaryPaths.colorId}',
+            '${RideSummaryPaths.summary(entry.code)}/${RideSummaryPaths.riders}',
           )
           .get()
           .timeout(timeout);
-      final colorId = snapshot.value;
-      if (colorId is! String || colorId.isEmpty) return null;
-      final withColor = entry.withColorId(colorId);
-      try {
-        // Saved onto the history entry so every device has it from now on.
-        // The rules only allow adding it, never changing it.
-        await _database
-            .ref(
-              '${RideHistoryPaths.entry(uid, entry.code)}/'
-              '${RideHistoryPaths.colorId}',
-            )
-            .set(colorId)
-            .timeout(timeout);
-      } on Object catch (e) {
-        // Not saved is fine: the colour is still shown for this session.
-        debugPrint('Saving the ride colour failed: $e');
+      final riders = snapshot.value;
+      if (riders is! Map) return null;
+      final mine = riders[uid];
+      final colorId = mine is Map ? mine[RideSummaryPaths.colorId] : null;
+      int? position;
+      if (riders.length >= 2) {
+        final distances = <String, double>{
+          for (final MapEntry(:key, :value) in riders.entries)
+            if (key is String && value is Map)
+              key: switch (value[RideSummaryPaths.distanceMeters]) {
+                final num d => d.toDouble(),
+                _ => 0,
+              },
+        };
+        final ahead = distances.values
+            .where((d) => d > (distances[uid] ?? 0))
+            .length;
+        if (distances.containsKey(uid)) position = ahead + 1;
       }
-      return withColor;
+
+      var resolved = entry;
+      final updates = <String, Object?>{};
+      if (entry.colorId == null && colorId is String && colorId.isNotEmpty) {
+        resolved = resolved.withColorId(colorId);
+        updates[RideHistoryPaths.colorId] = colorId;
+      }
+      if (entry.position == null && position != null) {
+        resolved = resolved.withPosition(position);
+        updates[RideHistoryPaths.position] = position;
+      }
+      if (updates.isEmpty) return null;
+      // Saved onto the history entry so every device has them from now on.
+      // The rules only allow adding them, never changing them. Written one by
+      // one, so a value already present never blocks the other.
+      for (final MapEntry(:key, :value) in updates.entries) {
+        try {
+          await _database
+              .ref('${RideHistoryPaths.entry(uid, entry.code)}/$key')
+              .set(value)
+              .timeout(timeout);
+        } on Object catch (e) {
+          // Not saved is fine: it is still shown for this session.
+          debugPrint('Saving the ride $key failed: $e');
+        }
+      }
+      return resolved;
     } on Object catch (e) {
-      debugPrint('Looking up the ride colour failed: $e');
+      debugPrint('Looking up the ride colour and place failed: $e');
       return null;
     }
   }

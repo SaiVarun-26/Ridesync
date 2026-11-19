@@ -26,10 +26,11 @@ abstract interface class RideHistoryRepository {
     required RideHistoryEntry entry,
   });
 
-  /// Looks up the colour [uid] rode in for a ride saved without one, from the
-  /// ride's summary, and saves it so every device gets it. Returns the entry
-  /// with its colour, or `null` when it cannot be found. Never throws.
-  Future<RideHistoryEntry?> resolveColor({
+  /// Looks up what a ride saved without it lacks: the colour [uid] rode in and,
+  /// for a group ride, where they finished. Read from the ride's summary and
+  /// saved so every device gets them. Returns the completed entry, or `null`
+  /// when there is nothing to add. Never throws.
+  Future<RideHistoryEntry?> resolveMissing({
     required String uid,
     required RideHistoryEntry entry,
   });

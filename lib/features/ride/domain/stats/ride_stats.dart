@@ -15,6 +15,8 @@ class RideStats {
     this.movingTimeMs = 0,
     this.maxSpeedMps = 0,
     this.topSpeedAtMs,
+    this.topSpeedPoint,
+    this.topSpeedDistanceMeters,
     this.sampleCount = 0,
     this.lastPoint,
     this.lastSampleAtMs,
@@ -42,6 +44,10 @@ class RideStats {
 
   /// When [maxSpeedMps] was reached (epoch millis), if it has been.
   final int? topSpeedAtMs;
+
+  /// Where [maxSpeedMps] was reached, and how far into the ride, if known.
+  final GeoPoint? topSpeedPoint;
+  final double? topSpeedDistanceMeters;
 
   /// Number of GPS fixes that passed quality checks.
   final int sampleCount;
@@ -81,6 +87,8 @@ class RideStats {
     int? movingTimeMs,
     double? maxSpeedMps,
     int? topSpeedAtMs,
+    GeoPoint? topSpeedPoint,
+    double? topSpeedDistanceMeters,
     int? sampleCount,
     GeoPoint? lastPoint,
     int? lastSampleAtMs,
@@ -92,6 +100,9 @@ class RideStats {
       movingTimeMs: movingTimeMs ?? this.movingTimeMs,
       maxSpeedMps: maxSpeedMps ?? this.maxSpeedMps,
       topSpeedAtMs: topSpeedAtMs ?? this.topSpeedAtMs,
+      topSpeedPoint: topSpeedPoint ?? this.topSpeedPoint,
+      topSpeedDistanceMeters:
+          topSpeedDistanceMeters ?? this.topSpeedDistanceMeters,
       sampleCount: sampleCount ?? this.sampleCount,
       lastPoint: lastPoint ?? this.lastPoint,
       lastSampleAtMs: lastSampleAtMs ?? this.lastSampleAtMs,

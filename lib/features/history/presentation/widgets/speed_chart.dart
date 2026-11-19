@@ -15,7 +15,12 @@ class SpeedChart extends StatelessWidget {
     required this.speedsMps,
     required this.progress,
     this.height = 140,
+    this.showLabels = true,
   });
+
+  /// Whether the peak and average are written on the chart. Off where those
+  /// figures are already shown beside it.
+  final bool showLabels;
 
   /// Speed at evenly spaced moments of the ride, in meters per second.
   final List<double> speedsMps;
@@ -53,16 +58,18 @@ class SpeedChart extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            top: 0,
-            child: Text(RideFormat.speed(peak), style: label),
-          ),
-          Positioned(
-            right: 0,
-            top: AppSpacing.xs,
-            child: Text('avg ${RideFormat.speed(average)}', style: label),
-          ),
+          if (showLabels) ...[
+            Positioned(
+              left: 0,
+              top: 0,
+              child: Text(RideFormat.speed(peak), style: label),
+            ),
+            Positioned(
+              right: 0,
+              top: AppSpacing.xs,
+              child: Text('avg ${RideFormat.speed(average)}', style: label),
+            ),
+          ],
         ],
       ),
     );

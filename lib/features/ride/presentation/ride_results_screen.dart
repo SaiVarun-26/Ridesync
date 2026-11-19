@@ -14,39 +14,25 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_icon.dart';
-import '../../../core/widgets/fade_slide_in.dart';
-import '../../../core/widgets/section_label.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
-import '../../history/domain/ride_details.dart';
 import '../../history/presentation/providers/ride_details_providers.dart';
 import '../../history/presentation/providers/ride_history_providers.dart';
-import '../../history/presentation/providers/ride_transition_providers.dart';
-import '../../history/presentation/widgets/ride_details_sections.dart';
-import '../../history/presentation/widgets/speed_chart.dart';
-import '../../insights/domain/recap/ride_recap.dart';
+import '../../history/presentation/story/ride_story_view.dart';
 import '../../naming/presentation/naming_providers.dart';
 import '../../naming/presentation/ride_name_dialog.dart';
 import '../../insights/presentation/providers/insights_providers.dart';
 import '../../insights/presentation/share/ride_share_sheet.dart';
-import '../../insights/presentation/widgets/recap_sections.dart';
-import '../../insights/presentation/widgets/rider_analytics_list.dart';
 import '../../room/presentation/providers/room_providers.dart';
 import '../../room/presentation/room_flow.dart';
 import '../../room/presentation/widgets/room_exit_scope.dart';
-import '../domain/live/ride_format.dart';
-import '../domain/summary/ride_summary.dart';
 
 /// Where every rider lands when the host ends the ride.
 ///
-/// A reward screen for finishing: a ring draws itself and checks off, the
-/// headline numbers count up, then the recap joins: the ride's score and a
-/// written summary, achievements springing in, the rider's speed, insights,
-/// what the route was like, the weather, and every rider's analytics.
+/// The ride is told as a story of cards (see [RideStoryView]): the solo
+/// journey, or the group's ride with its replay, standings and moments.
 /// Reaching it also adds the ride to the rider's history (with its recap
-/// highlights), and from here they can open the full ride, share a ride card,
-/// or go home.
+/// highlights). The story ends with the share card; Done goes home.
 class RideResultsScreen extends ConsumerStatefulWidget {
   const RideResultsScreen({super.key, required this.roomCode});
 
@@ -145,12 +131,6 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
     }
   }
 
-  void _viewRide() {
-    // No card to grow out of here, so the details simply fade in.
-    ref.read(rideTransitionOriginProvider.notifier).set(null);
-    context.push(AppRoutes.historyDetailsPath(_code));
-  }
-
   @override
   Widget build(BuildContext context) {
     ref
@@ -202,14 +182,20 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
                         onRetry: () =>
                             ref.invalidate(rideDetailsProvider(_code)),
                       ),
-                      data: (data) => _Results(
+                      data: (data) => RideStoryView(
                         key: const ValueKey('results'),
                         details: data,
                         myUid: myUid,
                         // Arrives a moment after the results, from the
-                        // background; its sections join as it does.
+                        // background; its cards join as it does.
                         recap: recap.value,
-                        liveName: liveName,
+                        completed: true,
+                        title:
+                            liveName ??
+                            (data.summary.named
+                                ? null
+                                : 'Waiting for the host to name this ride'),
+                        onShare: () => showRideShareSheet(context, code: _code),
                       ),
                     ),
                   ),
@@ -234,28 +220,6 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
                           ),
                           const SizedBox(height: AppSpacing.md),
                         ],
-                      Row(
-                        children: [
-                          Expanded(
-                            child: AppButton(
-                              label: 'View ride',
-                              icon: Icons.route_rounded,
-                              onPressed: details.hasValue ? _viewRide : null,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          AppButton(
-                            label: 'Share',
-                            icon: Icons.ios_share_rounded,
-                            variant: AppButtonVariant.secondary,
-                            expand: false,
-                            onPressed: details.hasValue
-                                ? () => showRideShareSheet(context, code: _code)
-                                : null,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
                       AppButton(
                         label: 'Done',
                         variant: AppButtonVariant.secondary,
@@ -330,320 +294,6 @@ class _Failed extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           AppTextButton(label: 'Try again', onPressed: onRetry),
-        ],
-      ),
-    );
-  }
-}
-
-/// The results themselves, revealed in order: the headline and counting
-/// numbers, the recap and score, the rider's standing, achievements, their
-/// speed, insights, the route, the weather and every rider's analytics.
-///
-/// The numbers come straight from the ride; the recap is worked out in the
-/// background and its sections join, each easing in, as soon as it is ready.
-class _Results extends StatefulWidget {
-  const _Results({
-    super.key,
-    required this.details,
-    required this.myUid,
-    this.recap,
-    this.liveName,
-  });
-
-  /// The ride's name as the room has it now, once the host has named it.
-  final String? liveName;
-
-  final RideDetails details;
-  final String? myUid;
-
-  /// `null` until the recap is ready (or if it could not be made, in which
-  /// case its sections simply never appear).
-  final RideRecap? recap;
-
-  @override
-  State<_Results> createState() => _ResultsState();
-}
-
-class _ResultsState extends State<_Results>
-    with SingleTickerProviderStateMixin {
-  static const int _totalMs = 2400;
-
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: _totalMs),
-  );
-  final List<CurvedAnimation> _curved = [];
-
-  Animation<double> _span(
-    int fromMs,
-    int toMs, [
-    Curve curve = AppMotion.curve,
-  ]) {
-    final a = CurvedAnimation(
-      parent: _controller,
-      curve: Interval(fromMs / _totalMs, toMs / _totalMs, curve: curve),
-    );
-    _curved.add(a);
-    return a;
-  }
-
-  late final Animation<double> _numbers = _span(300, 1300);
-  late final Animation<double> _standing = _span(900, 1500);
-  // The chart line is drawn across, so it travels rather than arrives.
-  late final Animation<double> _chart = _span(1100, 2000, AppMotion.move);
-
-  /// When the recap's sections start to join, and the gap between them.
-  static const Duration _recapStart = Duration(milliseconds: 700);
-  static const Duration _recapStep = Duration(milliseconds: 110);
-
-  /// A recap section, easing in at its place in the order once the recap is
-  /// ready; nothing at all before then.
-  Widget _recapSection(
-    int order,
-    String? title,
-    Widget? Function(RideRecap) build,
-  ) {
-    final recap = widget.recap;
-    final child = recap == null ? null : build(recap);
-    return AnimatedSize(
-      duration: AppMotion.slow,
-      curve: AppMotion.curve,
-      alignment: Alignment.topCenter,
-      child: child == null
-          ? const SizedBox(width: double.infinity)
-          : FadeSlideIn(
-              delay: _recapStart + _recapStep * order,
-              child: Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xxl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (title != null) ...[
-                      SectionLabel(title),
-                      const SizedBox(height: AppSpacing.md),
-                    ],
-                    child,
-                  ],
-                ),
-              ),
-            ),
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Starts after the first frame, so the screen is on show before it moves.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (MediaQuery.disableAnimationsOf(context)) {
-        _controller.value = 1;
-      } else {
-        _controller.forward();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    for (final a in _curved) {
-      a.dispose();
-    }
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Widget _reveal(Animation<double> animation, Widget child) => FadeTransition(
-    opacity: animation,
-    child: SlideTransition(
-      position: animation.drive(
-        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero),
-      ),
-      child: child,
-    ),
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    final summary = widget.details.summary;
-    final theme = Theme.of(context);
-    final ranked = RideRankings.rank(summary.riders, RankMetric.distance);
-    final myIndex = ranked.indexWhere((r) => r.uid == widget.myUid);
-    final me = myIndex < 0 ? null : ranked[myIndex];
-    final route = widget.details.routes[widget.myUid];
-    final speeds = route != null && route.hasSpeeds
-        ? route.smoothedSpeedsMps
-        : null;
-    final started = DateTime.fromMillisecondsSinceEpoch(
-      summary.group.startedAtMs,
-    );
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.xl,
-        AppSpacing.xl,
-        AppSpacing.lg,
-      ),
-      children: [
-        Column(
-          children: [
-            const _CompleteBadge(),
-            const SizedBox(height: AppSpacing.xl),
-            Text('Ride Complete', style: theme.textTheme.displaySmall),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              widget.liveName ??
-                  (summary.named ? summary.roomName : 'Waiting for the host to name this ride'),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '${RideFormat.date(started)} · ${RideFormat.time(started)}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xxl),
-        RideHeroStats(group: summary.group, progress: _numbers),
-        _recapSection(
-          0,
-          null,
-          (recap) => TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: AppMotion.entrance + _recapStart,
-            curve: Interval(
-              _recapStart.inMilliseconds /
-                  (AppMotion.entrance + _recapStart).inMilliseconds,
-              1,
-              curve: AppMotion.curve,
-            ),
-            builder: (context, t, _) =>
-                RecapCard(recap: recap, progress: AlwaysStoppedAnimation(t)),
-          ),
-        ),
-        if (me != null) ...[
-          const SizedBox(height: AppSpacing.xxl),
-          _reveal(
-            _standing,
-            _Standing(rank: myIndex + 1, of: ranked.length, rider: me),
-          ),
-        ],
-        _recapSection(1, 'ACHIEVEMENTS', (recap) {
-          if (recap.achievements.isEmpty) return null;
-          String? holder(String uid) => uid == widget.myUid
-              ? 'You'
-              : recap.riders
-                    .where((r) => r.uid == uid)
-                    .map((r) => r.name)
-                    .firstOrNull;
-          return AchievementBadges(
-            achievements: recap.achievements,
-            delay: _recapStart + _recapStep,
-            holderName: recap.riders.length > 1 ? holder : null,
-          );
-        }),
-        if (speeds != null && speeds.length > 3) ...[
-          const SizedBox(height: AppSpacing.xxl),
-          _reveal(
-            _standing,
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: SectionLabel('YOUR SPEED'),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SpeedChart(speedsMps: speeds, progress: _chart),
-        ],
-        _recapSection(
-          2,
-          'INSIGHTS',
-          (recap) => recap.insights.isEmpty
-              ? null
-              : InsightGrid(insights: recap.insights),
-        ),
-        _recapSection(
-          3,
-          'ROUTE',
-          (recap) => recap.route == null
-              ? null
-              : RouteIntelligenceCard(route: recap.route!),
-        ),
-        _recapSection(
-          4,
-          'WEATHER',
-          (recap) => recap.weather == null
-              ? null
-              : WeatherSnapshotCard(weather: recap.weather!),
-        ),
-        _recapSection(
-          5,
-          ranked.length > 1 ? 'RIDERS' : 'YOUR RIDE',
-          (recap) => RiderAnalyticsList(recap: recap),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-      ],
-    );
-  }
-}
-
-/// Where the rider placed, with their own three numbers.
-class _Standing extends StatelessWidget {
-  const _Standing({required this.rank, required this.of, required this.rider});
-
-  final int rank;
-  final int of;
-  final RiderRideSummary rider;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AppCard(
-      accent: AppColors.primary,
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primary,
-            ),
-            child: Text(
-              '#$rank',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  of == 1 ? 'You rode solo' : 'You placed $rank of $of',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${RideFormat.distance(rider.distanceMeters)}  ·  '
-                  'avg ${RideFormat.speed(rider.averageSpeedMps)}  ·  '
-                  'top ${RideFormat.speed(rider.maxSpeedMps)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

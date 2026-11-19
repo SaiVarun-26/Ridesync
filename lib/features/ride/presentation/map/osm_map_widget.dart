@@ -291,9 +291,10 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
         minZoom: _minZoom,
         maxZoom: _maxZoom,
         backgroundColor: AppColors.background,
-        interactionOptions: const InteractionOptions(
-          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-        ),
+        // Every gesture (the default interaction options), rotation included:
+        // two fingers turn the map, as in Google Maps, and the camera then
+        // keeps the chosen bearing until the follow button restores
+        // heading-up.
         onMapReady: () {
           _mapReady = true;
           _ensureTicking();

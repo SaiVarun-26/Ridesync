@@ -1,35 +1,24 @@
-import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/widgets/app_icon.dart';
-import '../../../core/widgets/app_icon_button.dart';
-import '../../../core/widgets/glass_panel.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/fade_slide_in.dart';
+import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/ride_loader.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
-import '../../insights/domain/recap/ride_recap.dart';
-import '../../naming/presentation/rename_ride_flow.dart';
 import '../../insights/presentation/providers/insights_providers.dart';
 import '../../insights/presentation/share/ride_share_sheet.dart';
-import '../../insights/presentation/widgets/recap_sections.dart';
-import '../../insights/presentation/widgets/rider_analytics_list.dart';
+import '../../naming/presentation/rename_ride_flow.dart';
 import '../domain/ride_details.dart';
 import 'providers/ride_details_providers.dart';
-import 'route/ride_route_map.dart';
-import 'widgets/ride_details_sections.dart';
+import 'story/ride_story_view.dart';
 
-/// A finished ride in full: the route told on a map you can explore, and the
-/// numbers in a sheet that slides over it. Laid out like an activity page in a
-/// fitness app.
+/// A finished ride from history, told as the same story of cards as the
+/// results screen: the solo journey, or the group's ride with its replay,
+/// standings and moments. The name can be changed from the overview.
 class RideDetailsScreen extends ConsumerWidget {
   const RideDetailsScreen({super.key, required this.roomCode});
 
@@ -39,523 +28,37 @@ class RideDetailsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final details = ref.watch(rideDetailsProvider(roomCode));
     return Scaffold(
-      body: details.when(
-        loading: () => const _Frame(child: Center(child: _LoadingDot())),
-        error: (error, _) => _Frame(
-          child: _Failed(
-            message: error is Failure
-                ? error.message
-                : 'Could not load this ride.',
-            onRetry: () => ref.invalidate(rideDetailsProvider(roomCode)),
-          ),
-        ),
-        data: (data) => _Content(details: data),
-      ),
-    );
-  }
-}
-
-/// The screen's dark backdrop with its back button, used while loading and
-/// when loading fails.
-class _Frame extends StatelessWidget {
-  const _Frame({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(child: child),
-        const SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: _BackButton(),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LoadingDot extends StatelessWidget {
-  const _LoadingDot();
-
-  @override
-  Widget build(BuildContext context) {
-    return const RideLoader(size: RideLoader.hero);
-  }
-}
-
-class _BackButton extends StatelessWidget {
-  const _BackButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topLeft,
-      child: AppIconButton(
-        glass: true,
-        icon: Icons.arrow_back_rounded,
-        tooltip: 'Back',
-        onPressed: () => context.pop(),
-      ),
-    );
-  }
-}
-
-class _Content extends ConsumerStatefulWidget {
-  const _Content({required this.details});
-
-  final RideDetails details;
-
-  @override
-  ConsumerState<_Content> createState() => _ContentState();
-}
-
-class _ContentState extends ConsumerState<_Content>
-    with SingleTickerProviderStateMixin {
-  /// The rider whose route is highlighted, if any.
-  String? _selectedUid;
-
-  /// How much of the screen the sheet takes when it first appears.
-  static const double _sheetStart = 0.46;
-  static const double _sheetMin = 0.22;
-  static const double _sheetMax = 0.94;
-
-  // --- The opening sequence ------------------------------------------------
-  //
-  // One controller plays the whole story, each part running over its own span
-  // of it: the map fades in, the camera settles on the ride, the route draws,
-  // the speed colours arrive, the start and finish appear, then the arrows,
-  // the numbers count up, and the rider lists fade in.
-
-  static const int _introMs = 3300;
-  static const Duration _mapWaitLimit = Duration(milliseconds: 1500);
-  static const Duration _skipDuration = AppMotion.normal;
-
-  late final AnimationController _intro = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: _introMs),
-  );
-  final List<CurvedAnimation> _curved = [];
-
-  Animation<double> _span(
-    int fromMs,
-    int toMs, [
-    Curve curve = AppMotion.curve,
-  ]) {
-    final animation = CurvedAnimation(
-      parent: _intro,
-      curve: Interval(fromMs / _introMs, toMs / _introMs, curve: curve),
-    );
-    _curved.add(animation);
-    return animation;
-  }
-
-  late final Animation<double> _mapCover = Tween<double>(
-    begin: 1,
-    end: 0,
-  ).animate(_span(0, 350));
-  late final Animation<double> _statsReveal = _span(2400, 3000);
-  late final Animation<double> _listsReveal = _span(2700, 3300);
-  late final RouteReveal _reveal = RouteReveal(
-    camera: _span(100, 1100, Curves.linear),
-    draw: _span(700, 1500, AppMotion.move),
-    heat: _span(1500, 1900),
-    startMarker: _span(1800, 2100),
-    finishMarker: _span(2000, 2350),
-    arrows: _span(2250, 2650),
-  );
-
-  Animation<double>? _routeAnimation;
-  Timer? _mapWait;
-  bool _mapReady = false;
-  bool _started = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _mapWait = Timer(_mapWaitLimit, () {
-      // The map should be ready long before this; if not, tell the story
-      // anyway rather than leave the screen waiting.
-      _mapReady = true;
-      _maybeStart();
-    });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_routeAnimation == null) {
-      _routeAnimation = ModalRoute.of(context)?.animation;
-      _routeAnimation?.addStatusListener(_onRouteStatus);
-    }
-  }
-
-  @override
-  void dispose() {
-    _mapWait?.cancel();
-    _routeAnimation?.removeStatusListener(_onRouteStatus);
-    for (final animation in _curved) {
-      animation.dispose();
-    }
-    _intro.dispose();
-    super.dispose();
-  }
-
-  void _onRouteStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed) _maybeStart();
-  }
-
-  void _onMapReady() {
-    _mapReady = true;
-    // One frame so the map has painted before it is revealed.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _maybeStart();
-    });
-  }
-
-  /// Starts the sequence once the map is ready and the page has finished
-  /// opening, so the two never compete for frames.
-  void _maybeStart() {
-    if (_started || !_mapReady || !mounted) return;
-    final route = _routeAnimation;
-    if (route != null && route.status != AnimationStatus.completed) return;
-    _started = true;
-    _mapWait?.cancel();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _intro.value = 1;
-    } else {
-      _intro.forward();
-    }
-  }
-
-  /// The viewer touched the map: let the sequence finish at once.
-  void _skipIntro() {
-    if (_started && _intro.value >= 1) return;
-    _started = true;
-    _mapWait?.cancel();
-    _intro.animateTo(1, duration: _skipDuration, curve: AppMotion.curve);
-  }
-
-  void _select(String? uid) {
-    if (uid == _selectedUid) return;
-    setState(() => _selectedUid = uid);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final summary = widget.details.summary;
-    final myUid = ref.watch(authStateChangesProvider).value?.uid;
-    // Built in the background; its sections join the sheet when ready.
-    final recap = ref.watch(rideRecapProvider(summary.roomCode)).value;
-    final colors = {
-      for (final rider in summary.riders) rider.uid: riderColorOf(rider),
-    };
-    final size = MediaQuery.sizeOf(context);
-    final topInset = MediaQuery.paddingOf(context).top + 56;
-    final selected = _selectedUid == null
-        ? null
-        : summary.riders.where((r) => r.uid == _selectedUid).firstOrNull;
-
-    return Stack(
-      children: [
-        Positioned.fill(
-          // Painted on its own layer, so the sheet sliding over it never
-          // makes the map repaint.
-          child: RepaintBoundary(
-            child: RideRouteMap(
-              details: widget.details,
-              colors: colors,
-              myUid: myUid,
-              selectedUid: _selectedUid,
-              onSelect: _select,
-              topInset: topInset,
-              bottomInset: size.height * _sheetStart,
-              reveal: _reveal,
-              onReady: _onMapReady,
-              onInteract: _skipIntro,
-            ),
-          ),
-        ),
-        // Hides the map until it is ready and has painted, then fades away, so
-        // it never visibly loads.
-        Positioned.fill(
-          child: IgnorePointer(
-            child: FadeTransition(
-              opacity: _mapCover,
-              child: const ColoredBox(color: AppColors.background),
-            ),
-          ),
-        ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _BackButton(),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: AppMotion.normal,
-                    switchInCurve: AppMotion.spring,
-                    switchOutCurve: AppMotion.exit,
-                    child: selected == null
-                        ? const SizedBox(key: ValueKey('none'), height: 44)
-                        : _SelectionChip(
-                            key: ValueKey(selected.uid),
-                            name: riderNameOf(selected),
-                            color: riderColorOf(selected),
-                            onClear: () => _select(null),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                AppIconButton(
-                  glass: true,
-                  icon: Icons.ios_share_rounded,
-                  tooltip: 'Share ride',
-                  onPressed: () =>
-                      showRideShareSheet(context, code: summary.roomCode),
-                ),
-              ],
-            ),
-          ),
-        ),
-        DraggableScrollableSheet(
-          initialChildSize: _sheetStart,
-          minChildSize: _sheetMin,
-          maxChildSize: _sheetMax,
-          snap: true,
-          snapSizes: const [_sheetStart],
-          builder: (context, controller) => _Sheet(
-            controller: controller,
-            details: widget.details,
-            recap: recap,
-            myUid: myUid,
-            selectedUid: _selectedUid,
-            onSelect: _select,
-            statsReveal: _statsReveal,
-            listsReveal: _listsReveal,
-            onRename: () => renameRideFlow(
-              context,
-              ref,
-              code: summary.roomCode,
-              currentName: summary.roomName,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Names the highlighted rider on the map and clears the highlight.
-class _SelectionChip extends StatelessWidget {
-  const _SelectionChip({
-    super.key,
-    required this.name,
-    required this.color,
-    required this.onClear,
-  });
-
-  final String name;
-  final Color color;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: GestureDetector(
-        onTap: onClear,
-        child: GlassPanel(
-          radius: 44,
-          accent: color,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: Text(
-                  name,
-                  style: Theme.of(context).textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              const Icon(
-                Icons.close_rounded,
-                size: AppIconSize.small,
-                color: AppColors.textSecondary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Sheet extends StatelessWidget {
-  const _Sheet({
-    required this.controller,
-    required this.details,
-    required this.recap,
-    required this.myUid,
-    required this.selectedUid,
-    required this.onSelect,
-    required this.statsReveal,
-    required this.listsReveal,
-    required this.onRename,
-  });
-
-  /// Opens the rename dialog for this ride.
-  final VoidCallback onRename;
-
-  final ScrollController controller;
-  final RideDetails details;
-
-  /// The ride's recap, once built; `null` until then.
-  final RideRecap? recap;
-  final String? myUid;
-  final String? selectedUid;
-  final ValueChanged<String?> onSelect;
-
-  /// Counts the headline numbers up from zero.
-  final Animation<double> statsReveal;
-
-  /// Fades the rider lists in, one after another.
-  final Animation<double> listsReveal;
-
-  /// How much later each list starts than the one before, as a fraction of
-  /// [listsReveal].
-  static const double _listStep = 0.14;
-  static const double _lastStart = 0.7;
-
-  @override
-  Widget build(BuildContext context) {
-    final summary = details.summary;
-    final theme = Theme.of(context);
-
-    Widget section(int index, String title, Widget child, {String? hint}) {
-      // Later sections start no later than [_lastStart], so any number of
-      // them still finish inside the reveal.
-      final start = math.min((index - 1) * _listStep, _lastStart);
-      final timing = listsReveal.drive(
-        CurveTween(
-          curve: Interval(
-            start,
-            (start + 0.55).clamp(0.0, 1.0),
-            curve: AppMotion.curve,
-          ),
-        ),
-      );
-      return FadeTransition(
-        opacity: timing,
-        child: SlideTransition(
-          position: timing.drive(
-            Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xxl),
-            child: DetailsSection(title: title, trailing: hint, child: child),
-          ),
-        ),
-      );
-    }
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.lg),
-        ),
-        border: Border.all(color: AppColors.border),
-        boxShadow: AppShadows.sheet,
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.lg),
-        ),
-        child: ListView(
-          controller: controller,
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.xl,
-            AppSpacing.md,
-            AppSpacing.xl,
-            AppSpacing.xxxl + MediaQuery.paddingOf(context).bottom,
-          ),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.textTertiary,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-              ),
+            _TopBar(
+              onShare: details.hasValue
+                  ? () => showRideShareSheet(context, code: roomCode)
+                  : null,
             ),
-            const SizedBox(height: AppSpacing.xl),
-            if (details.fromCache)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: Text(
-                  'Offline. Showing the saved copy of this ride.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: AppMotion.slow,
+                switchInCurve: AppMotion.curve,
+                switchOutCurve: AppMotion.exit,
+                child: details.when(
+                  loading: () => const Center(
+                    key: ValueKey('loading'),
+                    child: RideLoader(size: RideLoader.hero),
                   ),
+                  error: (error, _) => _Failed(
+                    key: const ValueKey('error'),
+                    message: error is Failure
+                        ? error.message
+                        : 'Could not load this ride.',
+                    onRetry: () =>
+                        ref.invalidate(rideDetailsProvider(roomCode)),
+                  ),
+                  data: (data) => _Content(key: const ValueKey('ride'), details: data),
                 ),
               ),
-            RideTitleBlock(summary: summary, onEdit: onRename),
-            const SizedBox(height: AppSpacing.xl),
-            RideHeroStats(group: summary.group, progress: statsReveal),
-            section(
-              1,
-              'RIDERS',
-              RiderListCard(
-                riders: summary.riders,
-                myUid: myUid,
-                selectedUid: selectedUid,
-                onSelect: onSelect,
-              ),
-              hint: 'Tap to highlight',
-            ),
-            section(
-              2,
-              'RANKINGS',
-              RankingCard(riders: summary.riders, myUid: myUid),
-            ),
-            section(
-              3,
-              'FINISH ORDER',
-              FinishOrderCard(riders: summary.riders, myUid: myUid),
-            ),
-            // The recap's sections, once it has been worked out. Each eases in
-            // as it arrives, so a slow recap never leaves a gap or a stub.
-            AnimatedSize(
-              duration: AppMotion.slow,
-              curve: AppMotion.curve,
-              alignment: Alignment.topCenter,
-              child: recap == null
-                  ? const SizedBox(width: double.infinity)
-                  : FadeSlideIn(
-                      key: const ValueKey('recap'),
-                      child: _RecapSections(recap: recap!, myUid: myUid),
-                    ),
             ),
           ],
         ),
@@ -564,81 +67,107 @@ class _Sheet extends StatelessWidget {
   }
 }
 
-/// The recap part of the sheet: score and summary, achievements, insights,
-/// the route, the weather and each rider's analytics. Sections with nothing
-/// to say are left out rather than shown empty.
-class _RecapSections extends StatelessWidget {
-  const _RecapSections({required this.recap, required this.myUid});
+class _Content extends ConsumerWidget {
+  const _Content({super.key, required this.details});
 
-  final RideRecap recap;
-  final String? myUid;
+  final RideDetails details;
 
   @override
-  Widget build(BuildContext context) {
-    final route = recap.route;
-    final weather = recap.weather;
-    String? holder(String uid) => uid == myUid
-        ? 'You'
-        : recap.riders
-              .where((r) => r.uid == uid)
-              .map((r) => r.name)
-              .firstOrNull;
-    Widget block(String title, Widget child) => Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xxl),
-      child: DetailsSection(title: title, child: child),
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = details.summary;
+    final code = summary.roomCode;
+    final myUid = ref.watch(authStateChangesProvider).value?.uid;
+    // Built once, in the background; its cards join as it arrives.
+    final recap = ref.watch(rideRecapProvider(code)).value;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        block('RECAP', RecapCard(recap: recap)),
-        if (recap.achievements.isNotEmpty)
-          block(
-            'ACHIEVEMENTS',
-            AchievementBadges(
-              achievements: recap.achievements,
-              holderName: recap.riders.length > 1 ? holder : null,
+        if (details.fromCache)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Text(
+              'Offline. Showing the saved copy of this ride.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textTertiary,
+              ),
             ),
           ),
-        if (recap.insights.isNotEmpty)
-          block('INSIGHTS', InsightGrid(insights: recap.insights)),
-        if (route != null) block('ROUTE', RouteIntelligenceCard(route: route)),
-        if (weather != null)
-          block('WEATHER', WeatherSnapshotCard(weather: weather)),
-        block(
-          recap.riders.length > 1 ? 'RIDER ANALYTICS' : 'YOUR RIDE',
-          RiderAnalyticsList(recap: recap),
+        Expanded(
+          child: RideStoryView(
+            details: details,
+            myUid: myUid,
+            recap: recap,
+            onRename: () => renameRideFlow(
+              context,
+              ref,
+              code: code,
+              currentName: summary.roomName,
+            ),
+            onShare: () => showRideShareSheet(context, code: code),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.xxl + MediaQuery.paddingOf(context).bottom,
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.onShare});
+
+  final VoidCallback? onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.xs,
+      ),
+      child: Row(
+        children: [
+          AppIconButton(
+            icon: Icons.arrow_back_rounded,
+            tooltip: 'Back',
+            onPressed: () => context.pop(),
+          ),
+          const Spacer(),
+          AppIconButton(
+            icon: Icons.ios_share_rounded,
+            tooltip: 'Share ride',
+            color: AppColors.textSecondary,
+            onPressed: onShare,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Failed extends StatelessWidget {
-  const _Failed({required this.message, required this.onRetry});
+  const _Failed({super.key, required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(message, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
             const SizedBox(height: AppSpacing.lg),
-            AppButton(
-              label: 'Try again',
-              variant: AppButtonVariant.secondary,
-              expand: false,
-              onPressed: onRetry,
-            ),
+            AppButton(label: 'Try again', expand: false, onPressed: onRetry),
           ],
         ),
       ),

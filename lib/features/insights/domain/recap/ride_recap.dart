@@ -8,6 +8,7 @@ import '../analysis/rider_analytics.dart';
 import '../analysis/route_profile.dart';
 import '../analysis/speed_profile.dart';
 import '../score/ride_score.dart';
+import '../story/ride_story.dart';
 import '../weather/weather_snapshot.dart';
 import 'recap_narrator.dart';
 
@@ -30,7 +31,12 @@ class RideRecap {
     this.routePoints = const [],
     this.routeSpeedsMps = const [],
     this.routeUid,
+    this.story,
   });
+
+  /// The ride told as a story: timeline, insights, moments, standings,
+  /// top-speed points and every rider's route in time.
+  final RideStory? story;
 
   /// Whose route [routePoints] is, so it can be drawn in their colour.
   final String? routeUid;
