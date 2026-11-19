@@ -756,9 +756,12 @@ class _MapControls extends StatelessWidget {
         valueListenable: commands.isFollowing,
         builder: (context, following, _) => Column(
           mainAxisSize: MainAxisSize.min,
+          // Right-aligned, so the fuel row's ⓘ sits to the left of the
+          // buttons' column.
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Tap: fuel stations on or off. Hold: fuel information.
-            const FuelToggleButton(),
+            // ⓘ: fuel information. ⛽: tap to turn fuel stations on or off.
+            const FuelControls(),
             if (onOverview != null) const SizedBox(height: AppSpacing.sm),
             if (onOverview != null)
               MapFloatingButton(

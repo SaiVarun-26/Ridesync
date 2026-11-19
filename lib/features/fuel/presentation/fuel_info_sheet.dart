@@ -15,7 +15,7 @@ import 'fuel_providers.dart';
 import 'fuel_station_controller.dart';
 import 'fuel_station_layer.dart';
 
-/// Opens the compact fuel information sheet (long press on the Fuel
+/// Opens the compact fuel information sheet (the ⓘ button beside the Fuel
 /// button).
 Future<void> showFuelInfoSheet(BuildContext context) {
   return showAppSheet<void>(
@@ -113,14 +113,6 @@ class FuelInfoSheet extends ConsumerWidget {
                   ],
                 );
               },
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Tap the fuel button to show or hide stations. '
-              'Hold it for this sheet.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
-              ),
             ),
           ],
         ),
