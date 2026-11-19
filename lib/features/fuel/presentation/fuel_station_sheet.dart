@@ -6,9 +6,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_dialogs.dart';
-import '../../../core/widgets/app_icon.dart';
 import '../../ride/domain/geo_point.dart';
 import '../../ride/domain/live/ride_format.dart';
+import '../domain/fuel_brand.dart';
 import '../domain/fuel_station.dart';
 import 'fuel_station_layer.dart';
 
@@ -82,6 +82,7 @@ class FuelStationSheet extends StatelessWidget {
     final origin = from;
     final straight = origin?.distanceMetersTo(station.point);
     final p = station.point;
+    final brand = FuelBrands.of(station);
     return SafeArea(
       top: false,
       child: Padding(
@@ -97,26 +98,29 @@ class FuelStationSheet extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: FuelStationLayer.color,
-                  ),
-                  child: const Icon(
-                    Icons.local_gas_station_rounded,
-                    size: AppIconSize.medium,
-                    color: Colors.white,
-                  ),
-                ),
+                FuelBrandBadge(station: station, size: 44),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: Text(
-                    station.displayName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.headlineSmall,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        station.displayName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineSmall,
+                      ),
+                      if (brand != null &&
+                          !FuelBrands.normalize(station.displayName).contains(
+                            FuelBrands.normalize(brand.name),
+                          ))
+                        Text(
+                          brand.name,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],

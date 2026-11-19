@@ -26,15 +26,13 @@ abstract final class FuelMerge {
       final existing = into[s.id] ?? grid.nearMatch(s);
       if (existing != null) {
         duplicates++;
-        // Prefer the named one.
-        if (existing.name == null && s.name != null) {
-          final renamed = FuelStation(
-            id: existing.id,
-            point: existing.point,
-            name: s.name,
-          );
-          into[existing.id] = renamed;
-          grid.replace(existing, renamed);
+        // Keep what either entry knows: a name, a brand, an operator.
+        if ((existing.name == null && s.name != null) ||
+            (existing.brand == null && s.brand != null) ||
+            (existing.operator == null && s.operator != null)) {
+          final filled = existing.withDetailsFrom(s);
+          into[existing.id] = filled;
+          grid.replace(existing, filled);
         }
         onKept?.call(existing.id);
         continue;

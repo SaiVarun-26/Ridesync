@@ -14,7 +14,9 @@ import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/ride_loader.dart';
 import '../../../core/theme/rider_palette.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../fuel/presentation/fuel_layer_preference.dart';
 import '../../fuel/presentation/fuel_providers.dart';
+import '../../fuel/presentation/fuel_toggle_button.dart';
 import '../../fuel/presentation/fuel_station_controller.dart';
 import '../../fuel/presentation/fuel_station_layer.dart';
 import '../../fuel/presentation/fuel_station_sheet.dart';
@@ -145,6 +147,8 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
         'Fuel stations are unavailable right now. Retrying.',
       _ => null,
     };
+    // Nothing to say about a layer the rider has hidden.
+    if (ref.read(fuelLayerVisibleProvider) != true) return;
     if (message == null || !_fuelNoticesShown.add(state)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -353,6 +357,9 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
     );
 
     final isHost = myUid != null && room?.hostUid == myUid;
+    // Until the room is known nothing group-only is shown, so a solo ride
+    // never flashes the group's tools.
+    final isGroupRide = (room?.members.length ?? 0) > 1;
     final status = room?.status;
     final canEnd =
         isHost && (status == RoomStatus.riding || status == RoomStatus.ending);
@@ -431,6 +438,8 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                                 ? snapshot?.rejoinPoint
                                 : null,
                             fuel: ref.watch(fuelStationControllerProvider),
+                            showFuel:
+                                ref.watch(fuelLayerVisibleProvider) ?? false,
                             onFuelStationTap: (station) {
                               final me = ref
                                   .read(rideMapControllerProvider(roomCode))
@@ -455,14 +464,18 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                       RideMapHeader(
                         rideName: room?.name ?? '',
                         code: roomCode,
-                        trailing: SafetyButton(
-                          alertActive: safety.needsAttention,
-                          onPressed: () => showSafetySheet(
-                            context,
-                            code: roomCode,
-                            guided: guided,
-                          ),
-                        ),
+                        // Safety tools are about the group: none on a solo
+                        // ride (a room with only this rider).
+                        trailing: isGroupRide
+                            ? SafetyButton(
+                                alertActive: safety.needsAttention,
+                                onPressed: () => showSafetySheet(
+                                  context,
+                                  code: roomCode,
+                                  guided: guided,
+                                ),
+                              )
+                            : null,
                       ),
                       if (guidance != null && snapshot != null) ...[
                         const SizedBox(height: AppSpacing.sm),
@@ -744,6 +757,9 @@ class _MapControls extends StatelessWidget {
         builder: (context, following, _) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Tap: fuel stations on or off. Hold: fuel information.
+            const FuelToggleButton(),
+            if (onOverview != null) const SizedBox(height: AppSpacing.sm),
             if (onOverview != null)
               MapFloatingButton(
                 icon: Icons.route_rounded,

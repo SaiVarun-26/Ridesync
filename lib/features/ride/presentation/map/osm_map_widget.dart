@@ -47,8 +47,14 @@ class OsmMapWidget extends StatefulWidget {
     this.completionPoint,
     this.completionColor = AppColors.textPrimary,
     this.fuel,
+    this.showFuel = true,
     this.onFuelStationTap,
   });
+
+  /// Whether fuel stations are drawn (the rider's layer setting). Only
+  /// drawing and tapping depend on it: [fuel] keeps being told where the
+  /// rider is either way, so its background search never stops.
+  final bool showFuel;
 
   /// The fuel stations around the view, drawn under the trails. Told where
   /// the map is looking as it moves.
@@ -317,7 +323,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
   /// Returns whether the tap landed on one.
   bool _onFuelTap(Offset at) {
     final fuel = widget.fuel;
-    if (fuel == null || fuel.visible.isEmpty) return false;
+    if (fuel == null || !widget.showFuel || fuel.visible.isEmpty) return false;
     final camera = _mapController.camera;
     final mark = FuelClusters.hit(camera, fuel.visible, at);
     if (mark == null) return false;
@@ -363,7 +369,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
         const NightTileLayer(),
         ?widget.routeLayer,
         // Over the route, under the trails and riders.
-        if (widget.fuel != null)
+        if (widget.fuel != null && widget.showFuel)
           ListenableBuilder(
             listenable: widget.fuel!,
             builder: (context, _) =>

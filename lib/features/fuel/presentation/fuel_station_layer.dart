@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
 import '../../../core/theme/app_colors.dart';
+import '../domain/fuel_brand.dart';
 import '../domain/fuel_station.dart';
 
 /// One mark on the map: a single station, or several close together.
@@ -17,6 +18,17 @@ class FuelMark {
   final LatLng point;
 
   bool get isCluster => stations.length > 1;
+
+  /// The company every station in the group belongs to, if they all share
+  /// one; a mixed group is drawn as generic fuel.
+  FuelBrand? get sharedBrand {
+    final first = FuelBrands.of(stations.first);
+    if (first == null) return null;
+    for (final s in stations.skip(1)) {
+      if (!identical(FuelBrands.of(s), first)) return null;
+    }
+    return first;
+  }
 }
 
 /// Groups stations that would sit on top of each other at the camera's zoom.
@@ -117,78 +129,177 @@ class _FuelPainter extends CustomPainter {
   final MapCamera camera;
   final List<FuelStation> stations;
 
-  static const double _radius = 8.5;
-  static const double _clusterRadius = 11;
-  static const double _ring = 1.6;
-
-  /// Laid-out glyphs, by text and opacity step, so painting a frame lays out
-  /// no text.
-  static final Map<(String, int), TextPainter> _glyphs = {};
-
-  static TextPainter _glyph(String? label, double opacity) {
-    final step = (opacity * 20).round();
-    final key = (label ?? '', step);
-    final white = Colors.white.withValues(alpha: step / 20);
-    const icon = Icons.local_gas_station_rounded;
-    return _glyphs[key] ??= TextPainter(
-      text: label == null
-          ? TextSpan(
-              text: String.fromCharCode(icon.codePoint),
-              style: TextStyle(
-                fontFamily: icon.fontFamily,
-                package: icon.fontPackage,
-                fontSize: 11,
-                color: white,
-              ),
-            )
-          : TextSpan(
-              text: label,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                color: white,
-                height: 1,
-              ),
-            ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-  }
-
   @override
   void paint(Canvas canvas, Size size) {
     final opacity = FuelStationLayer.opacityAt(camera.zoom);
     // A little smaller far out, as well as fainter.
     final scale = 0.85 + 0.15 * ((opacity - 0.45) / 0.55);
-    final fill = Paint()
-      ..color = FuelStationLayer.color.withValues(alpha: 0.92 * opacity);
-    final ring = Paint()
-      ..color = AppColors.background.withValues(alpha: 0.85 * opacity);
     final bounds = Offset.zero & size;
     for (final mark in FuelClusters.of(camera, stations)) {
       final at = camera.latLngToScreenOffset(mark.point);
       if (!bounds.inflate(24).contains(at)) continue;
-      final r = (mark.isCluster ? _clusterRadius : _radius) * scale;
-      canvas
-        ..drawCircle(at, r + _ring, ring)
-        ..drawCircle(at, r, fill);
       final n = mark.stations.length;
-      final glyph = _glyph(
-        mark.isCluster ? (n > 99 ? '99+' : '$n') : null,
-        opacity,
+      FuelMarkerArt.paint(
+        canvas,
+        at,
+        brand: mark.isCluster ? mark.sharedBrand : FuelBrands.of(mark.stations.single),
+        count: mark.isCluster ? n : null,
+        scale: scale,
+        opacity: opacity,
       );
-      final s = mark.isCluster ? 1.0 : scale;
-      canvas
-        ..save()
-        ..translate(at.dx, at.dy)
-        ..scale(s);
-      glyph.paint(canvas, Offset(-glyph.width / 2, -glyph.height / 2));
-      canvas.restore();
     }
   }
 
   @override
   bool shouldRepaint(_FuelPainter old) =>
       old.camera != camera || !identical(old.stations, stations);
+}
+
+/// How a fuel station is drawn, everywhere it appears: a flat disc in the
+/// company's colour with its short label in bold, or the orange disc with a
+/// white pump for unknown companies. A white ring and a dark hairline keep
+/// it clear on dark, light and satellite maps alike; labels carry a dark
+/// outline so white text stays readable on light colours and in sunlight.
+abstract final class FuelMarkerArt {
+  static const double radius = 10;
+  static const double clusterRadius = 11.5;
+  static const double ring = 1.8;
+
+  /// Paints one marker centred on [at]: [brand]'s (or the generic one), or a
+  /// group of [count] when given.
+  static void paint(
+    Canvas canvas,
+    Offset at, {
+    required FuelBrand? brand,
+    int? count,
+    double scale = 1,
+    double opacity = 1,
+  }) {
+    final r = (count == null ? radius : clusterRadius) * scale;
+    final fill = brand?.color ?? FuelStationLayer.color;
+    canvas
+      ..drawCircle(
+        at,
+        r + ring + 1,
+        Paint()..color = Colors.black.withValues(alpha: 0.55 * opacity),
+      )
+      ..drawCircle(
+        at,
+        r + ring,
+        Paint()..color = Colors.white.withValues(alpha: opacity),
+      )
+      ..drawCircle(at, r, Paint()..color = fill.withValues(alpha: opacity));
+
+    final String? text = count != null
+        ? (count > 99 ? '99+' : '$count')
+        : brand?.label;
+    final glyphs = _glyphs(text, brand?.labelColor ?? Colors.white, opacity);
+    canvas
+      ..save()
+      ..translate(at.dx, at.dy)
+      ..scale(scale);
+    for (final g in glyphs) {
+      g.paint(canvas, Offset(-g.width / 2, -g.height / 2));
+    }
+    canvas.restore();
+  }
+
+  /// Laid-out label (outline, then fill) by text, colour and opacity step,
+  /// so painting a frame lays out no text.
+  static final Map<(String, int, int), List<TextPainter>> _cache = {};
+
+  static List<TextPainter> _glyphs(String? text, Color color, double opacity) {
+    final step = (opacity * 20).round();
+    final key = (text ?? '', color.toARGB32(), step);
+    return _cache[key] ??= () {
+      const icon = Icons.local_gas_station_rounded;
+      TextStyle style(Paint? stroke, Color? fill) => text == null
+          ? TextStyle(
+              fontFamily: icon.fontFamily,
+              package: icon.fontPackage,
+              fontSize: 12.5,
+              foreground: stroke,
+              color: fill,
+            )
+          : TextStyle(
+              fontSize: text.length >= 3
+                  ? 8
+                  : text.length == 2
+                  ? 9.5
+                  : 11.5,
+              fontWeight: FontWeight.w900,
+              letterSpacing: text.length >= 2 ? -0.3 : 0,
+              height: 1,
+              foreground: stroke,
+              color: fill,
+            );
+      TextPainter layout(TextStyle s) => TextPainter(
+        text: TextSpan(
+          text: text ?? String.fromCharCode(icon.codePoint),
+          style: s,
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final alpha = step / 20;
+      return [
+        layout(
+          style(
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.2
+              ..strokeJoin = StrokeJoin.round
+              ..color = Colors.black.withValues(alpha: 0.45 * alpha),
+            null,
+          ),
+        ),
+        layout(style(null, color.withValues(alpha: alpha))),
+      ];
+    }();
+  }
+}
+
+/// A fuel station's marker as a widget, for places outside the map (the
+/// station sheet), drawn exactly as on the map.
+class FuelBrandBadge extends StatelessWidget {
+  const FuelBrandBadge({super.key, required this.station, this.size = 40});
+
+  final FuelStation station;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = FuelBrands.of(station);
+    return Semantics(
+      label: brand?.name ?? 'Fuel station',
+      child: SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _BadgePainter(brand)),
+      ),
+    );
+  }
+}
+
+class _BadgePainter extends CustomPainter {
+  const _BadgePainter(this.brand);
+
+  final FuelBrand? brand;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale =
+        size.shortestSide /
+        2 /
+        (FuelMarkerArt.radius + FuelMarkerArt.ring + 1);
+    FuelMarkerArt.paint(
+      canvas,
+      size.center(Offset.zero),
+      brand: brand,
+      scale: scale,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BadgePainter old) => old.brand != brand;
 }
 
 /// Distance and time helpers for the station sheet.

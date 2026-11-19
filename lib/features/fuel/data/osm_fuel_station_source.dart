@@ -223,6 +223,8 @@ class OsmFuelStationProviders implements FuelStationProviders {
               _clean(tag('name')) ??
               _clean(tag('brand')) ??
               _clean(tag('operator')),
+          brand: _clean(tag('brand')),
+          operator: _clean(tag('operator')),
         ),
       );
     }

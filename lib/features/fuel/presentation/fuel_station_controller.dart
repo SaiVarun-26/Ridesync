@@ -125,6 +125,18 @@ class FuelStationController extends ChangeNotifier {
   int get photonRequests => _photon.requests;
   int get overpassRequests => _overpass.requests;
 
+  /// When the stations around the rider were last brought up to date: the
+  /// most recent finished search of an area around them, or `null` before
+  /// any.
+  DateTime? get lastUpdatedAt {
+    DateTime? latest;
+    for (final t in _wanted) {
+      final at = _areas[t]?.fetchedAt;
+      if (at != null && (latest == null || at.isAfter(latest))) latest = at;
+    }
+    return latest;
+  }
+
   /// Whether every area around the rider has been fully searched.
   bool get isComplete =>
       _wanted.isNotEmpty && _wanted.every((t) => _areas[t]?.complete ?? false);
