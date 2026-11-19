@@ -9,10 +9,15 @@ import '../../../core/errors/result.dart';
 import '../../../core/feedback/app_haptics.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_icon.dart';
 import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/ride_loader.dart';
 import '../../../core/theme/rider_palette.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../fuel/presentation/fuel_providers.dart';
+import '../../fuel/presentation/fuel_station_controller.dart';
+import '../../fuel/presentation/fuel_station_layer.dart';
+import '../../fuel/presentation/fuel_station_sheet.dart';
 import '../../naming/presentation/naming_providers.dart';
 import '../../naming/presentation/ride_name_dialog.dart';
 import '../../room/domain/room.dart';
@@ -113,15 +118,59 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
   /// The rider's marker snaps onto the route within this distance of it.
   static const double _snapMeters = 12;
 
+  late final FuelStationController _fuel = ref.read(
+    fuelStationControllerProvider,
+  );
+
+  /// Fuel notices already shown on this ride, so each shows once.
+  final Set<FuelSearchState> _fuelNoticesShown = {};
+
   @override
   void initState() {
     super.initState();
     // The ride has started for this rider: the live map is opening.
     AppHaptics.milestone();
+    _fuel.addListener(_onFuelChanged);
+  }
+
+  /// Says once, quietly, when there is no fuel nearby or it cannot be
+  /// looked up, instead of leaving the map silently without stations.
+  void _onFuelChanged() {
+    final state = _fuel.state;
+    final message = switch (state) {
+      FuelSearchState.noneNearby =>
+        'No fuel stations within '
+            '${(_fuel.radiusMeters / 1000).round()} km.',
+      FuelSearchState.unavailable =>
+        'Fuel stations are unavailable right now. Retrying.',
+      _ => null,
+    };
+    if (message == null || !_fuelNoticesShown.add(state)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(
+                  Icons.local_gas_station_rounded,
+                  size: AppIconSize.medium,
+                  color: FuelStationLayer.color,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: Text(message)),
+              ],
+            ),
+          ),
+        );
+    });
   }
 
   @override
   void dispose() {
+    _fuel.removeListener(_onFuelChanged);
     _introTimer?.cancel();
     _commands.dispose();
     _panelInset.dispose();
@@ -381,6 +430,18 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                                     guidance.isReturning
                                 ? snapshot?.rejoinPoint
                                 : null,
+                            fuel: ref.watch(fuelStationControllerProvider),
+                            onFuelStationTap: (station) {
+                              final me = ref
+                                  .read(rideMapControllerProvider(roomCode))
+                                  .myFix;
+                              showFuelStationSheet(
+                                context,
+                                station: station,
+                                from: me?.point,
+                                speedMps: me?.speedMps,
+                              );
+                            },
                           ),
                         ),
                 ),

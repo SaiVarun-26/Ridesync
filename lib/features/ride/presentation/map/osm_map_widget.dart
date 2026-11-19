@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,9 @@ import 'package:latlong2/latlong.dart' show LatLng;
 import '../../../../core/feedback/app_haptics.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../fuel/domain/fuel_station.dart';
+import '../../../fuel/presentation/fuel_station_controller.dart';
+import '../../../fuel/presentation/fuel_station_layer.dart';
 import '../../domain/geo_point.dart';
 import 'camera_controller.dart';
 import 'live_map_commands.dart';
@@ -42,7 +46,16 @@ class OsmMapWidget extends StatefulWidget {
     this.commands,
     this.completionPoint,
     this.completionColor = AppColors.textPrimary,
+    this.fuel,
+    this.onFuelStationTap,
   });
+
+  /// The fuel stations around the view, drawn under the trails. Told where
+  /// the map is looking as it moves.
+  final FuelStationController? fuel;
+
+  /// A fuel station was tapped.
+  final ValueChanged<FuelStation>? onFuelStationTap;
 
   /// Once the ride is over: where it finished. A marker springs in there.
   final GeoPoint? completionPoint;
@@ -120,6 +133,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
     _camera.setBottomInset(widget.bottomInset.value, _now);
     widget.bottomInset.addListener(_onInsetChanged);
     widget.commands?.attach(this);
+    _reportRider();
   }
 
   /// Space kept around a framed route, beyond the panels over the map.
@@ -179,6 +193,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
     super.didUpdateWidget(oldWidget);
     final now = _now;
     _interpolator.update(widget.markers, now);
+    _reportRider();
     if (_interpolator.isAnimating(now) || _interpolator.hasMarkers) {
       _ensureTicking();
     }
@@ -263,6 +278,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
         hit = frame.uid;
       }
     }
+    if (hit == null && _onFuelTap(tap.relative!)) return;
     if (hit == _selectedUid) {
       if (hit == null) return;
       // Tapping the open rider again closes the card.
@@ -278,6 +294,47 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
   void _onMapEvent(MapEvent event) {
     _camera.onMapEvent(event, _now);
     _ensureTicking();
+  }
+
+  /// Tells the fuel layer where this rider is, so it searches around them
+  /// and keeps up as they ride. Cheap on every fix.
+  void _reportRider() {
+    final fuel = widget.fuel;
+    if (fuel == null) return;
+    for (final m in widget.markers) {
+      if (m.isMe || m.uid == widget.myUid) {
+        final point = m.point;
+        // After this build: the update may redraw the fuel layer.
+        scheduleMicrotask(() {
+          if (mounted) fuel.updatePosition(point);
+        });
+        return;
+      }
+    }
+  }
+
+  /// A tap on fuel: a station opens its sheet; a group zooms in to split.
+  /// Returns whether the tap landed on one.
+  bool _onFuelTap(Offset at) {
+    final fuel = widget.fuel;
+    if (fuel == null || fuel.visible.isEmpty) return false;
+    final camera = _mapController.camera;
+    final mark = FuelClusters.hit(camera, fuel.visible, at);
+    if (mark == null) return false;
+    if (_selectedUid != null) setState(() => _selectedUid = null);
+    if (mark.isCluster) {
+      AppHaptics.selection();
+      final zoom = math.min(camera.zoom + 2, _maxZoom);
+      // While following, the camera keeps the rider in place; otherwise the
+      // group is brought to the middle as it splits.
+      _mapController.move(
+        _camera.isActive(_now) ? camera.center : mark.point,
+        zoom,
+      );
+    } else {
+      widget.onFuelStationTap?.call(mark.stations.single);
+    }
+    return true;
   }
 
   @override
@@ -305,6 +362,13 @@ class _OsmMapWidgetState extends State<OsmMapWidget>
       children: [
         const NightTileLayer(),
         ?widget.routeLayer,
+        // Over the route, under the trails and riders.
+        if (widget.fuel != null)
+          ListenableBuilder(
+            listenable: widget.fuel!,
+            builder: (context, _) =>
+                FuelStationLayer(stations: widget.fuel!.visible),
+          ),
         TrailLayer(trails: widget.trails, nowMs: widget.nowMs),
         if (widget.returnTarget != null && widget.myUid != null)
           _ReturnLineLayer(
