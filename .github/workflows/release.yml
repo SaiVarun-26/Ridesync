@@ -1,8 +1,10 @@
 name: Release
 
-# Publishes a GitHub Release with the Android APK whenever a version tag
-# (v1.0.0, v1.1.0, ...) is pushed. The APK is attached to the Release and is
-# never committed to the repository.
+# Runs whenever a version tag (v1.1.0, v1.2.0, ...) is pushed: checks the
+# version, analysis and tests, and, when the release signing secrets are set,
+# builds the APK and publishes it to GitHub Releases. Without the secrets it
+# only checks, and the release is published with a locally built APK (see
+# "Set up release signing" below). APKs are never committed to the repository.
 on:
   push:
     tags:
@@ -69,7 +71,13 @@ jobs:
       # secrets. Without them the APK is signed with a temporary key: it
       # installs fine, but an update signed with a different key will not
       # install over it.
+      # Google Sign-In only works in an APK whose signing key's SHA-1 is
+      # registered in Firebase. Without the signing secrets the runner would
+      # sign with a throwaway key, so nothing is built or published: the
+      # release is made from a locally built APK instead, and this run only
+      # checks the code. (It also never replaces an APK already attached.)
       - name: Set up release signing
+        id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -77,9 +85,11 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::warning::No release signing secrets; the APK is signed with a temporary key."
+            echo "::warning::No release signing secrets: the APK is not built or published by CI. Attach a locally built, Firebase-registered APK to the release."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "signed=true" >> "$GITHUB_OUTPUT"
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
           {
             echo "storeFile=upload-keystore.jks"
@@ -89,9 +99,11 @@ jobs:
           } > android/key.properties
 
       - name: Build release APK
+        if: steps.signing.outputs.signed == 'true'
         run: flutter build apk --release
 
       - name: Name the APK
+        if: steps.signing.outputs.signed == 'true'
         id: apk
         run: |
           NAME="RideSync-${{ steps.version.outputs.tag }}.apk"
@@ -100,6 +112,7 @@ jobs:
           echo "file=$NAME" >> "$GITHUB_OUTPUT"
 
       - name: Write release notes
+        if: steps.signing.outputs.signed == 'true'
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           NOTES="docs/release-notes/$TAG.md"
@@ -128,6 +141,7 @@ jobs:
           } >> release-notes.md
 
       - name: Publish release
+        if: steps.signing.outputs.signed == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}

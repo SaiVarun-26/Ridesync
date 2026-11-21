@@ -14,7 +14,7 @@ For anything larger than a small fix, please open an issue first so the change c
 
 1. Install the [Flutter SDK](https://docs.flutter.dev/get-started/install) (stable channel).
 2. Fork and clone the repository.
-3. Connect your own Firebase project (see [Getting Started](README.md#getting-started)).
+3. Connect your own Firebase project (see [Firebase setup](README.md#firebase-setup)).
 4. Install dependencies and run:
    ```bash
    flutter pub get

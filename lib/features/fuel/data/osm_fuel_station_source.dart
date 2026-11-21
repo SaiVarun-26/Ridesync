@@ -39,7 +39,7 @@ class OsmFuelStationProviders implements FuelStationProviders {
 
   static const int photonLimit = 50;
   static const String _userAgent =
-      'RideSync/1.0 (com.ridesync.ridesync; fuel stations on the ride map)';
+      'RideSync/1.1 (com.ridesync.ridesync; fuel stations on the ride map)';
 
   @override
   Future<FuelProviderResult> nearest(GeoPoint c, double radiusMeters) async {

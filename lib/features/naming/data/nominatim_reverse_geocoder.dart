@@ -21,7 +21,7 @@ class NominatimReverseGeocoder implements ReverseGeocoder {
 
   static const String _host = 'nominatim.openstreetmap.org';
   static const String _userAgent =
-      'RideSync/1.0 (com.ridesync.ridesync; ride naming)';
+      'RideSync/1.1 (com.ridesync.ridesync; ride naming)';
 
   /// Zoom 16 resolves to a street but reports the neighbourhood, suburb and
   /// taluk around it; zoom 14 gives only coarse municipal zones in many

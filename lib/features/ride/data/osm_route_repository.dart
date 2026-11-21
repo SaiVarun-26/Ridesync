@@ -30,7 +30,7 @@ class OsmRouteRepository implements RouteRepository {
   static const String _photonHost = 'photon.komoot.io';
   static const String _osrmHost = 'router.project-osrm.org';
   static const String _userAgent =
-      'RideSync/1.0 (com.ridesync.ridesync; group ride planner)';
+      'RideSync/1.1 (com.ridesync.ridesync; group ride planner)';
 
   /// The room's route field accepts at most this many characters; a little
   /// is kept spare.

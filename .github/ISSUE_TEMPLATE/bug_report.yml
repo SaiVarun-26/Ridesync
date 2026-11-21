@@ -48,7 +48,7 @@ body:
     id: version
     attributes:
       label: RideSync version
-      placeholder: v1.0.0
+      placeholder: v1.1.0
     validations:
       required: true
   - type: input
