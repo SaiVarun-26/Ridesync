@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../insights/presentation/providers/insights_providers.dart';
+import '../../room/domain/rider_ride_state.dart';
 import '../../room/domain/room.dart';
 import '../../room/domain/room_status.dart';
 import '../../room/presentation/providers/room_providers.dart';
@@ -95,9 +96,12 @@ class RideMapState {
   /// Clock used to fade trails consistently across a frame.
   final int nowMs;
 
-  /// Whether this rider's final record has been saved (or given up on) after
-  /// the host ended the ride.
+  /// Whether this rider's final record has been saved (or given up on) once
+  /// their ride ended.
   final bool isFinalSaved;
+
+  /// Whether this rider has paused their ride.
+  bool get isPaused => myStats?.isPaused ?? false;
 
   /// Current ground speed, in km/h.
   double get speedKmh => (myFix?.speedMps ?? 0) * _kmhPerMps;
@@ -122,7 +126,9 @@ class RideMapController extends Notifier<RideMapState> {
   late LocationRepository _location;
   late BackgroundTrackingService _tracking;
   Timer? _notificationTimer;
-  bool _finishing = false;
+
+  /// This rider's ride being finished, once it is.
+  Future<void>? _finishing;
   RideNotificationContent _lastNotification = RideNotificationContent.initial;
 
   /// Below this speed no heading is shown (GPS heading is noise when
@@ -217,16 +223,83 @@ class RideMapController extends Notifier<RideMapState> {
   /// room is already `ended`, the record is closed and there is nothing left
   /// to save, so tracking is only stopped.
   void _maybeFinish(Room? room) {
-    if (_finishing || room == null || !ref.mounted) return;
+    if (_finishing != null || room == null || !ref.mounted) return;
     final status = room.status;
     if (status != RoomStatus.ending && status != RoomStatus.ended) return;
-    _finishing = true;
-    unawaited(_finishRide(saveFinalRecord: status == RoomStatus.ending));
+    _finishing = _finishRide(saveFinalRecord: status == RoomStatus.ending);
+  }
+
+  /// Ends this rider's own ride: a last GPS fix, the record frozen and saved,
+  /// then GPS and location sharing stop. The group carries on. Returns the
+  /// same future when called again.
+  ///
+  /// The background service keeps running, so the app stays alive while the
+  /// ride is saved even with the phone locked (an auto end usually happens in
+  /// a pocket); [stopTracking] stops it once everything is saved.
+  Future<void> finishMyRide() {
+    return _finishing ??= _finishRide(
+      saveFinalRecord: true,
+      keepTracking: true,
+    );
+  }
+
+  /// Whether this rider's finished record is saved in the database. Makes
+  /// sure it is: finishes again if the first try could not, and sends the
+  /// record again if it is missing. Never throws.
+  Future<bool> confirmFinalRecord() async {
+    await finishMyRide();
+    if (_stats.current?.isFinished != true) {
+      await _stats.finish(endedAtMs: _endedAtMs ?? _nowMs());
+    }
+    return _stats.confirmFinalSaved();
+  }
+
+  /// The last GPS position this rider had, for naming their ride.
+  GeoPoint? get lastPoint => _stats.current?.lastPoint ?? state.myFix?.point;
+
+  /// Where this rider's ride began, for naming it.
+  GeoPoint? get firstPoint {
+    final route = _stats.route;
+    return route.isEmpty ? null : route.first;
+  }
+
+  /// Stops the background service, once the finished ride is saved.
+  Future<void> stopTracking() => _tracking.stop();
+
+  int? _endedAtMs;
+
+  /// Pauses this rider's ride (a tea, fuel or photo stop): the ride's clock
+  /// and moving time stand still, and the group is told. Riding on needs
+  /// [resume]. The same ride carries on either way.
+  Future<void> pause() async {
+    if (_finishing != null) return;
+    final paused = await _stats.pause(atMs: _nowMs());
+    if (!paused || !ref.mounted) return;
+    unawaited(
+      ref
+          .read(roomRepositoryProvider)
+          .setMyRideState(code: _code, state: RiderRideState.paused),
+    );
+  }
+
+  /// Resumes a paused ride exactly where it was left.
+  Future<void> resume() async {
+    if (_finishing != null) return;
+    final resumed = await _stats.resume(atMs: _nowMs());
+    if (!resumed || !ref.mounted) return;
+    unawaited(
+      ref
+          .read(roomRepositoryProvider)
+          .setMyRideState(code: _code, state: RiderRideState.riding),
+    );
   }
 
   /// Takes a last GPS fix, freezes and saves the record, then stops GPS, live
   /// location sharing and the background service, whatever happens.
-  Future<void> _finishRide({required bool saveFinalRecord}) async {
+  Future<void> _finishRide({
+    required bool saveFinalRecord,
+    bool keepTracking = false,
+  }) async {
     _notificationTimer?.cancel();
     try {
       if (saveFinalRecord) {
@@ -236,14 +309,15 @@ class RideMapController extends Notifier<RideMapState> {
         if (point != null) {
           _stats.addFix(LocationFix(point: point, timestamp: DateTime.now()));
         }
+        _endedAtMs = _nowMs();
         await _stats
-            .finish(endedAtMs: _nowMs())
+            .finish(endedAtMs: _endedAtMs!)
             .timeout(_finishTimeout, onTimeout: () => null);
       }
     } finally {
       if (ref.mounted) state = _copy(isFinalSaved: true);
       await _sync.stop();
-      await _tracking.stop();
+      if (!keepTracking) await _tracking.stop();
     }
   }
 

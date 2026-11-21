@@ -273,9 +273,86 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
   }
 
   @override
+  Future<Result<RideHistoryEntry?>> entry({
+    required String uid,
+    required String code,
+  }) async {
+    try {
+      final snapshot = await _database
+          .ref(RideHistoryPaths.entry(uid, code))
+          .get()
+          .timeout(timeout);
+      return Success(RideHistoryDto.fromValue(code, snapshot.value));
+    } on TimeoutException catch (e) {
+      return Failed(NetworkFailure(cause: e));
+    } on FirebaseException catch (e) {
+      return Failed(NetworkFailure(cause: e));
+    }
+  }
+
+  @override
+  Future<Result<void>> delete({
+    required String uid,
+    required String code,
+  }) async {
+    try {
+      // Read while the entry still grants access to the ride's records.
+      final summary = RideSummaryDto.fromValue(
+        code,
+        (await _database
+                .ref(RideSummaryPaths.summary(code))
+                .get()
+                .timeout(timeout))
+            .value,
+      );
+      final solo =
+          summary != null &&
+          summary.riders.length == 1 &&
+          summary.riders.single.uid == uid;
+      Future<void> remove(String path) =>
+          _database.ref(path).remove().timeout(timeout);
+      if (solo) {
+        // Nobody else shares a solo ride: everything of it goes. The summary
+        // last, since the rules check it to allow the rest.
+        await remove('${RideStatsPaths.routes(code)}/$uid');
+        await remove('${RideStatsPaths.stats(code)}/$uid');
+        await remove('rideWeather/$code');
+        await remove('rooms/$code');
+        await remove(RideSummaryPaths.summary(code));
+      }
+      await remove(RideHistoryPaths.entry(uid, code));
+      await _forgetOnDevice(uid: uid, code: code);
+      return const Success(null);
+    } on TimeoutException catch (e) {
+      return Failed(NetworkFailure(cause: e));
+    } on FirebaseException catch (e) {
+      debugPrint('Deleting the ride failed (${e.code}): ${e.message}');
+      return Failed(NetworkFailure(cause: e));
+    }
+  }
+
+  /// Drops ride [code] from the device's saved history page and its saved
+  /// details and weather.
+  Future<void> _forgetOnDevice({
+    required String uid,
+    required String code,
+  }) async {
+    final key = cacheKey(uid);
+    final page = await _cache.read(key);
+    final entries = page?['entries'];
+    if (page != null && entries is List) {
+      entries.removeWhere((e) => e is Map && e['code'] == code);
+      await _cache.write(key, page);
+    }
+    await _cache.remove('details_$code');
+    await _cache.remove('weather_$code');
+  }
+
+  @override
   Future<Result<void>> record({
     required String uid,
     required String code,
+    String? name,
   }) async {
     try {
       final entryRef = _database.ref(RideHistoryPaths.entry(uid, code));
@@ -293,15 +370,9 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
           NotFoundFailure(message: 'Ride results not found.'),
         );
       }
-      final entry = RideHistoryEntry.fromSummary(summary, uid);
+      final entry = RideHistoryEntry.fromSummary(summary, uid, name: name);
       // Not part of this ride (for example joined after it ended).
       if (entry == null) return const Success(null);
-      // The host's copy is saved once they have named the ride (or chosen to
-      // name it from the results). Everyone else saves straight away, marked
-      // as waiting for the host's name.
-      if (!summary.named && summary.hostUid == uid) {
-        return const Success(null);
-      }
 
       final route = await _ownRoute(uid, code);
       final withPreview = entry.withRoutePreview(

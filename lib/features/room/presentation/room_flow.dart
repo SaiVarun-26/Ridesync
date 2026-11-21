@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_routes.dart';
+import '../../auth/presentation/providers/auth_providers.dart';
 import '../domain/ride_mode.dart';
 import '../domain/room.dart';
 import '../domain/room_status.dart';
@@ -10,10 +11,17 @@ import 'providers/room_providers.dart';
 
 /// The screen every rider should be on for [room]'s current status.
 ///
-/// The room status in RTDB is the single source of truth for the group's
-/// position in the flow. Only the host changes it; every client maps it to a
-/// route here, so the whole group moves together.
-String roomFlowPath(Room room) {
+/// The room status in RTDB is the group's position in the flow; every client
+/// maps it to a route here, so the group moves together up to the ride. During
+/// the ride each rider finishes on their own: one whose own ride is finished
+/// ([uid]'s member is marked finished) goes to the results while the others
+/// ride on.
+String roomFlowPath(Room room, {String? uid}) {
+  final me = uid == null ? null : room.memberByUid(uid);
+  if ((me?.hasFinished ?? false) &&
+      (room.status == RoomStatus.riding || room.status == RoomStatus.ending)) {
+    return AppRoutes.resultsPath(room.code);
+  }
   return switch (room.status) {
     RoomStatus.lobby => AppRoutes.lobbyPath(room.code),
     RoomStatus.choosingMode => AppRoutes.rideModePath(room.code),
@@ -50,7 +58,10 @@ void listenToRoomFlow(
   ref.listen<AsyncValue<Room?>>(roomStreamProvider(code), (_, next) async {
     final room = next.value;
     if (room == null || !context.mounted) return;
-    final target = roomFlowPath(room);
+    final target = roomFlowPath(
+      room,
+      uid: ref.read(authStateChangesProvider).value?.uid,
+    );
     if (target == currentPath) return;
     if (beforeLeaving != null) await beforeLeaving(room);
     if (context.mounted) context.go(target);

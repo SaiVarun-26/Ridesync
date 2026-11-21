@@ -8,6 +8,7 @@ import '../../../core/theme/rider_palette.dart';
 import '../../auth/domain/app_user.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../domain/ride_mode.dart';
+import '../domain/rider_ride_state.dart';
 import '../domain/room.dart';
 import '../domain/room_preview.dart';
 import '../domain/room_repository.dart';
@@ -419,45 +420,59 @@ class FirebaseRoomRepository implements RoomRepository {
   }
 
   @override
-  Future<Result<void>> beginEndingRide({required String code}) {
-    return _updateMetaAsHost(
-      code: code,
-      buildUpdate: (room) {
-        // Pressing End Ride again after a failed attempt resumes the ending
-        // instead of failing: nothing to write, the room is already ending.
-        if (room.status == RoomStatus.ending) {
-          return const Success(<String, Object?>{});
-        }
-        if (room.status != RoomStatus.riding) {
-          return const Failed(
-            ConflictFailure(message: 'This ride is not in progress.'),
-          );
-        }
-        return Success(<String, Object?>{
-          RoomPaths.metaStatus: RoomStatus.ending.wireValue,
-        });
-      },
-    );
+  Future<Result<void>> setMyRideState({
+    required String code,
+    required RiderRideState state,
+  }) async {
+    final user = _authRepository.currentUser;
+    if (user == null) {
+      return const Failed(AuthFailure(message: 'You must be signed in.'));
+    }
+    try {
+      await _roomRef(code)
+          .child(RoomPaths.members)
+          .child(user.uid)
+          .update(<String, Object?>{RoomPaths.memberRideState: state.wireValue});
+      return const Success(null);
+    } on FirebaseException catch (e, stack) {
+      return Failed(_mapDbException(e, stack));
+    } catch (e, stack) {
+      return Failed(_unexpected(e, stack));
+    }
   }
 
   @override
-  Future<Result<void>> completeRide({required String code}) {
-    return _updateMetaAsHost(
-      code: code,
-      buildUpdate: (room) {
-        if (room.status == RoomStatus.ended) {
-          return const Success(<String, Object?>{});
-        }
-        if (room.status != RoomStatus.ending) {
-          return const Failed(
-            ConflictFailure(message: 'This ride is not being ended.'),
-          );
-        }
-        return Success(<String, Object?>{
-          RoomPaths.metaStatus: RoomStatus.ended.wireValue,
-        });
-      },
+  Future<Result<void>> closeRide({required String code}) async {
+    final user = _authRepository.currentUser;
+    if (user == null) {
+      return const Failed(AuthFailure(message: 'You must be signed in.'));
+    }
+    final statusRef = _roomRef(code).child(RoomPaths.meta).child(
+      RoomPaths.metaStatus,
     );
+    try {
+      final current = RoomStatus.fromWire(
+        (await statusRef.get()).value as String?,
+      );
+      if (current == RoomStatus.ended) return const Success(null);
+      if (current != RoomStatus.riding && current != RoomStatus.ending) {
+        return const Failed(
+          ConflictFailure(message: 'This ride is not in progress.'),
+        );
+      }
+      // Only the status is written: any rider may close the ride, and the
+      // rules check the order (riding, ending, ended) and that the summary
+      // exists.
+      if (current == RoomStatus.riding) {
+        await statusRef.set(RoomStatus.ending.wireValue);
+      }
+      await statusRef.set(RoomStatus.ended.wireValue);
+      return const Success(null);
+    } on FirebaseException catch (e, stack) {
+      return Failed(_mapDbException(e, stack));
+    } catch (e, stack) {
+      return Failed(_unexpected(e, stack));
+    }
   }
 
   @override

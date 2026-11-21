@@ -1,3 +1,7 @@
+import 'rider_ride_state.dart';
+
+export 'rider_ride_state.dart';
+
 /// A participant in a ride room.
 ///
 /// Framework-agnostic domain entity: no Firebase, no Flutter. The data layer
@@ -14,7 +18,14 @@ class RoomMember {
     required this.isInitialized,
     required this.online,
     required this.joinedAt,
+    this.rideState,
   });
+
+  /// Where this rider is in their own ride; `null` before it starts.
+  final RiderRideState? rideState;
+
+  /// Whether this rider has finished their own ride.
+  bool get hasFinished => rideState == RiderRideState.finished;
 
   /// The member's stable Firebase uid.
   final String uid;
@@ -60,7 +71,8 @@ class RoomMember {
           other.isReady == isReady &&
           other.isInitialized == isInitialized &&
           other.online == online &&
-          other.joinedAt == joinedAt);
+          other.joinedAt == joinedAt &&
+          other.rideState == rideState);
 
   @override
   int get hashCode => Object.hash(
@@ -72,5 +84,6 @@ class RoomMember {
     isInitialized,
     online,
     joinedAt,
+    rideState,
   );
 }

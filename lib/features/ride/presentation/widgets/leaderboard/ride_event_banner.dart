@@ -12,6 +12,7 @@ import '../../../../../core/widgets/app_icon.dart';
 import '../../../../../core/widgets/glass_panel.dart';
 import '../../../domain/leaderboard/leaderboard.dart';
 import '../../leaderboard/leaderboard_controller.dart';
+import '../../live/rider_state_notices.dart';
 import '../../providers/ride_map_providers.dart';
 
 /// A small banner that slides down from the top when another rider leaves
@@ -27,9 +28,49 @@ class RideEventBanner extends ConsumerStatefulWidget {
   ConsumerState<RideEventBanner> createState() => _RideEventBannerState();
 }
 
+/// One banner to show: a path event, or a rider's pause, resume or finish.
+class _Notice {
+  const _Notice({
+    required this.key,
+    required this.uid,
+    required this.message,
+    required this.icon,
+    required this.accent,
+  });
+
+  factory _Notice.path(AnnouncedEvent e) {
+    final left = e.event.kind == RidePathEventKind.left;
+    return _Notice(
+      key: 'path-${e.id}',
+      uid: e.event.uid,
+      message: e.message,
+      icon: left ? Icons.warning_amber_rounded : Icons.check_circle_rounded,
+      accent: left ? AppColors.error : AppColors.primary,
+    );
+  }
+
+  factory _Notice.rider(RiderStateNotice n) => _Notice(
+    key: 'rider-${n.id}',
+    uid: n.uid,
+    message: n.message,
+    icon: switch (n.change) {
+      RiderStateChange.paused => Icons.pause_circle_rounded,
+      RiderStateChange.resumed => Icons.play_circle_rounded,
+      RiderStateChange.completed => Icons.flag_rounded,
+    },
+    accent: AppColors.primary,
+  );
+
+  final String key;
+  final String uid;
+  final String message;
+  final IconData icon;
+  final Color accent;
+}
+
 class _RideEventBannerState extends ConsumerState<RideEventBanner> {
-  final Queue<AnnouncedEvent> _queue = Queue();
-  AnnouncedEvent? _showing;
+  final Queue<_Notice> _queue = Queue();
+  _Notice? _showing;
   Timer? _timer;
 
   static const Duration _showFor = Duration(milliseconds: 3800);
@@ -43,7 +84,7 @@ class _RideEventBannerState extends ConsumerState<RideEventBanner> {
     super.dispose();
   }
 
-  void _enqueue(AnnouncedEvent event) {
+  void _enqueue(_Notice event) {
     _queue.add(event);
     while (_queue.length > _maxQueued) {
       _queue.removeFirst();
@@ -77,9 +118,19 @@ class _RideEventBannerState extends ConsumerState<RideEventBanner> {
     ref.listen<AnnouncedEvent?>(
       leaderboardControllerProvider(widget.roomCode).select((s) => s.latest),
       (previous, next) {
-        if (next != null && next.id != previous?.id) _enqueue(next);
+        if (next != null && next.id != previous?.id) {
+          _enqueue(_Notice.path(next));
+        }
       },
     );
+    ref.listen<RiderStateNotice?>(riderStateNoticeProvider(widget.roomCode), (
+      previous,
+      next,
+    ) {
+      if (next != null && next.id != previous?.id) {
+        _enqueue(_Notice.rider(next));
+      }
+    });
     final showing = _showing;
     return AnimatedSwitcher(
       duration: AppMotion.slow,
@@ -99,7 +150,7 @@ class _RideEventBannerState extends ConsumerState<RideEventBanner> {
       child: showing == null
           ? const SizedBox(key: ValueKey('none'), width: double.infinity)
           : _Banner(
-              key: ValueKey(showing.id),
+              key: ValueKey(showing.key),
               event: showing,
               roomCode: widget.roomCode,
               onTap: _dismiss,
@@ -116,21 +167,18 @@ class _Banner extends ConsumerWidget {
     required this.onTap,
   });
 
-  final AnnouncedEvent event;
+  final _Notice event;
   final String roomCode;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final left = event.event.kind == RidePathEventKind.left;
     final colorId = ref.watch(
-      rideMapControllerProvider(roomCode).select(
-        (m) => m.colorIds[event.event.uid],
-      ),
+      rideMapControllerProvider(roomCode).select((m) => m.colorIds[event.uid]),
     );
     final riderColor =
         RiderPalette.colorById(colorId)?.color ?? AppColors.textPrimary;
-    final accent = left ? AppColors.error : AppColors.primary;
+    final accent = event.accent;
     return Semantics(
       liveRegion: true,
       button: true,
@@ -148,11 +196,7 @@ class _Banner extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                left ? Icons.warning_amber_rounded : Icons.check_circle_rounded,
-                size: AppIconSize.medium,
-                color: accent,
-              ),
+              Icon(event.icon, size: AppIconSize.medium, color: accent),
               const SizedBox(width: AppSpacing.sm),
               Container(
                 width: 8,

@@ -1,5 +1,6 @@
 import '../../../core/errors/result.dart';
 import 'ride_mode.dart';
+import 'rider_ride_state.dart';
 import 'room.dart';
 import 'room_preview.dart';
 
@@ -71,18 +72,18 @@ abstract interface class RoomRepository {
     required bool initialized,
   });
 
-  /// Starts ending the ride in room [code]: `riding` becomes `ending`, which
-  /// tells every rider to save their final stats.
-  ///
-  /// Host only. Safe to repeat: if the room is already ending, nothing changes.
-  Future<Result<void>> beginEndingRide({required String code});
+  /// Records where this rider is in their own ride in room [code], so the
+  /// group can be told (paused, resumed, finished).
+  Future<Result<void>> setMyRideState({
+    required String code,
+    required RiderRideState state,
+  });
 
-  /// Finishes the ride in room [code]: `ending` becomes `ended`, which moves
-  /// every rider to the results.
-  ///
-  /// Host only, and only after the ride summary has been written (the security
-  /// rules refuse it otherwise).
-  Future<Result<void>> completeRide({required String code});
+  /// Closes room [code] once its last rider has finished: `riding` becomes
+  /// `ending`, then `ended`. Any rider may do it, and only after the ride
+  /// summary has been written (the security rules refuse it otherwise). Safe
+  /// to repeat.
+  Future<Result<void>> closeRide({required String code});
 
   /// Moves room [code] on from initialization: free roam starts riding, a
   /// guided ride moves to destination planning.

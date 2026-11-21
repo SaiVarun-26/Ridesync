@@ -79,7 +79,9 @@ abstract final class RiderAnalyticsCalculator {
             milliseconds: math.max(
               0,
               (rider.endedAtMs ?? group.endedAtMs) -
-                  (rider.startedAtMs ?? group.endedAtMs),
+                  (rider.startedAtMs ?? group.endedAtMs) -
+                  // Paused time is not ride time.
+                  rider.pausedMs,
             ),
           ),
           speed: _speedOf(details.routes[rider.uid]),

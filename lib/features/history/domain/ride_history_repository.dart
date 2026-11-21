@@ -35,9 +35,28 @@ abstract interface class RideHistoryRepository {
     required RideHistoryEntry entry,
   });
 
-  /// Adds the finished ride [code] to [uid]'s history. Does nothing if it is
-  /// already there or if [uid] was not part of the ride.
-  Future<Result<void>> record({required String uid, required String code});
+  /// [uid]'s saved entry for ride [code], read back from the database;
+  /// `null` when there is none. Fails when it cannot be read.
+  Future<Result<RideHistoryEntry?>> entry({
+    required String uid,
+    required String code,
+  });
+
+  /// Removes ride [code] from [uid]'s history for good: the entry, and the
+  /// ride's own records where nobody else shares them (a solo ride's route,
+  /// statistics, weather, summary and room). A group ride's shared records
+  /// stay, because the other riders' histories still show that ride. Also
+  /// clears the device's saved copies.
+  Future<Result<void>> delete({required String uid, required String code});
+
+  /// Adds the finished ride [code] to [uid]'s history under [name] (their own
+  /// name for it; the ride's placeholder when not given). Does nothing if it
+  /// is already there or if [uid] was not part of the ride.
+  Future<Result<void>> record({
+    required String uid,
+    required String code,
+    String? name,
+  });
 
   /// [uid]'s best rides across their whole history: the [count] longest and
   /// the [count] with the highest top speed, without duplicates. Used for

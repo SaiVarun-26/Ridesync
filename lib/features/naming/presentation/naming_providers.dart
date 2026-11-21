@@ -2,20 +2,51 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/result.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../history/domain/ride_history_entry.dart';
+import '../../history/presentation/providers/ride_details_providers.dart';
 import '../../history/presentation/providers/ride_history_providers.dart';
 import '../../room/presentation/providers/room_providers.dart';
 import '../data/nominatim_reverse_geocoder.dart';
 import '../data/rtdb_ride_name_store.dart';
 import '../domain/ride_name_store.dart';
 import '../domain/ride_naming_service.dart';
+import '../domain/ride_title_generator.dart';
 import '../domain/reverse_geocoder.dart';
 
 /// Finds the area a position is in, from OpenStreetMap.
 final reverseGeocoderProvider = Provider<ReverseGeocoder>((ref) {
   return NominatimReverseGeocoder();
 });
+
+/// The name suggested for this rider's ride [code], from where their own
+/// ride ended ("Ride to Marina Beach"). Never fails: when the place cannot
+/// be found, or takes too long, it is [RideNames.fallback]. The same for
+/// every ride type, however the ride ended.
+final rideNameSuggestionProvider = FutureProvider.autoDispose
+    .family<String, String>((ref, code) async {
+      final uid = ref.read(authStateChangesProvider).value?.uid;
+      // Already saved (when the ride ended): that name, as it is.
+      if (uid != null) {
+        final saved = await ref
+            .read(rideHistoryRepositoryProvider)
+            .entry(uid: uid, code: code);
+        if (saved case Success(:final value?)) return value.roomName;
+      }
+      final details = await ref.watch(rideDetailsProvider(code).future);
+      final points = details.routes[uid]?.points ?? const [];
+      final service = ref.read(rideNamingServiceProvider);
+      return service
+          .suggest(
+            start: points.isEmpty ? null : points.first,
+            end: points.isEmpty ? null : points.last,
+          )
+          .timeout(
+            const Duration(seconds: 8),
+            onTimeout: () => RideNames.fallback,
+          );
+    });
 
 /// Saves ride names.
 final rideNameStoreProvider = Provider<RideNameStore>((ref) {

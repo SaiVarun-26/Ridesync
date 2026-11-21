@@ -2,6 +2,8 @@ import 'dart:async';
 
 import '../../../../core/errors/failure.dart';
 import '../../../../core/errors/result.dart';
+import '../../../history/domain/ride_history_repository.dart';
+import '../../../room/domain/rider_ride_state.dart';
 import '../../../room/domain/room.dart';
 import '../../../room/domain/room_repository.dart';
 import '../stats/ride_stats.dart';
@@ -9,131 +11,130 @@ import '../stats/ride_stats_repository.dart';
 import '../summary/ride_summary.dart';
 import '../summary/ride_summary_builder.dart';
 import '../summary/ride_summary_repository.dart';
-import 'ride_end_stage.dart';
 
-/// Ends a ride from the host's side.
+/// Finishes one rider's ride. Every rider is equal: each ends only their own
+/// ride, whenever they like, and the others carry on.
 ///
-/// The sequence:
-/// 1. The room moves to `ending`. Every rider's phone reacts by saving a final
-///    record (stats, route, finish time) and marking itself finished.
-/// 2. The host waits until every rider who is online has finished, or
-///    [finishTimeout] passes, whichever comes first. A rider who is offline or
-///    slow does not hold the group up: their last saved stats are used.
-/// 3. The host builds the summary from everyone's stats and writes it.
-/// 4. The room moves to `ended`, which takes every rider to the results.
+/// The same steps run however the ride ended (End Ride, the auto-end
+/// countdown), once this rider's final record (statistics and route, which
+/// the replay is drawn from) is saved:
+/// 1. The ride summary is written again: a snapshot of the group as it
+///    stands, with this rider's final figures. The results' cards, replay and
+///    milestones are all built from it and the saved routes.
+/// 2. The ride goes into this rider's history, under [publishMyFinish]'s
+///    name, and is read back to make sure it is there.
+/// 3. Only then is the rider marked finished, which tells the group ("Sai
+///    completed the ride.") and moves this rider on to the results.
+/// 4. If everyone else has finished too, this rider closes the room.
 ///
-/// The steps are safe to repeat: if a step fails, pressing End Ride again
-/// resumes from where it stopped. The room only becomes `ended` after the
-/// summary exists. Holds no UI and no Firebase types.
+/// Safe to repeat: a retry redoes whatever did not land, and never makes a
+/// second history entry. Holds no UI and no Firebase types.
 class RideCompletionService {
   RideCompletionService({
     required RoomRepository rooms,
     required RideStatsRepository stats,
     required RideSummaryRepository summaries,
+    required RideHistoryRepository history,
     int Function()? nowMs,
-    this.finishTimeout = const Duration(seconds: 5),
   }) : _rooms = rooms,
        _stats = stats,
        _summaries = summaries,
+       _history = history,
        _nowMs = nowMs ?? _systemNowMs;
-
-  /// How long to wait for riders to confirm their final stats.
-  final Duration finishTimeout;
 
   final RoomRepository _rooms;
   final RideStatsRepository _stats;
   final RideSummaryRepository _summaries;
+  final RideHistoryRepository _history;
   final int Function() _nowMs;
 
-  /// How long to wait for a room snapshot before treating the network as down.
-  static const Duration _roomTimeout = Duration(seconds: 5);
+  /// How long to wait for a read or write before treating the network as
+  /// down (and trying again later).
+  static const Duration _timeout = Duration(seconds: 8);
 
   static int _systemNowMs() => DateTime.now().millisecondsSinceEpoch;
 
-  /// Ends the ride in room [code] and returns the summary that was written.
-  ///
-  /// [onStage] is told each time the work moves on, so the UI can show
-  /// progress.
-  Future<Result<RideSummary>> endRide({
+  static const Failure _notYet = NetworkFailure(
+    message: 'Your ride is still being saved.',
+  );
+
+  /// Publishes [uid]'s finished ride in room [code], saved to their history
+  /// as [name]. Succeeds only once the history entry is confirmed.
+  Future<Result<RideSummary>> publishMyFinish({
     required String code,
-    void Function(RideEndStage stage)? onStage,
+    required String uid,
+    required String name,
   }) async {
-    onStage?.call(RideEndStage.ending);
-    final begun = await _rooms.beginEndingRide(code: code);
-    if (begun case Failed(:final failure)) return Failed(failure);
-    onStage?.call(RideEndStage.savingRiders);
-
     final room = await _currentRoom(code);
-    if (room == null) {
-      return const Failed(
-        NetworkFailure(message: 'Could not reach the ride. Try again.'),
-      );
-    }
+    if (room == null) return const Failed(_notYet);
+    final loaded = await _stats
+        .loadAll(code: code)
+        .timeout(_timeout, onTimeout: () => const Failed(_notYet));
+    if (loaded case Failed(:final failure)) return Failed(failure);
+    final stats = (loaded as Success<Map<String, RideStats>>).value;
+    final mine = stats[uid];
+    // The summary may only be written once this rider's record is final.
+    if (mine == null || !mine.isFinished) return const Failed(_notYet);
 
-    // Offline riders cannot respond, so waiting on them would only burn the
-    // timeout.
-    final expected = [
-      for (final member in room.members)
-        if (member.online) member.uid,
-    ];
-    final stats = await _collectFinalStats(code, expected);
-    onStage?.call(RideEndStage.generatingSummary);
-
-    // Re-read the room so names and colors are as they are now.
-    final latest = await _currentRoom(code) ?? room;
+    final previous = await _summaries
+        .load(code: code)
+        .timeout(_timeout, onTimeout: () => null);
     final summary = RideSummaryBuilder.build(
-      room: latest,
+      room: room,
       stats: stats,
-      endedAtMs: _nowMs(),
+      endedAtMs: _latestEnd(stats) ?? mine.endedAtMs ?? _nowMs(),
+      previous: previous,
     );
-
-    final saved = await _summaries.save(code: code, summary: summary);
+    final saved = await _summaries
+        .save(code: code, summary: summary)
+        .timeout(_timeout, onTimeout: () => const Failed(_notYet));
     if (saved case Failed(:final failure)) return Failed(failure);
 
-    final completed = await _rooms.completeRide(code: code);
-    if (completed case Failed(:final failure)) return Failed(failure);
+    final recorded = await _history
+        .record(uid: uid, code: code, name: name)
+        .timeout(_timeout, onTimeout: () => const Failed(_notYet));
+    if (recorded case Failed(:final failure)) return Failed(failure);
+    final check = await _history.entry(uid: uid, code: code);
+    if (check case Success(:final value) when value != null) {
+      // Saved: only now is the rider told apart as finished.
+    } else {
+      return const Failed(_notYet);
+    }
 
-    onStage?.call(RideEndStage.complete);
+    // A write that cannot reach the server yet is kept on the device and
+    // delivered later, so a slow network does not hold the rider up here.
+    await _rooms
+        .setMyRideState(code: code, state: RiderRideState.finished)
+        .timeout(_timeout, onTimeout: () => const Success(null));
+
+    // The last rider to finish closes the room. Someone who is offline but
+    // has not finished keeps it open: their ride is still theirs to finish.
+    final everyoneDone = room.members.every(
+      (m) => m.uid == uid || m.hasFinished || (stats[m.uid]?.isFinished ?? false),
+    );
+    if (everyoneDone) {
+      // This rider's ride is saved either way: a room that fails to close
+      // only stays behind, and nothing waits on it.
+      await _rooms
+          .closeRide(code: code)
+          .timeout(_timeout, onTimeout: () => const Success(null));
+    }
     return Success(summary);
   }
 
-  /// Every rider's stats, once all [expected] riders are finished or the
-  /// timeout passes.
-  Future<Map<String, RideStats>> _collectFinalStats(
-    String code,
-    List<String> expected,
-  ) async {
-    var latest = <String, RideStats>{};
-    final allFinished = Completer<void>();
-
-    bool everyoneFinished(Map<String, RideStats> stats) =>
-        expected.every((uid) => stats[uid]?.isFinished ?? false);
-
-    if (expected.isEmpty) return latest;
-
-    final subscription = _stats
-        .watchAll(code: code)
-        .listen(
-          (stats) {
-            latest = stats;
-            if (everyoneFinished(stats) && !allFinished.isCompleted) {
-              allFinished.complete();
-            }
-          },
-          onError: (Object _) {
-            if (!allFinished.isCompleted) allFinished.complete();
-          },
-        );
-    await allFinished.future.timeout(finishTimeout, onTimeout: () {});
-    // Not awaited: a stream that is slow to cancel must never hold up ending
-    // the ride once the wait is over.
-    unawaited(subscription.cancel());
+  /// The latest finish among the riders who have finished.
+  static int? _latestEnd(Map<String, RideStats> stats) {
+    int? latest;
+    for (final s in stats.values) {
+      final end = s.endedAtMs;
+      if (end != null && (latest == null || end > latest)) latest = end;
+    }
     return latest;
   }
 
   Future<Room?> _currentRoom(String code) async {
     try {
-      return await _rooms.watchRoom(code: code).first.timeout(_roomTimeout);
+      return await _rooms.watchRoom(code: code).first.timeout(_timeout);
     } on TimeoutException {
       return null;
     } on StateError {

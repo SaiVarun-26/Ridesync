@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/router/app_routes.dart';
-import '../../../core/errors/result.dart';
 import '../../../core/feedback/app_haptics.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_dialog.dart';
+import '../../../core/widgets/app_dialogs.dart';
 import '../../../core/widgets/app_icon.dart';
 import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/ride_loader.dart';
@@ -20,8 +21,6 @@ import '../../fuel/presentation/fuel_toggle_button.dart';
 import '../../fuel/presentation/fuel_station_controller.dart';
 import '../../fuel/presentation/fuel_station_layer.dart';
 import '../../fuel/presentation/fuel_station_sheet.dart';
-import '../../naming/presentation/naming_providers.dart';
-import '../../naming/presentation/ride_name_dialog.dart';
 import '../../room/domain/room.dart';
 import '../../room/domain/room_status.dart';
 import '../../room/presentation/providers/room_providers.dart';
@@ -42,6 +41,9 @@ import 'providers/ride_completion_providers.dart';
 import 'providers/ride_map_providers.dart';
 import 'ride_map_controller.dart';
 import 'safety/safety_controller.dart';
+import 'auto_end/auto_end_controller.dart';
+import 'auto_end/auto_end_sheet.dart';
+import 'widgets/ride_action_buttons.dart';
 import 'widgets/ride_complete_overlay.dart';
 import 'widgets/guidance/guidance_cards.dart';
 import 'widgets/guidance/route_progress_strip.dart';
@@ -86,6 +88,9 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
 
   /// Completed when the rider asks for the results before the hold is over.
   final Completer<void> _skipHold = Completer<void>();
+
+  /// Completed once this rider's ended ride is saved.
+  final Completer<void> _saved = Completer<void>();
 
   final GlobalKey _panelKey = GlobalKey();
 
@@ -250,49 +255,47 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
   /// Waits a beat once the ride has ended. Returns the same future for
   /// repeated calls while it runs.
   Future<void> _holdBeforeResults(Room room) {
-    if (room.status != RoomStatus.ended) return Future<void>.value();
-    return _hold ??= _finishSequence(room);
+    final uid = ref.read(authStateChangesProvider).value?.uid;
+    final mine = uid == null ? null : room.memberByUid(uid);
+    final over =
+        room.status == RoomStatus.ended || (mine?.hasFinished ?? false);
+    if (!over) return Future<void>.value();
+    return _hold ??= _finishSequence();
   }
 
-  /// What happens once the ride has ended: the completion scene plays (and
-  /// gives its own haptic) until the hold runs out or the rider skips it; then
-  /// the host, and only the host, names the ride before everyone moves on to
-  /// the results.
-  Future<void> _finishSequence(Room room) async {
+  /// What happens once this rider's ride is over, however it ended (End Ride,
+  /// the auto-end countdown, or the room closing): the completion scene plays
+  /// (with its own haptic) until the hold runs out or the rider skips it, then
+  /// the results open. The ride is named there, the same way every time.
+  Future<void> _finishSequence() async {
+    // A ride this rider ended is shown complete only once it is saved.
+    final end = ref.read(rideEndControllerProvider(roomCode));
+    if (end.isEnding && !end.completed) await _saved.future;
+    if (!mounted) return;
+    _frameFinishedRide();
     await Future.any<void>([
       Future<void>.delayed(_completeHold),
       _skipHold.future,
     ]);
-    final uid = ref.read(authStateChangesProvider).value?.uid;
-    if (!mounted || uid != room.hostUid || !room.namePending) return;
-    await _nameRide();
   }
 
-  /// Asks the host for the ride's name, suggesting one from where it ended.
-  /// Saving names the ride for every rider; cancelling leaves it to be named
-  /// from the results.
-  Future<void> _nameRide() async {
-    final map = ref.read(rideMapControllerProvider(roomCode));
-    final uid = ref.read(authStateChangesProvider).value?.uid;
-    final trail = map.trails[uid]?.points;
-    final service = ref.read(rideNamingServiceProvider);
-    await showRideNameDialog(
-      context,
-      title: 'Ride Complete',
-      confirmLabel: 'Save Ride',
-      message: 'Give this ride a name. Everyone will see it in their history.',
-      suggestion: service.suggest(
-        start: trail == null || trail.isEmpty ? null : trail.first.point,
-        end: map.myFix?.point,
+  /// Asks before ending this rider's ride. Everyone else carries on.
+  Future<void> _confirmEnd(bool isGroupRide) async {
+    final end = await showAppDialog<bool>(
+      context: context,
+      builder: (_) => AppDialog(
+        title: 'End your ride?',
+        message: isGroupRide
+            ? 'This will finish your ride and save it to your history. '
+                  'Everyone else keeps riding.'
+            : 'This will finish your ride and save it to your history.',
+        cancelLabel: 'Cancel',
+        confirmLabel: 'End Ride',
+        destructive: true,
       ),
-      onSave: (name) async {
-        final result = await service.nameRide(code: roomCode, name: name);
-        return switch (result) {
-          Success() => null,
-          Failed(:final failure) => failure.message,
-        };
-      },
     );
+    if (end != true || !mounted) return;
+    unawaited(ref.read(rideEndControllerProvider(roomCode).notifier).endRide());
   }
 
   void _openResults() {
@@ -337,6 +340,9 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
       );
     }
     ref.listen<SafetyState>(safetyControllerProvider(roomCode), _onSafetyChanged);
+    ref.listen<RideEndState>(rideEndControllerProvider(roomCode), (_, next) {
+      if (next.completed && !_saved.isCompleted) _saved.complete();
+    });
     ref.listen<AsyncValue<Room?>>(roomStreamProvider(roomCode), (
       previous,
       next,
@@ -356,18 +362,20 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
       beforeLeaving: _holdBeforeResults,
     );
 
-    final isHost = myUid != null && room?.hostUid == myUid;
     // Until the room is known nothing group-only is shown, so a solo ride
     // never flashes the group's tools.
     final isGroupRide = (room?.members.length ?? 0) > 1;
     final status = room?.status;
+    // Every rider ends their own ride, whenever they like.
     final canEnd =
-        isHost && (status == RoomStatus.riding || status == RoomStatus.ending);
+        status == RoomStatus.riding && !end.isEnding && !end.completed;
+    final autoEnd = canEnd
+        ? ref.watch(autoEndControllerProvider(roomCode))
+        : null;
     // The wrap-up covers the screen from the moment the ride starts ending
     // until the results open, so nobody is left looking at a stalled map.
     final progress = RideEndProgress.of(
       status: status,
-      isHost: isHost,
       end: end,
       ownRecordSaved: map.isFinalSaved,
     );
@@ -547,6 +555,27 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                             : () => _commands.showOverview(
                                 guide.geometry.points,
                               ),
+                        // Pause and End: always in view while riding.
+                        rideActions: canEnd
+                            ? RideActionButtons(
+                                isPaused: map.isPaused,
+                                onPause: () => ref
+                                    .read(
+                                      rideMapControllerProvider(
+                                        roomCode,
+                                      ).notifier,
+                                    )
+                                    .pause(),
+                                onResume: () => ref
+                                    .read(
+                                      rideMapControllerProvider(
+                                        roomCode,
+                                      ).notifier,
+                                    )
+                                    .resume(),
+                                onEnd: () => _confirmEnd(isGroupRide),
+                              )
+                            : null,
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       const _Attribution(),
@@ -581,14 +610,6 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                             averageSpeedMps: map.myStats?.averageSpeedMps ?? 0,
                             distanceMeters: map.myStats?.distanceMeters ?? 0,
                             riderCount: room?.members.length ?? 0,
-                            isHost: isHost,
-                            canEnd: canEnd,
-                            isEnding: end.isEnding,
-                            onEndRide: () => ref
-                                .read(
-                                  rideEndControllerProvider(roomCode).notifier,
-                                )
-                                .endRide(),
                           ),
                         ),
                       ),
@@ -607,6 +628,55 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                   ),
                 ),
               ),
+              // The auto-end question, over the bottom of the map. Only one at
+              // a time; it leaves by itself if the rider moves.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: AnimatedSwitcher(
+                      duration: AppMotion.slow,
+                      switchInCurve: AppMotion.spring,
+                      switchOutCurve: AppMotion.exit,
+                      transitionBuilder: (child, animation) => SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 1.2),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: FadeTransition(opacity: animation, child: child),
+                      ),
+                      child: autoEnd == null || progress != null
+                          ? const SizedBox(
+                              key: ValueKey('no-auto-end'),
+                              width: double.infinity,
+                            )
+                          : AutoEndSheet(
+                              key: const ValueKey('auto-end'),
+                              prompt: autoEnd,
+                              onContinue: () => ref
+                                  .read(
+                                    autoEndControllerProvider(roomCode).notifier,
+                                  )
+                                  .keepRiding(),
+                              onPause: () => ref
+                                  .read(
+                                    autoEndControllerProvider(roomCode).notifier,
+                                  )
+                                  .pauseRide(),
+                              onEnd: () => ref
+                                  .read(
+                                    autoEndControllerProvider(roomCode).notifier,
+                                  )
+                                  .endNow(),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
               Positioned.fill(
                 child: IgnorePointer(
                   ignoring: progress == null,
@@ -619,14 +689,9 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                         : progress.stage == RideEndStage.complete
                         ? RideCompleteOverlay(
                             key: const ValueKey('complete'),
-                            // Until the host names it, the name is only a
-                            // placeholder, so it is not shown.
-                            rideName: room?.namePending ?? false
-                                ? ''
-                                : room?.name ?? '',
-                            continueLabel: room?.namePending ?? false
-                                ? (isHost ? 'Name your ride' : 'View results')
-                                : 'View results',
+                            // Each rider names their own ride on the results,
+                            // from where it ended.
+                            rideName: '',
                             distanceMeters: map.myStats?.distanceMeters ?? 0,
                             duration:
                                 map.myStats?.elapsed(
@@ -743,9 +808,17 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
 /// (guided rides) and, once the camera stops following, a recenter button
 /// that springs in.
 class _MapControls extends StatelessWidget {
-  const _MapControls({required this.commands, required this.onOverview});
+  const _MapControls({
+    required this.commands,
+    required this.onOverview,
+    this.rideActions,
+  });
 
   final LiveMapCommands commands;
+
+  /// Pause and End, at the foot of the controls; `null` once the ride is no
+  /// longer this rider's to end.
+  final Widget? rideActions;
   final VoidCallback? onOverview;
 
   @override
@@ -788,6 +861,10 @@ class _MapControls extends StatelessWidget {
                       ),
                     ),
             ),
+            if (rideActions != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              rideActions!,
+            ],
           ],
         ),
       ),

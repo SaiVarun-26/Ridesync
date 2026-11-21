@@ -11,6 +11,9 @@ abstract interface class JsonCache {
 
   /// Saves [value] under [key], replacing any previous document.
   Future<void> write(String key, Map<String, Object?> value);
+
+  /// Removes the document saved under [key], if any.
+  Future<void> remove(String key);
 }
 
 /// [JsonCache] that keeps one file per key in a directory.
@@ -53,6 +56,16 @@ class FileJsonCache implements JsonCache {
       await temp.rename(file.path);
     } on Object catch (e) {
       debugPrint('Writing cache "$key" failed: $e');
+    }
+  }
+
+  @override
+  Future<void> remove(String key) async {
+    try {
+      final file = await _file(key);
+      if (file.existsSync()) await file.delete();
+    } on Object catch (e) {
+      debugPrint('Removing cache "$key" failed: $e');
     }
   }
 }

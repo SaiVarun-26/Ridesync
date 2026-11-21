@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../../room/domain/ride_mode.dart';
 import '../geo_point.dart';
 
@@ -62,7 +64,20 @@ class RiderRideSummary {
     required this.finished,
     this.topSpeedPoint,
     this.topSpeedDistanceMeters,
+    this.pausedMs = 0,
   });
+
+  /// Time this rider spent paused (Pause Ride). Not part of their ride time.
+  final int pausedMs;
+
+  /// This rider's own ride time: from their start to their finish, pauses
+  /// left out. `null` when either end is unknown.
+  int? get rideTimeMs {
+    final start = startedAtMs;
+    final end = endedAtMs;
+    if (start == null || end == null) return null;
+    return math.max(0, end - start - pausedMs);
+  }
 
   /// Where [maxSpeedMps] was reached, and how far into the ride. `null` for
   /// rides recorded before it was kept.

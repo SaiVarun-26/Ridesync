@@ -8,16 +8,14 @@ import '../../../../core/widgets/section_label.dart';
 import '../../domain/live/ride_format.dart';
 import '../ride_map_controller.dart';
 import 'ride_map_overlays.dart';
-import 'slide_to_confirm.dart';
 
 /// The bottom panel of the live map.
 ///
 /// Collapsed it is the speed and status row, taking the same room it always
 /// has, so the map stays clear. Tapping or dragging the handle opens it to
 /// show the ride's duration, distance and riders, moving and stopped time and
-/// average moving speed, and, for the host, the
-/// slide that ends the ride. Ending the ride lives here rather than floating
-/// over the map.
+/// average moving speed. Pausing and ending the ride are the map's floating
+/// buttons, always in view.
 class RideControlPanel extends StatefulWidget {
   const RideControlPanel({
     super.key,
@@ -27,10 +25,6 @@ class RideControlPanel extends StatefulWidget {
     required this.duration,
     required this.distanceMeters,
     required this.riderCount,
-    required this.isHost,
-    required this.canEnd,
-    required this.isEnding,
-    required this.onEndRide,
     this.movingTime = Duration.zero,
     this.stoppedTime = Duration.zero,
     this.averageSpeedMps = 0,
@@ -61,15 +55,6 @@ class RideControlPanel extends StatefulWidget {
   final Duration duration;
   final double distanceMeters;
   final int riderCount;
-
-  final bool isHost;
-
-  /// Whether the ride can be ended right now (host, ride in progress).
-  final bool canEnd;
-
-  /// Whether ending the ride is in progress.
-  final bool isEnding;
-  final VoidCallback onEndRide;
 
   @override
   State<RideControlPanel> createState() => _RideControlPanelState();
@@ -128,10 +113,6 @@ class _RideControlPanelState extends State<RideControlPanel> {
                     averageSpeedMps: widget.averageSpeedMps,
                     distanceMeters: widget.distanceMeters,
                     riderCount: widget.riderCount,
-                    isHost: widget.isHost,
-                    canEnd: widget.canEnd,
-                    isEnding: widget.isEnding,
-                    onEndRide: widget.onEndRide,
                     routeFigures: widget.routeFigures,
                   )
                 : const SizedBox(width: double.infinity),
@@ -191,10 +172,6 @@ class _Details extends StatelessWidget {
     required this.averageSpeedMps,
     required this.distanceMeters,
     required this.riderCount,
-    required this.isHost,
-    required this.canEnd,
-    required this.isEnding,
-    required this.onEndRide,
     this.routeFigures = const [],
   });
 
@@ -205,14 +182,9 @@ class _Details extends StatelessWidget {
   final double averageSpeedMps;
   final double distanceMeters;
   final int riderCount;
-  final bool isHost;
-  final bool canEnd;
-  final bool isEnding;
-  final VoidCallback onEndRide;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: AppMotion.normal,
@@ -257,21 +229,8 @@ class _Details extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: AppSpacing.xl),
-          if (canEnd)
-            SlideToConfirm(
-              label: 'Slide to End Ride',
-              isBusy: isEnding,
-              onConfirmed: onEndRide,
-            )
-          else if (!isHost)
-            Text(
-              'Only the host can end the ride.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            ),
+          // Pausing and ending live on the map's floating controls.
+          const SizedBox(height: AppSpacing.sm),
         ],
       ),
     );

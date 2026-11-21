@@ -21,7 +21,27 @@ class RideStats {
     this.lastPoint,
     this.lastSampleAtMs,
     this.endedAtMs,
+    this.pausedMs = 0,
+    this.pausedAtMs,
   });
+
+  /// Time spent paused by the rider (Pause Ride), in finished pauses. Kept
+  /// apart from stopped time: it counts as neither riding nor stopping.
+  final int pausedMs;
+
+  /// When the current pause began (epoch millis); `null` while riding.
+  final int? pausedAtMs;
+
+  /// Whether the rider has paused the ride.
+  bool get isPaused => pausedAtMs != null;
+
+  /// All paused time as of [nowMs], the current pause included.
+  int pausedTotalMs(int nowMs) {
+    final at = pausedAtMs;
+    if (at == null) return pausedMs;
+    final until = math.min(nowMs, endedAtMs ?? nowMs);
+    return pausedMs + math.max(0, until - at);
+  }
 
   /// When the ride started for this rider (epoch millis).
   final int startedAtMs;
@@ -66,12 +86,13 @@ class RideStats {
   double get averageSpeedMps =>
       movingTimeMs <= 0 ? 0 : distanceMeters / (movingTimeMs / 1000);
 
-  /// Total time since the ride started, including stops, as of [nowMs]. Once
-  /// the ride is finished it stops at [endedAtMs].
+  /// Ride time since the start as of [nowMs]: stops included, pauses not, so
+  /// the ride's clock stands still while it is paused. Once the ride is
+  /// finished it stops at [endedAtMs].
   Duration elapsed(int nowMs) => Duration(
     milliseconds: math.max(
       0,
-      math.min(nowMs, endedAtMs ?? nowMs) - startedAtMs,
+      math.min(nowMs, endedAtMs ?? nowMs) - startedAtMs - pausedTotalMs(nowMs),
     ),
   );
 
@@ -93,8 +114,13 @@ class RideStats {
     GeoPoint? lastPoint,
     int? lastSampleAtMs,
     int? endedAtMs,
+    int? pausedMs,
+    int? pausedAtMs,
+    bool clearPausedAt = false,
   }) {
     return RideStats(
+      pausedMs: pausedMs ?? this.pausedMs,
+      pausedAtMs: clearPausedAt ? null : (pausedAtMs ?? this.pausedAtMs),
       startedAtMs: startedAtMs,
       distanceMeters: distanceMeters ?? this.distanceMeters,
       movingTimeMs: movingTimeMs ?? this.movingTimeMs,

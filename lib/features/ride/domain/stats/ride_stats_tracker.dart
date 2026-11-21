@@ -108,7 +108,13 @@ class RideStatsTracker {
     if (impliedSpeed > maxPlausibleSpeedMps) return false;
 
     final speed = fix.speedMps ?? impliedSpeed;
-    final moving = speed >= movingSpeedMps && meters >= minSegmentMeters;
+    // While paused nothing counts as riding: no distance, no moving time, no
+    // top speed. The position is still followed, so the ride carries on from
+    // wherever the rider resumes.
+    final moving =
+        !current.isPaused &&
+        speed >= movingSpeedMps &&
+        meters >= minSegmentMeters;
     if (!moving) {
       _lastMovingSpeedMps = null;
       _stats = sampled;

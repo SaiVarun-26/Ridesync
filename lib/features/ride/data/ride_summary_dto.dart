@@ -38,6 +38,7 @@ abstract final class RideSummaryPaths {
   static const String topSpeedAt = 'topSpeedAt';
   static const String sampleCount = 'sampleCount';
   static const String finished = 'finished';
+  static const String pausedMs = 'pausedMs';
 
   const RideSummaryPaths._();
 }
@@ -87,6 +88,7 @@ abstract final class RideSummaryDto {
       RideSummaryPaths.startedAt: ?rider.startedAtMs,
       RideSummaryPaths.endedAt: ?rider.endedAtMs,
       RideSummaryPaths.finished: rider.finished,
+      if (rider.pausedMs > 0) RideSummaryPaths.pausedMs: rider.pausedMs,
     };
   }
 
@@ -173,6 +175,7 @@ abstract final class RideSummaryDto {
       startedAtMs: startedAt is num ? startedAt.toInt() : null,
       endedAtMs: endedAt is num ? endedAt.toInt() : null,
       finished: value[RideSummaryPaths.finished] == true,
+      pausedMs: _double(value[RideSummaryPaths.pausedMs]).toInt(),
       topSpeedPoint: topLat is num && topLng is num
           ? GeoPoint(latitude: topLat.toDouble(), longitude: topLng.toDouble())
           : null,

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_dialogs.dart';
 import '../../../core/widgets/app_text_button.dart';
 import '../../../app/router/app_routes.dart';
@@ -20,14 +19,14 @@ import '../../history/presentation/providers/ride_details_providers.dart';
 import '../../history/presentation/providers/ride_history_providers.dart';
 import '../../history/presentation/story/ride_story_view.dart';
 import '../../naming/presentation/naming_providers.dart';
-import '../../naming/presentation/ride_name_dialog.dart';
+import '../../naming/presentation/rename_ride_flow.dart';
 import '../../insights/presentation/providers/insights_providers.dart';
 import '../../insights/presentation/share/ride_share_sheet.dart';
 import '../../room/presentation/providers/room_providers.dart';
 import '../../room/presentation/room_flow.dart';
 import '../../room/presentation/widgets/room_exit_scope.dart';
 
-/// Where every rider lands when the host ends the ride.
+/// Where each rider lands when their own ride ends, however it ended.
 ///
 /// The ride is told as a story of cards (see [RideStoryView]): the solo
 /// journey, or the group's ride with its replay, standings and moments.
@@ -47,76 +46,60 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
 
   String get _code => widget.roomCode;
 
-  /// Whether this rider is the host of a ride nobody has named yet. Their
-  /// copy is saved to history only once it is named.
-  bool get _hostNeedsToName {
-    final summary = ref.read(rideDetailsProvider(_code)).value?.summary;
-    final uid = ref.read(authStateChangesProvider).value?.uid;
-    return summary != null && !summary.named && summary.hostUid == uid;
-  }
+  /// The name this rider gave the ride here; `null` while it is still the
+  /// suggested one.
+  String? _chosenName;
 
-  /// Asks the host for the ride's name and, once it is saved, saves the ride
-  /// to their history.
-  Future<void> _nameRide() async {
-    final details = ref.read(rideDetailsProvider(_code)).value;
-    final uid = ref.read(authStateChangesProvider).value?.uid;
-    if (details == null) return;
-    final points = details.routes[uid]?.points;
-    final service = ref.read(rideNamingServiceProvider);
-    final saved = await showRideNameDialog(
+  /// Lets the rider keep, edit or replace their ride's name. The ride is in
+  /// their history already (under the suggested name); the new name replaces
+  /// it there and everywhere the ride is shown.
+  Future<void> _rename(String current) async {
+    try {
+      await ref.read(recordRideHistoryProvider(_code).future);
+    } on Object {
+      // Renaming below reports its own failure.
+    }
+    if (!mounted) return;
+    final renamed = await renameRideFlow(
       context,
-      title: 'Name your ride',
-      confirmLabel: 'Save Ride',
-      message: 'Everyone will see it in their history.',
-      suggestion: service.suggest(
-        start: points == null || points.isEmpty ? null : points.first,
-        end: points == null || points.isEmpty ? null : points.last,
-      ),
-      onSave: (name) async {
-        final result = await service.nameRide(code: _code, name: name);
-        return switch (result) {
-          Success() => null,
-          Failed(:final failure) => failure.message,
-        };
-      },
+      ref,
+      code: _code,
+      currentName: current,
     );
-    if (!saved || !mounted) return;
-    // The ride is named now: show it, and save it to history.
-    ref
-      ..invalidate(rideDetailsProvider(_code))
-      ..invalidate(rideRecapProvider(_code))
-      ..invalidate(recordRideHistoryProvider(_code));
+    if (renamed != null && mounted) setState(() => _chosenName = renamed);
   }
 
   /// Goes home. Waits for the ride to be saved to history first, because the
   /// rider has to still be in the room for that write to be allowed.
   Future<void> _done() async {
     if (_leaving) return;
-    if (_hostNeedsToName) {
-      // Leaving now would leave the ride out of the host's history.
-      final leave = await showAppDialog<bool>(
-        context: context,
-        builder: (_) => const AppDialog(
-          title: 'Leave without saving?',
-          message:
-              'This ride has no name yet, so it is not in your history. '
-              'Name it to keep it.',
-          cancelLabel: 'Name ride',
-          confirmLabel: 'Leave',
-          destructive: true,
-        ),
-      );
-      if (!mounted) return;
-      if (leave != true) {
-        await _nameRide();
-        return;
-      }
-    }
     setState(() => _leaving = true);
     try {
       await ref.read(recordRideHistoryProvider(_code).future);
     } on Object {
-      // History is best effort here; leaving must not be blocked by it.
+      // Checked just below.
+    }
+    // Leaving gives up the right to save the ride, so the rider only leaves
+    // once it is in their history: a finished ride is never dropped.
+    final uid = ref.read(authStateChangesProvider).value?.uid;
+    final saved = uid == null
+        ? null
+        : await ref
+              .read(rideHistoryRepositoryProvider)
+              .entry(uid: uid, code: _code);
+    if (!mounted) return;
+    final inHistory = switch (saved) {
+      Success(:final value) => value != null,
+      _ => false,
+    };
+    if (!inHistory) {
+      setState(() => _leaving = false);
+      ref.invalidate(recordRideHistoryProvider(_code));
+      showAppSnackBar(
+        context,
+        'Your ride is still being saved. Try again in a moment.',
+      );
+      return;
     }
     final result = await ref
         .read(roomRepositoryProvider)
@@ -148,11 +131,11 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
     // Saves this ride's highlights to its history entry once it is recorded.
     ref
       ..watch(recapHighlightsSyncProvider)
-      // Picks up the host's name as soon as it is given.
+      // Brings older rides, saved before they were named, up to date.
       ..watch(pendingNameSyncProvider);
-    // The room's name updates live, so riders see the host's name arrive.
-    final room = ref.watch(roomStreamProvider(_code)).value;
-    final liveName = room == null || room.namePending ? null : room.name;
+    // Named from where this rider's ride ended, and always editable.
+    final suggested = ref.watch(rideNameSuggestionProvider(_code)).value;
+    final name = _chosenName ?? suggested;
     final myUid = ref.watch(authStateChangesProvider).value?.uid;
 
     return RoomExitScope(
@@ -190,11 +173,8 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
                         // background; its cards join as it does.
                         recap: recap.value,
                         completed: true,
-                        title:
-                            liveName ??
-                            (data.summary.named
-                                ? null
-                                : 'Waiting for the host to name this ride'),
+                        title: name ?? 'Naming your ride…',
+                        onRename: name == null ? null : () => _rename(name),
                         onShare: () => showRideShareSheet(context, code: _code),
                       ),
                     ),
@@ -210,16 +190,6 @@ class _RideResultsScreenState extends ConsumerState<RideResultsScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (details.value case final loaded?)
-                        if (!loaded.summary.named &&
-                            loaded.summary.hostUid == myUid) ...[
-                          AppButton(
-                            label: 'Name & save ride',
-                            icon: Icons.edit_rounded,
-                            onPressed: _nameRide,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                        ],
                       AppButton(
                         label: 'Done',
                         variant: AppButtonVariant.secondary,

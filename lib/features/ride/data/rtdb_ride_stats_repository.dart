@@ -100,6 +100,20 @@ class RtdbRideStatsRepository implements RideStatsRepository {
   }
 
   @override
+  Future<Result<Map<String, RideStats>>> loadAll({required String code}) {
+    return _run<Map<String, RideStats>>((_) async {
+      final snapshot = await _database.ref(RideStatsPaths.stats(code)).get();
+      final all = <String, RideStats>{};
+      for (final child in snapshot.children) {
+        final uid = child.key;
+        final stats = RideStatsDto.fromValue(child.value);
+        if (uid != null && stats != null) all[uid] = stats;
+      }
+      return all;
+    });
+  }
+
+  @override
   Stream<Map<String, RideStats>> watchAll({required String code}) {
     final ref = _database.ref(RideStatsPaths.stats(code));
     final current = <String, RideStats>{};

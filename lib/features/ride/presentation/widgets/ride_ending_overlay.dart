@@ -32,7 +32,7 @@ class RideEndingOverlay extends StatelessWidget {
 
   static const List<String> _steps = [
     'Ending Ride...',
-    'Saving rider data...',
+    'Saving ride...',
     'Generating ride summary...',
   ];
 

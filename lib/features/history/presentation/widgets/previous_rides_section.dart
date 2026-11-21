@@ -8,9 +8,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../naming/presentation/naming_providers.dart';
+import '../../../naming/presentation/rename_ride_flow.dart';
 import '../../../insights/presentation/providers/insights_providers.dart';
 import '../../../insights/presentation/share/ride_share_sheet.dart';
 import '../providers/ride_history_providers.dart';
+import '../delete_ride_flow.dart';
 import '../open_ride_details.dart';
 import 'ride_history_card.dart';
 import 'ride_history_skeleton.dart';
@@ -148,6 +150,13 @@ class PreviousRidesSection extends ConsumerWidget {
                 origin: origin,
               ),
               onShare: () => showRideShareSheet(context, code: entry.code),
+              onRename: () => renameRideFlow(
+                context,
+                ref,
+                code: entry.code,
+                currentName: entry.roomName,
+              ),
+              onDelete: () => deleteRideFlow(context, ref, code: entry.code),
             ),
           ),
       ],

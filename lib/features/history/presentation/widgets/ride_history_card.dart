@@ -30,10 +30,16 @@ class RideHistoryCard extends StatefulWidget {
     required this.entry,
     required this.onTap,
     this.onShare,
+    this.onRename,
+    this.onDelete,
   });
 
   final RideHistoryEntry entry;
   final ValueChanged<Rect> onTap;
+
+  /// Shown in the card's ⋮ menu; no menu when both are `null`.
+  final VoidCallback? onRename;
+  final VoidCallback? onDelete;
 
   /// Opens the ride's share card straight from the list; no share button
   /// when `null`.
@@ -162,6 +168,20 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
                                       ),
                                     ),
                                   ),
+                                if (widget.onRename != null ||
+                                    widget.onDelete != null)
+                                  SizedBox(
+                                    width: 32,
+                                    height: 24,
+                                    child: OverflowBox(
+                                      maxWidth: AppIconButton.size,
+                                      maxHeight: AppIconButton.size,
+                                      child: _MoreMenu(
+                                        onRename: widget.onRename,
+                                        onDelete: widget.onDelete,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                             const SizedBox(height: 2),
@@ -241,6 +261,69 @@ class _RideHistoryCardState extends State<RideHistoryCard> {
   static String _distance(double meters) => meters < 1000
       ? '${meters.round()}'
       : (meters / 1000).toStringAsFixed(meters >= 100000 ? 0 : 1);
+}
+
+enum _MoreAction { rename, delete }
+
+/// The card's ⋮ menu: Rename Ride, Delete Ride.
+class _MoreMenu extends StatelessWidget {
+  const _MoreMenu({required this.onRename, required this.onDelete});
+
+  final VoidCallback? onRename;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    PopupMenuItem<_MoreAction> item(
+      _MoreAction value,
+      IconData icon,
+      String label,
+      Color color,
+    ) => PopupMenuItem<_MoreAction>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: AppIconSize.medium, color: color),
+          const SizedBox(width: AppSpacing.md),
+          Text(label, style: theme.textTheme.bodyLarge?.copyWith(color: color)),
+        ],
+      ),
+    );
+    return PopupMenuButton<_MoreAction>(
+      tooltip: 'More',
+      icon: const Icon(
+        Icons.more_vert_rounded,
+        size: AppIconSize.medium,
+        color: AppColors.textTertiary,
+      ),
+      color: AppColors.surfaceRaised,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      onSelected: (action) => switch (action) {
+        _MoreAction.rename => onRename?.call(),
+        _MoreAction.delete => onDelete?.call(),
+      },
+      itemBuilder: (_) => [
+        if (onRename != null)
+          item(
+            _MoreAction.rename,
+            Icons.edit_rounded,
+            'Rename Ride',
+            AppColors.textPrimary,
+          ),
+        if (onDelete != null)
+          item(
+            _MoreAction.delete,
+            Icons.delete_outline_rounded,
+            'Delete Ride',
+            AppColors.error,
+          ),
+      ],
+    );
+  }
 }
 
 /// A small pill: who rode, or where this rider finished.

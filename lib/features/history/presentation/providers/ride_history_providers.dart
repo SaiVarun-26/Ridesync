@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/errors/result.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../naming/presentation/naming_providers.dart';
 import '../../../room/presentation/providers/room_providers.dart';
 import '../../data/json_cache.dart';
 import '../../data/rtdb_ride_history_repository.dart';
@@ -233,6 +234,17 @@ class RideHistoryController extends Notifier<RideHistoryState> {
     );
   }
 
+  /// Takes ride [code] off the list, once it is deleted.
+  void remove(String code) {
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      entries: [
+        for (final e in state.entries)
+          if (e.code != code) e,
+      ],
+    );
+  }
+
   /// Shows [name] as ride [code]'s name, as soon as it is saved.
   void applyName(String code, String name) {
     if (!ref.mounted) return;
@@ -302,9 +314,12 @@ final recordRideHistoryProvider = FutureProvider.autoDispose
     .family<void, String>((ref, code) async {
       final uid = ref.read(authStateChangesProvider).value?.uid;
       if (uid == null) return;
+      // Saved under the name suggested from where this rider's ride ended;
+      // the rider can change it at any time.
+      final name = await ref.watch(rideNameSuggestionProvider(code).future);
       final result = await ref
           .read(rideHistoryRepositoryProvider)
-          .record(uid: uid, code: code);
+          .record(uid: uid, code: code, name: name);
       if (result.isSuccess && ref.mounted) {
         unawaited(ref.read(rideHistoryProvider.notifier).refresh());
       }

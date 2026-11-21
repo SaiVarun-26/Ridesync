@@ -30,10 +30,24 @@ class RtdbRideSummaryRepository implements RideSummaryRepository {
       return Failed(
         e.code == 'permission-denied'
             ? const AuthFailure(
-                message: 'Only the host can finish the ride summary.',
+                message: 'Your ride could not be saved. Try again.',
               )
             : NetworkFailure(cause: e),
       );
+    }
+  }
+
+  @override
+  Future<RideSummary?> load({required String code}) async {
+    try {
+      final snapshot = await _database
+          .ref(RideSummaryPaths.summary(code))
+          .get()
+          .timeout(const Duration(seconds: 6));
+      return RideSummaryDto.fromValue(code, snapshot.value);
+    } on Object catch (e) {
+      debugPrint('Reading the ride summary failed: $e');
+      return null;
     }
   }
 

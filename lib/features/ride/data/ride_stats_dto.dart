@@ -25,6 +25,8 @@ abstract final class RideStatsPaths {
   static const String lastSampleAt = 'lastSampleAt';
   static const String finished = 'finished';
   static const String endedAt = 'endedAt';
+  static const String pausedMs = 'pausedMs';
+  static const String pausedAt = 'pausedAt';
 
   // rideRoutes fields
   static const String polyline = 'polyline';
@@ -75,6 +77,11 @@ abstract final class RideStatsDto {
       endedAtMs: value[RideStatsPaths.finished] == true && endedAt is num
           ? endedAt.toInt()
           : null,
+      pausedMs: _number(value[RideStatsPaths.pausedMs]).toInt(),
+      pausedAtMs: switch (value[RideStatsPaths.pausedAt]) {
+        final num at => at.toInt(),
+        _ => null,
+      },
     );
   }
 
@@ -99,6 +106,9 @@ abstract final class RideStatsDto {
       RideStatsPaths.lastSampleAt: ?lastSampleAt,
       if (endedAt != null) RideStatsPaths.finished: true,
       RideStatsPaths.endedAt: ?endedAt,
+      RideStatsPaths.pausedMs: stats.pausedMs,
+      // Written as null while riding, so resuming clears it.
+      RideStatsPaths.pausedAt: stats.pausedAtMs,
     };
   }
 

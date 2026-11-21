@@ -135,28 +135,34 @@ class RideHistoryEntry {
 
   Duration get duration => Duration(milliseconds: durationMs);
 
-  /// The history entry for [riderUid] in [summary], or `null` when that rider
-  /// was not part of the ride.
-  static RideHistoryEntry? fromSummary(RideSummary summary, String riderUid) {
+  /// The history entry for [riderUid] in [summary], under [name] (the
+  /// rider's own name for it), or `null` when that rider was not part of the
+  /// ride.
+  static RideHistoryEntry? fromSummary(
+    RideSummary summary,
+    String riderUid, {
+    String? name,
+  }) {
     RiderRideSummary? rider;
     for (final candidate in summary.riders) {
       if (candidate.uid == riderUid) rider = candidate;
     }
     if (rider == null) return null;
     final group = summary.group;
+    // Every rider finishes on their own, so the entry is this rider's own
+    // ride: their start and finish, their ride time without pauses.
     return RideHistoryEntry(
       code: summary.roomCode,
-      roomName: summary.roomName,
+      roomName: name ?? summary.roomName,
       mode: summary.mode,
-      startedAtMs: group.startedAtMs,
-      endedAtMs: group.endedAtMs,
-      durationMs: group.durationMs,
+      startedAtMs: rider.startedAtMs ?? group.startedAtMs,
+      endedAtMs: rider.endedAtMs ?? group.endedAtMs,
+      durationMs: rider.rideTimeMs ?? group.durationMs,
       distanceMeters: rider.distanceMeters,
       averageSpeedMps: rider.averageSpeedMps,
       maxSpeedMps: rider.maxSpeedMps,
       riderCount: group.riderCount,
       colorId: rider.colorId,
-      namePending: !summary.named,
       position: positionIn(summary, riderUid),
     );
   }

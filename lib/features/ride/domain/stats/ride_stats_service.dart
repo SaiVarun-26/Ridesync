@@ -124,7 +124,12 @@ class RideStatsService {
       _finishReadyWait,
       onTimeout: () => false,
     );
-    if (!ready) return null;
+    if (!ready) {
+      // Not frozen: finishing again (once the saved ride has loaded) tries
+      // once more, so the ride is never left unsaved.
+      _finished = false;
+      return null;
+    }
 
     // Let any save already in progress land first, so it cannot arrive after
     // the finished marker and be refused.
@@ -132,7 +137,12 @@ class RideStatsService {
 
     // A rider who never got a GPS fix still finishes, with an empty ride.
     final base = _tracker.stats ?? RideStats(startedAtMs: endedAtMs);
-    final done = base.copyWith(endedAtMs: endedAtMs);
+    // Ending while paused closes the pause at the end.
+    final done = base.copyWith(
+      endedAtMs: endedAtMs,
+      pausedMs: base.pausedTotalMs(endedAtMs),
+      clearPausedAt: true,
+    );
     _tracker.restore(done);
     _statsVersion++;
     if (!_updates.isClosed) _updates.add(done);
@@ -149,6 +159,66 @@ class RideStatsService {
     }
     if (results[1] is Success) _savedStatsVersion = _statsVersion;
     return done;
+  }
+
+  /// Whether this rider's finished record is saved: read back from the
+  /// database. When it is not, the final route and statistics are sent
+  /// again (route first, as in [finish]) and `false` is returned, so the
+  /// caller checks again later. Never throws.
+  Future<bool> confirmFinalSaved() async {
+    if (_closed) return false;
+    final stats = _tracker.stats;
+    if (!_finished || stats == null || !stats.isFinished) return false;
+    final saved = await _repository
+        .loadMine(code: _roomCode)
+        .timeout(
+          _restoreTimeout,
+          onTimeout: () => const Failed<RideStats?>(NetworkFailure()),
+        );
+    if (saved case Success(:final value) when value?.isFinished ?? false) {
+      return true;
+    }
+    if (saved is Failed) return false;
+    await Future.wait([
+      _repository.saveMyRoute(code: _roomCode, route: _routeWithEnd()),
+      _repository.saveMine(code: _roomCode, stats: stats),
+    ]).timeout(_restoreTimeout, onTimeout: () => const []);
+    return false;
+  }
+
+  /// Whether the ride is paused right now.
+  bool get isPaused => _tracker.stats?.isPaused ?? false;
+
+  /// Pauses the ride at [atMs]: its clock and moving time stand still until
+  /// [resume], while the route keeps following the rider. Saved at once.
+  /// Returns whether it paused (not before the saved ride has loaded, nor
+  /// once finished, nor when already paused).
+  Future<bool> pause({required int atMs}) async {
+    if (_closed || _finished || !_ready || isPaused) return false;
+    final base = _tracker.stats ?? RideStats(startedAtMs: atMs);
+    _setStats(base.copyWith(pausedAtMs: atMs));
+    await _enqueueSave(includeRoute: false);
+    return true;
+  }
+
+  /// Resumes a paused ride at [atMs]; the time paused is added to
+  /// [RideStats.pausedMs]. Saved at once. Returns whether it resumed.
+  Future<bool> resume({required int atMs}) async {
+    final stats = _tracker.stats;
+    if (_closed || _finished || !_ready || stats == null || !stats.isPaused) {
+      return false;
+    }
+    _setStats(
+      stats.copyWith(pausedMs: stats.pausedTotalMs(atMs), clearPausedAt: true),
+    );
+    await _enqueueSave(includeRoute: false);
+    return true;
+  }
+
+  void _setStats(RideStats stats) {
+    _tracker.restore(stats);
+    _statsVersion++;
+    if (!_updates.isClosed) _updates.add(stats);
   }
 
   /// Folds a GPS [fix] into the ride.

@@ -36,6 +36,9 @@ abstract final class RoomPaths {
   static const String memberOnline = 'online';
   static const String memberJoinedAt = 'joinedAt';
 
+  /// Where the rider is in their own ride: riding, paused or finished.
+  static const String memberRideState = 'rideState';
+
   const RoomPaths._();
 }
 
@@ -101,6 +104,7 @@ abstract final class RoomDto {
       isInitialized: map[RoomPaths.memberInitialized] as bool? ?? false,
       online: map[RoomPaths.memberOnline] as bool? ?? false,
       joinedAt: _asInt(map[RoomPaths.memberJoinedAt]),
+      rideState: RiderRideState.fromWire(map[RoomPaths.memberRideState]),
     );
   }
 

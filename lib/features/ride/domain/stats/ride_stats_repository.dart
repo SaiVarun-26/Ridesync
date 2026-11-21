@@ -29,4 +29,7 @@ abstract interface class RideStatsRepository {
   /// Every rider's statistics in room [code], by uid, live. Emits the full set
   /// each time any rider's record is added or changes.
   Stream<Map<String, RideStats>> watchAll({required String code});
+
+  /// Every rider's statistics in room [code], by uid, read once.
+  Future<Result<Map<String, RideStats>>> loadAll({required String code});
 }

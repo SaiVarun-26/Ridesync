@@ -7,9 +7,11 @@ import '../../../core/widgets/app_icon.dart';
 import '../../../core/widgets/fade_slide_in.dart';
 import '../../../core/widgets/ride_loader.dart';
 import '../../naming/presentation/naming_providers.dart';
+import '../../naming/presentation/rename_ride_flow.dart';
 import '../../insights/presentation/providers/insights_providers.dart';
 import '../../insights/presentation/share/ride_share_sheet.dart';
 import '../domain/ride_history_entry.dart';
+import 'delete_ride_flow.dart';
 import 'open_ride_details.dart';
 import 'providers/ride_history_providers.dart';
 import 'widgets/ride_history_card.dart';
@@ -139,6 +141,14 @@ class _RideHistoryScreenState extends ConsumerState<RideHistoryScreen> {
                     ),
                     onShare: () =>
                         showRideShareSheet(context, code: entry.code),
+                    onRename: () => renameRideFlow(
+                      context,
+                      ref,
+                      code: entry.code,
+                      currentName: entry.roomName,
+                    ),
+                    onDelete: () =>
+                        deleteRideFlow(context, ref, code: entry.code),
                   );
                   return KeyedSubtree(
                     key: ValueKey(entry.code),
