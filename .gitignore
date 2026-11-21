@@ -47,3 +47,25 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
+# Release artifacts: APKs and app bundles are published as GitHub Release
+# assets, never committed.
+*.apk
+*.aab
+*.apks
+
+# Android signing: keystores and their passwords never belong in git.
+*.jks
+*.keystore
+key.properties
+/android/key.properties
+
+# Local Firebase CLI state and debug logs
+.firebase/
+firebase-debug.log
+database-debug.log
+firestore-debug.log
+
+# Editor and OS clutter
+Thumbs.db
+*.tmp
+

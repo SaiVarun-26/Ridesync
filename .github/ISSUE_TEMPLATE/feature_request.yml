@@ -1,0 +1,45 @@
+name: ✨ Feature request
+description: Suggest an idea or improvement for RideSync.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the situation on a ride where this would help.
+      placeholder: When my group stops for fuel, it is hard to tell who has left.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like RideSync to do?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Solo riding
+        - Group riding
+        - Leaderboard
+        - Maps & navigation
+        - Ride replay
+        - Ride history & insights
+        - Fuel stations
+        - Auto end / pause
+        - Notifications
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Mockups or extra details

@@ -1,0 +1,65 @@
+name: 🐛 Bug report
+description: Something in RideSync is not working as expected.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please do not include personal location data or account details.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the problem.
+      placeholder: The ride did not appear in Ride History after it ended.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start a Solo Free Roam ride
+        2. Stop for 5 minutes
+        3. Let the countdown finish
+        4. Open Ride History
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: dropdown
+    id: ride-type
+    attributes:
+      label: Ride type
+      options:
+        - Solo Free Roam
+        - Solo Guided
+        - Group Free Roam
+        - Group Guided
+        - Not ride related
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: RideSync version
+      placeholder: v1.0.0
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone and Android version
+      placeholder: Samsung Galaxy S21 FE, Android 14
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or extra details
+      description: Screenshots, screen recordings or anything else that helps.

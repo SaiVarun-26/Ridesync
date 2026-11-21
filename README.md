@@ -3,13 +3,50 @@
 **Never lose your ride.** RideSync is a real-time ride companion for motorcyclists and cyclists: ride alone or with a group, see everyone live on the map, follow a planned route, and relive every ride afterwards.
 
 <p>
-  <img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white">
-  <img alt="Dart" src="https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white">
-  <img alt="Firebase" src="https://img.shields.io/badge/Firebase-Realtime%20Database-FFCA28?logo=firebase&logoColor=black">
-  <img alt="Maps" src="https://img.shields.io/badge/Maps-OpenStreetMap-7EBC6F?logo=openstreetmap&logoColor=white">
-  <img alt="Platform" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
-  <img alt="License" src="https://img.shields.io/badge/License-MIT-8C3EE2">
+  <a href="https://flutter.dev"><img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white"></a>
+  <a href="https://dart.dev"><img alt="Dart" src="https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white"></a>
+  <a href="https://firebase.google.com"><img alt="Firebase" src="https://img.shields.io/badge/Firebase-Realtime%20Database-FFCA28?logo=firebase&logoColor=black"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-8C3EE2"></a>
+  <a href="https://github.com/SaiVarun-26/Ridesync/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/SaiVarun-26/Ridesync?label=Latest%20release&color=8C3EE2"></a>
+  <a href="https://github.com/SaiVarun-26/Ridesync/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/SaiVarun-26/Ridesync/total?label=Downloads&color=8C3EE2"></a>
+  <img alt="Platform: Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
 </p>
+
+---
+
+# 📲 Download RideSync
+
+<p>
+  <a href="https://github.com/SaiVarun-26/Ridesync/releases/latest">
+    <img alt="Download Latest APK" src="https://img.shields.io/badge/Download-Latest%20APK-8C3EE2?style=for-the-badge&logo=android&logoColor=white">
+  </a>
+</p>
+
+**Always download the newest stable version from [GitHub Releases](https://github.com/SaiVarun-26/Ridesync/releases/latest).**
+
+Current version: **v1.0.0** · [Changelog](CHANGELOG.md)
+
+Every release contains:
+
+| | |
+|---|---|
+| 📦 | **Latest Android APK** |
+| 📝 | **Release Notes** |
+| 🚀 | **New Features** |
+| 🐛 | **Bug Fixes** |
+| ⚡ | **Performance Improvements** |
+
+### Installing on Android
+
+1. Open the [latest release](https://github.com/SaiVarun-26/Ridesync/releases/latest) on your phone.
+2. Under **Assets**, tap `RideSync-vX.Y.Z.apk` to download it.
+3. Open the downloaded file. If Android asks, allow installing apps from your browser or file manager.
+4. Tap **Install**, then open RideSync.
+5. When asked, allow **location** (choose *Allow all the time* so rides keep recording with the screen off) and **notifications**.
+
+**Updating:** download the newer APK from the latest release and install it over the existing app. Your rides are kept as long as the app is not uninstalled.
+
+> RideSync is distributed only through GitHub Releases. APK files are never stored in this repository.
 
 ---
 
@@ -182,17 +219,15 @@ Milestones 1–4 laid the foundation: authentication, ride rooms, live group tra
 
 ## Screenshots
 
-### Home Screen
+> Screenshots are coming soon. They live in [`docs/screenshots/`](docs/screenshots/).
 
-### Ride Screen
+| Home | Solo Ride | Group Ride | Leaderboard |
+|:---:|:---:|:---:|:---:|
+| *Coming soon* | *Coming soon* | *Coming soon* | *Coming soon* |
 
-### Leaderboard
-
-### Ride History
-
-### Replay
-
-### Fuel Stations
+| Ride History | Ride Replay | Fuel Stations | Insights |
+|:---:|:---:|:---:|:---:|
+| *Coming soon* | *Coming soon* | *Coming soon* | *Coming soon* |
 
 ## Getting Started
 
@@ -246,25 +281,31 @@ flutter test
 flutter build apk --release
 ```
 
+## Releases
+
+Releases are fully automated. To publish a new version:
+
+1. Bump `version` in `pubspec.yaml` following [Semantic Versioning](https://semver.org) (for example `1.1.0+2`).
+2. Add a `## v1.1.0` section to [CHANGELOG.md](CHANGELOG.md), and optionally `docs/release-notes/v1.1.0.md`.
+3. Commit, then tag and push:
+   ```bash
+   git tag v1.1.0
+   git push origin v1.1.0
+   ```
+
+The [release workflow](.github/workflows/release.yml) checks that the tag matches `pubspec.yaml`, runs analysis and tests, builds the release APK, and publishes it to [GitHub Releases](https://github.com/SaiVarun-26/Ridesync/releases) with release notes. See [CHANGELOG.md](CHANGELOG.md) for the history of every version.
+
 ## Contributing
 
-Contributions are welcome.
+Contributions are welcome. Please read the [Contributing Guide](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening an issue or pull request.
 
-1. Fork the repository.
-2. Create a branch for your change:
-   ```bash
-   git checkout -b feature/your-feature
-   ```
-3. Make your changes, following the existing architecture and style.
-4. Make sure `flutter analyze` and `flutter test` pass.
-5. Commit with a clear message, for example `feat: add ride challenges`.
-6. Push your branch and open a pull request describing what changed and why.
-
-For bugs and feature ideas, please open an issue first so it can be discussed.
+- 🐛 [Report a bug](https://github.com/SaiVarun-26/Ridesync/issues/new?template=bug_report.yml)
+- ✨ [Request a feature](https://github.com/SaiVarun-26/Ridesync/issues/new?template=feature_request.yml)
+- 🔒 Security issues: see the [Security Policy](SECURITY.md)
 
 ## License
 
-This project is licensed under the **MIT License**.
+RideSync is released under the [MIT License](LICENSE).
 
 ---
 

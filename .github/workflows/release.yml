@@ -1,0 +1,143 @@
+name: Release
+
+# Publishes a GitHub Release with the Android APK whenever a version tag
+# (v1.0.0, v1.1.0, ...) is pushed. The APK is attached to the Release and is
+# never committed to the repository.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          PUBSPEC=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$VERSION" != "$PUBSPEC" ]; then
+            echo "::error::Tag $TAG does not match pubspec.yaml version $PUBSPEC"
+            exit 1
+          fi
+          if ! grep -q "^## v$VERSION" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## v$VERSION' section"
+            exit 1
+          fi
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      # Signs with the release key when the repository has the signing
+      # secrets. Without them the APK is signed with a temporary key: it
+      # installs fine, but an update signed with a different key will not
+      # install over it.
+      - name: Set up release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No release signing secrets; the APK is signed with a temporary key."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Name the APK
+        id: apk
+        run: |
+          NAME="RideSync-${{ steps.version.outputs.tag }}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$NAME"
+          sha256sum "$NAME" > "$NAME.sha256"
+          echo "file=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Write release notes
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          NOTES="docs/release-notes/$TAG.md"
+          if [ -f "$NOTES" ]; then
+            cp "$NOTES" release-notes.md
+          else
+            # The version's CHANGELOG section, up to the next version heading.
+            awk -v v="## $TAG" '$0==v{f=1;next} /^## v/{f=0} f' CHANGELOG.md > release-notes.md
+          fi
+          PREVIOUS=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          {
+            echo ""
+            echo "---"
+            echo ""
+            if [ -n "$PREVIOUS" ]; then
+              echo "### 📝 Commits since $PREVIOUS"
+              RANGE="$PREVIOUS..$TAG"
+            else
+              echo "### 📝 Commits in this release"
+              RANGE="$TAG"
+            fi
+            echo ""
+            git log --no-merges --format='- %s (%h)' $RANGE
+            echo ""
+            echo "**Full changelog:** [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/$TAG/CHANGELOG.md)"
+          } >> release-notes.md
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: RideSync ${{ steps.version.outputs.tag }}
+          body_path: release-notes.md
+          make_latest: "true"
+          files: |
+            ${{ steps.apk.outputs.file }}
+            ${{ steps.apk.outputs.file }}.sha256
+
+      - name: Remove signing files
+        if: always()
+        run: rm -f android/app/upload-keystore.jks android/key.properties
