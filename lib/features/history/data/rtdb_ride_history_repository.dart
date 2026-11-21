@@ -91,6 +91,26 @@ class RtdbRideHistoryRepository implements RideHistoryRepository {
   }
 
   @override
+  Future<Result<List<RideHistoryEntry>>> allEntries(String uid) async {
+    try {
+      final snapshot = await _database
+          .ref(RideHistoryPaths.all(uid))
+          .get()
+          .timeout(timeout);
+      return Success([
+        for (final child in snapshot.children)
+          if (child.key != null)
+            ?RideHistoryDto.fromValue(child.key!, child.value),
+      ]);
+    } on TimeoutException catch (e) {
+      return Failed(NetworkFailure(cause: e));
+    } on FirebaseException catch (e) {
+      debugPrint('Loading all ride history failed (${e.code}): ${e.message}');
+      return Failed(NetworkFailure(cause: e));
+    }
+  }
+
+  @override
   Future<List<RideHistoryEntry>> personalBests({
     required String uid,
     int count = 3,

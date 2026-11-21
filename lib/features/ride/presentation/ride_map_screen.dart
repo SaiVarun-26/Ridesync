@@ -706,6 +706,9 @@ class _RideMapScreenState extends ConsumerState<RideMapScreen> {
                             key: const ValueKey('overlay'),
                             stage: progress.stage,
                             error: progress.error,
+                            offline:
+                                !map.isConnected &&
+                                progress.stage != RideEndStage.complete,
                             onRetry: () => ref
                                 .read(
                                   rideEndControllerProvider(roomCode).notifier,

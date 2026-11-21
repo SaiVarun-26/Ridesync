@@ -7,7 +7,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
+import '../../features/auth/presentation/rider_name_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
+import '../../features/profile/presentation/edit_profile_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/history/presentation/providers/ride_transition_providers.dart';
 import '../../features/history/presentation/ride_details_screen.dart';
 import '../../features/history/presentation/ride_history_screen.dart';
@@ -22,6 +25,7 @@ import '../../features/room/presentation/join_ride_screen.dart';
 import '../../features/room/presentation/lobby_screen.dart';
 import '../../features/room/presentation/solo_ride_screen.dart';
 import 'app_routes.dart';
+import 'auth_redirect.dart';
 import 'container_transform.dart';
 
 /// Provides the app's [GoRouter].
@@ -50,10 +54,27 @@ final routerProvider = Provider<GoRouter>((ref) {
             _page(state, const OnboardingScreen(), NavMotion.fadeThrough),
       ),
       GoRoute(
+        path: AppRoutes.welcome,
+        name: AppRoutes.welcomeName,
+        pageBuilder: (context, state) =>
+            _page(state, const RiderNameScreen(), NavMotion.fadeThrough),
+      ),
+      GoRoute(
         path: AppRoutes.home,
         name: AppRoutes.homeName,
         pageBuilder: (context, state) =>
             _page(state, const HomeScreen(), NavMotion.fadeThrough),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        name: AppRoutes.profileName,
+        pageBuilder: (context, state) => _page(state, const ProfileScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.profileEdit,
+        name: AppRoutes.profileEditName,
+        pageBuilder: (context, state) =>
+            _page(state, const EditProfileScreen()),
       ),
       GoRoute(
         path: AppRoutes.history,
@@ -166,55 +187,54 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
     ],
-    redirect: (context, state) {
-      final authState = ref.read(authStateChangesProvider);
-      final location = state.matchedLocation;
-      final atSplash = location == AppRoutes.splash;
-      final atOnboarding = location == AppRoutes.onboarding;
-
-      return authState.when(
-        // Auth not yet resolved on cold start: hold on the splash. This is
-        // distinct from a resolved "signed out", so returning users never flash
-        // the onboarding screen before their session restores.
-        loading: () => atSplash ? null : AppRoutes.splash,
-        // On error, fall back to onboarding so the user can retry sign-in.
-        error: (error, stack) => atOnboarding ? null : AppRoutes.onboarding,
-        data: (user) {
-          final signedIn = user != null;
-          if (!signedIn) {
-            // No session: the only valid destination is onboarding.
-            return atOnboarding ? null : AppRoutes.onboarding;
-          }
-          // Signed in: keep users out of splash/onboarding; send them home.
-          if (atSplash || atOnboarding) {
-            return AppRoutes.home;
-          }
-          return null;
-        },
-      );
-    },
+    // Session routing lives in [authRedirect]: splash while the session
+    // restores (so returning riders skip sign-in without a flash), sign-in
+    // when signed out, the rider-name screen after a first Google sign-in.
+    redirect: (context, state) => authRedirect(
+      auth: ref.read(authStateChangesProvider),
+      profile: ref.read(userProfileProvider),
+      location: state.matchedLocation,
+    ),
     errorBuilder: (context, state) =>
         Scaffold(body: Center(child: Text('Route not found: ${state.uri}'))),
   );
 });
 
-/// Bridges [authStateChangesProvider] to a [Listenable] so [GoRouter] re-runs
-/// its redirect whenever the authentication state changes.
+/// Bridges the session ([authStateChangesProvider]) and the parts of the
+/// profile routing depends on ([userProfileProvider]) to a [Listenable], so
+/// [GoRouter] re-runs its redirect whenever either changes.
 class _AuthRefreshListenable extends ChangeNotifier {
   _AuthRefreshListenable(this._ref) {
-    _subscription = _ref.listen<AsyncValue<Object?>>(
-      authStateChangesProvider,
-      (previous, next) => notifyListeners(),
-      fireImmediately: true,
-    );
+    _subscriptions = [
+      _ref.listen<AsyncValue<Object?>>(
+        authStateChangesProvider,
+        (previous, next) => notifyListeners(),
+        fireImmediately: true,
+      ),
+      // Only what [authRedirect] reads, so a profile edit or a sync status
+      // change does not re-run routing.
+      _ref.listen<(bool, bool, String?, bool)>(
+        userProfileProvider.select(
+          (p) => (
+            p.isLoading,
+            p.hasError,
+            p.value?.uid,
+            p.value?.hasRiderName ?? false,
+          ),
+        ),
+        (previous, next) => notifyListeners(),
+      ),
+    ];
   }
 
   final Ref _ref;
-  late final ProviderSubscription<AsyncValue<Object?>> _subscription;
+  late final List<ProviderSubscription<Object?>> _subscriptions;
 
   @override
   void dispose() {
-    _subscription.close();
+    for (final subscription in _subscriptions) {
+      subscription.close();
+    }
     super.dispose();
   }
 }

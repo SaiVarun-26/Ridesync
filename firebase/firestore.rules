@@ -25,22 +25,50 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
+    function profileKeys() {
+      return ['uid', 'displayName', 'email', 'photoUrl', 'preferences',
+              'createdAt', 'updatedAt'];
+    }
+
     function isValidProfileCreate() {
       let data = request.resource.data;
       return data.uid == request.auth.uid
-             && data.keys().hasOnly(['uid', 'displayName', 'photoUrl', 'createdAt', 'updatedAt'])
+             && data.keys().hasOnly(profileKeys())
              && data.keys().hasAll(['uid', 'createdAt'])
              && isValidDisplayName(data)
-             && isValidPhotoUrl(data);
+             && isValidEmail(data)
+             && isValidPhotoUrl(data)
+             && isValidPreferences(data);
     }
 
     function isValidProfileUpdate() {
       let data = request.resource.data;
       return data.uid == request.auth.uid
              && data.uid == resource.data.uid
-             && data.keys().hasOnly(['uid', 'displayName', 'photoUrl', 'createdAt', 'updatedAt'])
+             && data.keys().hasOnly(profileKeys())
              && isValidDisplayName(data)
-             && isValidPhotoUrl(data);
+             && isValidEmail(data)
+             && isValidPhotoUrl(data)
+             && isValidPreferences(data);
+    }
+
+    function isValidEmail(data) {
+      return !('email' in data.keys())
+             || data.email == null
+             || (data.email is string && data.email.size() <= 320);
+    }
+
+    // Synced rider preferences: the solo ride colour (a palette id) and
+    // whether fuel stations show on the map.
+    function isValidPreferences(data) {
+      return !('preferences' in data.keys())
+             || (data.preferences is map
+                 && data.preferences.keys().hasOnly(['soloColorId', 'fuelEnabled'])
+                 && (!('soloColorId' in data.preferences.keys())
+                     || (data.preferences.soloColorId is string
+                         && data.preferences.soloColorId.size() <= 32))
+                 && (!('fuelEnabled' in data.preferences.keys())
+                     || data.preferences.fuelEnabled is bool));
     }
 
     function isValidDisplayName(data) {

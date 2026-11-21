@@ -1,74 +1,155 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../domain/app_user.dart';
+import '../domain/user_profile.dart';
 
-/// Data-layer mapper between the Firestore `users/{uid}` document and the
-/// domain [AppUser].
+/// Data-layer mapper for the Firestore `users/{uid}` document: the rider's
+/// profile and synced preferences.
 ///
 /// The field set here is the single source of truth for the profile schema and
 /// must stay in lockstep with the Firestore security rules, which allow-list
-/// exactly: `uid`, `displayName`, `photoUrl`, `createdAt`, `updatedAt`. Sending
-/// any other key would be rejected by the rules, so all field names are defined
-/// as constants and reused rather than written inline.
+/// exactly: `uid`, `displayName`, `email`, `photoUrl`, `preferences`,
+/// `createdAt`, `updatedAt`. Sending any other key is rejected by the rules,
+/// so all field names are constants.
+///
+/// `displayName` holds the rider name the rider chose (never the Google
+/// account's name). It keeps its historical field name so rooms and rides
+/// created before Google Sign-In keep resolving it.
 class UserProfileDto {
-  const UserProfileDto({required this.uid, this.displayName, this.photoUrl});
+  const UserProfileDto({
+    required this.uid,
+    this.displayName,
+    this.email,
+    this.photoUrl,
+    this.createdAt,
+    this.soloColorId,
+    this.fuelEnabled,
+  });
 
   final String uid;
   final String? displayName;
+  final String? email;
   final String? photoUrl;
+  final DateTime? createdAt;
+  final String? soloColorId;
+  final bool? fuelEnabled;
 
-  // Firestore collection + field names. Centralized to avoid magic strings and
-  // to keep the wire schema aligned with the security rules.
   static const String collection = 'users';
   static const String fieldUid = 'uid';
   static const String fieldDisplayName = 'displayName';
+  static const String fieldEmail = 'email';
   static const String fieldPhotoUrl = 'photoUrl';
+  static const String fieldPreferences = 'preferences';
   static const String fieldCreatedAt = 'createdAt';
   static const String fieldUpdatedAt = 'updatedAt';
 
-  /// Builds a DTO from a domain [AppUser].
-  factory UserProfileDto.fromDomain(AppUser user) => UserProfileDto(
-    uid: user.uid,
-    displayName: user.displayName,
-    photoUrl: user.photoUrl,
-  );
+  /// Keys inside the `preferences` map.
+  static const String prefSoloColorId = 'soloColorId';
+  static const String prefFuelEnabled = 'fuelEnabled';
 
-  /// Reconstructs a DTO from a Firestore snapshot.
-  ///
-  /// Tolerates missing optional fields and ignores server-managed timestamps,
-  /// which the domain entity does not model.
+  /// Reconstructs a DTO from a Firestore snapshot, tolerating missing or
+  /// mistyped fields (older documents carry only `uid` and `displayName`).
   factory UserProfileDto.fromSnapshot(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
-  ) {
-    final data = snapshot.data() ?? const <String, dynamic>{};
+  ) => UserProfileDto.fromMap(snapshot.id, snapshot.data());
+
+  factory UserProfileDto.fromMap(String id, Map<String, dynamic>? data) {
+    final map = data ?? const <String, dynamic>{};
+    final prefs = map[fieldPreferences];
+    final prefsMap = prefs is Map ? prefs : const <String, dynamic>{};
+    final created = map[fieldCreatedAt];
     return UserProfileDto(
-      uid: (data[fieldUid] as String?) ?? snapshot.id,
-      displayName: data[fieldDisplayName] as String?,
-      photoUrl: data[fieldPhotoUrl] as String?,
+      uid: _string(map[fieldUid]) ?? id,
+      displayName: _string(map[fieldDisplayName]),
+      email: _string(map[fieldEmail]),
+      photoUrl: _string(map[fieldPhotoUrl]),
+      createdAt: created is Timestamp ? created.toDate() : null,
+      soloColorId: _string(prefsMap[prefSoloColorId]),
+      fuelEnabled: prefsMap[prefFuelEnabled] is bool
+          ? prefsMap[prefFuelEnabled] as bool
+          : null,
     );
   }
 
-  /// Maps this DTO to the domain [AppUser].
-  AppUser toDomain() =>
-      AppUser(uid: uid, displayName: displayName, photoUrl: photoUrl);
+  /// The identity other features use (rider name as [AppUser.displayName]).
+  AppUser toAppUser({bool isAnonymous = false}) => AppUser(
+    uid: uid,
+    displayName: displayName,
+    photoUrl: photoUrl,
+    email: email,
+    isAnonymous: isAnonymous,
+  );
 
-  /// Serializes for a merge write.
-  ///
-  /// [isCreate] controls whether `createdAt` is stamped — it is written once on
-  /// creation and never touched again, so the durable creation time is
-  /// preserved by later merge updates. `updatedAt` is always refreshed.
-  /// Timestamps use [FieldValue.serverTimestamp] so they are authoritative and
-  /// independent of client clocks.
-  ///
-  /// The returned map contains only the allow-listed fields, satisfying both
-  /// the `create` and `update` branches of the Firestore security rules.
-  Map<String, dynamic> toFirestore({required bool isCreate}) {
-    return <String, dynamic>{
-      fieldUid: uid,
-      fieldDisplayName: displayName,
-      fieldPhotoUrl: photoUrl,
-      if (isCreate) fieldCreatedAt: FieldValue.serverTimestamp(),
-      fieldUpdatedAt: FieldValue.serverTimestamp(),
-    };
+  UserProfile toProfile({bool hasPendingWrites = false}) => UserProfile(
+    uid: uid,
+    riderName: displayName,
+    email: email,
+    photoUrl: photoUrl,
+    memberSince: createdAt,
+    soloColorId: soloColorId,
+    fuelEnabled: fuelEnabled,
+    hasPendingWrites: hasPendingWrites,
+  );
+
+  /// The document written the first time a rider signs in with Google. No
+  /// rider name yet: they choose one next.
+  static Map<String, dynamic> createFields({
+    required String uid,
+    String? email,
+    String? photoUrl,
+  }) => <String, dynamic>{
+    fieldUid: uid,
+    fieldEmail: ?email,
+    fieldPhotoUrl: ?photoUrl,
+    fieldCreatedAt: FieldValue.serverTimestamp(),
+    fieldUpdatedAt: FieldValue.serverTimestamp(),
+  };
+
+  /// Refreshes the Google account details on an existing document, leaving
+  /// the rider name and preferences untouched.
+  static Map<String, dynamic> accountFields({
+    required String uid,
+    String? email,
+    String? photoUrl,
+  }) => <String, dynamic>{
+    fieldUid: uid,
+    fieldEmail: ?email,
+    fieldPhotoUrl: ?photoUrl,
+    fieldUpdatedAt: FieldValue.serverTimestamp(),
+  };
+
+  /// Sets the rider name. [isCreate] stamps `createdAt` for a document that
+  /// does not exist yet.
+  static Map<String, dynamic> riderNameFields({
+    required String uid,
+    required String riderName,
+    required bool isCreate,
+  }) => <String, dynamic>{
+    fieldUid: uid,
+    fieldDisplayName: riderName,
+    if (isCreate) fieldCreatedAt: FieldValue.serverTimestamp(),
+    fieldUpdatedAt: FieldValue.serverTimestamp(),
+  };
+
+  /// Merges preference changes; omitted preferences are left as they are.
+  static Map<String, dynamic> preferenceFields({
+    required String uid,
+    required bool isCreate,
+    String? soloColorId,
+    bool? fuelEnabled,
+  }) => <String, dynamic>{
+    fieldUid: uid,
+    fieldPreferences: <String, dynamic>{
+      prefSoloColorId: ?soloColorId,
+      prefFuelEnabled: ?fuelEnabled,
+    },
+    if (isCreate) fieldCreatedAt: FieldValue.serverTimestamp(),
+    fieldUpdatedAt: FieldValue.serverTimestamp(),
+  };
+
+  static String? _string(Object? value) {
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 }

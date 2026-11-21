@@ -15,6 +15,7 @@ import '../../data/rtdb_ride_summary_repository.dart';
 import '../../domain/completion/ride_completion_service.dart';
 import '../../domain/completion/ride_end_stage.dart';
 import '../../domain/summary/ride_summary_repository.dart';
+import 'pending_upload_providers.dart';
 import 'ride_map_providers.dart';
 
 /// Saves and reads the finished ride's summary.
@@ -127,8 +128,16 @@ class RideEndController extends Notifier<RideEndState> {
 
   final String _code;
 
+  /// The upload queue this ride was put on while it saves.
+  PendingRideUploadsController? _uploads;
+
   @override
-  RideEndState build() => const RideEndState();
+  RideEndState build() {
+    // If this screen goes before the ride is saved (the app closed, the
+    // rider left), the queued upload is handed to the background worker.
+    ref.onDispose(() => _uploads?.release(_code));
+    return const RideEndState();
+  }
 
   /// Waits between tries while saving, growing to [_maxRetryDelay].
   static const Duration _firstRetryDelay = Duration(seconds: 2);
@@ -174,8 +183,14 @@ class RideEndController extends Notifier<RideEndState> {
         .timeout(_nameTimeout, onTimeout: () => RideNames.fallback);
     if (!ref.mounted) return;
 
-    // 2–10. Save everything, and keep trying until it is saved.
+    // 2–10. Save everything, and keep trying until it is saved. The ride is
+    // queued first, so if it cannot reach the cloud now (offline, or the app
+    // is closed meanwhile) it is uploaded as soon as the connection returns.
     stage(RideEndStage.savingRiders);
+    final uploads = ref.read(pendingRideUploadsProvider.notifier);
+    _uploads = uploads;
+    await uploads.enqueue(uid: uid, code: _code, name: name);
+    if (!ref.mounted) return;
     var delay = _firstRetryDelay;
     while (true) {
       final recordSaved = await map.confirmFinalRecord();
@@ -186,7 +201,11 @@ class RideEndController extends Notifier<RideEndState> {
             .read(rideCompletionServiceProvider)
             .publishMyFinish(code: _code, uid: uid, name: name);
         if (!ref.mounted) return;
-        if (result is Success) break;
+        if (result is Success) {
+          await uploads.complete(uid: uid, code: _code);
+          if (!ref.mounted) return;
+          break;
+        }
         debugPrint('[ride] Saving the ride failed, retrying: $result');
         stage(RideEndStage.savingRiders);
       }

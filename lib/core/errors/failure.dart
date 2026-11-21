@@ -33,6 +33,12 @@ class AuthFailure extends Failure {
   }) : super(message, cause: cause);
 }
 
+/// The rider backed out of signing in (closed the account picker). Not an
+/// error worth showing; the sign-in screen simply stays put.
+class SignInCancelled extends AuthFailure {
+  const SignInCancelled() : super(message: 'Sign-in cancelled.');
+}
+
 /// Requested resource (room, ride) does not exist.
 class NotFoundFailure extends Failure {
   const NotFoundFailure({String message = 'Not found.', Object? cause})

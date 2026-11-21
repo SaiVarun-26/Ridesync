@@ -43,6 +43,15 @@ abstract final class AppRoutes {
   /// `/card/:rideId`
   static const String card = '/card/:rideId';
 
+  /// `/welcome`: choosing a rider name after the first Google sign-in.
+  static const String welcome = '/welcome';
+
+  /// `/profile`
+  static const String profile = '/profile';
+
+  /// `/profile/edit`
+  static const String profileEdit = '/profile/edit';
+
   // Names
   static const String splashName = 'splash';
   static const String onboardingName = 'onboarding';
@@ -59,6 +68,9 @@ abstract final class AppRoutes {
   static const String historyDetailsName = 'historyDetails';
   static const String rideName = 'ride';
   static const String cardName = 'card';
+  static const String welcomeName = 'welcome';
+  static const String profileName = 'profile';
+  static const String profileEditName = 'profileEdit';
 
   /// Builds the concrete lobby path for a given [code].
   static String lobbyPath(String code) => '/lobby/$code';

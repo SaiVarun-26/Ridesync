@@ -7,7 +7,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/brand_wordmark.dart';
+import '../../../core/widgets/pressable_scale.dart';
+import '../../profile/presentation/widgets/profile_avatar.dart';
 import '../../../core/widgets/fade_slide_in.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../../core/errors/result.dart';
@@ -34,7 +37,10 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final name = ref.watch(
-      authStateChangesProvider.select((a) => a.value?.displayName),
+      userProfileProvider.select((p) => p.value?.riderName),
+    );
+    final photoUrl = ref.watch(
+      userProfileProvider.select((p) => p.value?.photoUrl),
     );
     final greeting = name != null && name.trim().isNotEmpty
         ? 'Hey, ${name.trim()}'
@@ -54,7 +60,37 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 sliver: SliverList.list(
                   children: [
-                    const FadeSlideIn(child: BrandWordmark()),
+                    FadeSlideIn(
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: BrandWordmark(),
+                            ),
+                          ),
+                          Semantics(
+                            button: true,
+                            label: 'Profile',
+                            excludeSemantics: true,
+                            child: Tooltip(
+                              message: 'Profile',
+                              child: PressableScale(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => context.push(AppRoutes.profile),
+                                  child: ProfileAvatar(
+                                    size: AppIconButton.size,
+                                    photoUrl: photoUrl,
+                                    riderName: name,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.xxxl),
                     if (greeting != null)
                       FadeSlideIn(

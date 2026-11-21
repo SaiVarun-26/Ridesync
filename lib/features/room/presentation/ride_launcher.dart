@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/result.dart';
 import '../../../core/theme/rider_palette.dart';
+import '../../auth/presentation/providers/auth_providers.dart';
 import '../../naming/domain/ride_title_generator.dart';
 import '../domain/ride_mode.dart';
 import '../domain/room.dart';
@@ -15,9 +16,15 @@ import 'providers/room_providers.dart';
 /// initialization, guided planning, live map, ending and history. Nothing in
 /// the ride itself is duplicated here.
 class RideLauncher {
-  RideLauncher(this._rooms);
+  RideLauncher(this._rooms, {String? Function()? soloColorId})
+    : _soloColorId = soloColorId ?? _none;
 
   final RoomRepository _rooms;
+
+  /// The rider's chosen solo colour (from their synced profile), if any.
+  final String? Function() _soloColorId;
+
+  static String? _none() => null;
 
   /// A new group ride. Riders join from the lobby; the host names the ride
   /// after it, so it starts under a placeholder name.
@@ -38,9 +45,10 @@ class RideLauncher {
     };
     if (room == null) return created;
 
-    // Nobody else is choosing, so the first color is as good as any.
+    // Nobody else is choosing, so the rider simply gets their own colour.
+    final colorId = soloColorFor(_soloColorId());
     final steps = <Future<Result<void>> Function()>[
-      () => _rooms.claimColor(code: room.code, colorId: _soloColor),
+      () => _rooms.claimColor(code: room.code, colorId: colorId),
       () => _rooms.continueToRideMode(code: room.code),
       () => _rooms.chooseRideMode(code: room.code, mode: mode),
     ];
@@ -54,10 +62,22 @@ class RideLauncher {
     return Success(room);
   }
 
-  static String get _soloColor => RiderPalette.colors.first.id;
+  /// The colour a solo ride uses: the rider's chosen [preferred] when it is
+  /// one of the rider colours, else the first.
+  static String soloColorFor(String? preferred) {
+    for (final color in RiderPalette.colors) {
+      if (color.id == preferred) return color.id;
+    }
+    return RiderPalette.colors.first.id;
+  }
 }
 
 /// Starts rides.
 final rideLauncherProvider = Provider<RideLauncher>((ref) {
-  return RideLauncher(ref.watch(roomRepositoryProvider));
+  return RideLauncher(
+    ref.watch(roomRepositoryProvider),
+    // Read at the moment a solo ride starts, so a colour just changed in
+    // Edit Profile applies straight away.
+    soloColorId: () => ref.read(userProfileProvider).value?.soloColorId,
+  );
 });

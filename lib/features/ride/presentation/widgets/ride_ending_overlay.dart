@@ -21,9 +21,14 @@ class RideEndingOverlay extends StatelessWidget {
     this.error,
     this.onRetry,
     this.onDismiss,
+    this.offline = false,
   });
 
   final RideEndStage stage;
+
+  /// The phone is offline while saving: the ride is kept on the device and
+  /// uploads by itself once the connection returns.
+  final bool offline;
 
   /// When set, ending failed and this explains why.
   final String? error;
@@ -86,6 +91,37 @@ class RideEndingOverlay extends StatelessWidget {
                             : _StepState.pending,
                       ),
                     ],
+                    AnimatedSize(
+                      duration: AppMotion.normal,
+                      curve: AppMotion.curve,
+                      child: offline && !failed
+                          ? Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.xl,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.cloud_off_rounded,
+                                    size: 20,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  const SizedBox(width: AppSpacing.md),
+                                  Expanded(
+                                    child: Text(
+                                      'You are offline. Your ride is saved on '
+                                      'this phone and uploads by itself when '
+                                      'you are back online, even if you '
+                                      'close the app.',
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : const SizedBox(width: double.infinity),
+                    ),
                     if (failed) ...[
                       const SizedBox(height: AppSpacing.xl),
                       Text(

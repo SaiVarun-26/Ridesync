@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/firebase_auth_repository.dart';
 import '../../domain/app_user.dart';
 import '../../domain/auth_repository.dart';
+import '../../domain/user_profile.dart';
 
 /// Exposes the [FirebaseAuth] singleton as an overridable dependency.
 ///
@@ -39,4 +40,14 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// `null` ("signed out"), to avoid flashing onboarding at returning users.
 final authStateChangesProvider = StreamProvider<AppUser?>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges();
+});
+
+/// The signed-in rider's profile and synced preferences, live across devices.
+///
+/// `null` when signed out, or when signed in but no profile exists yet. Like
+/// [authStateChangesProvider], [AsyncLoading] means "not known yet".
+final userProfileProvider = StreamProvider<UserProfile?>((ref) {
+  final uid = ref.watch(authStateChangesProvider.select((a) => a.value?.uid));
+  if (uid == null) return Stream<UserProfile?>.value(null);
+  return ref.watch(authRepositoryProvider).watchProfile(uid);
 });

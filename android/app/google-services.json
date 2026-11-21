@@ -1,8 +1,8 @@
 {
   "project_info": {
     "project_number": "94704893061",
-    "project_id": "ridesync-dff42",
     "firebase_url": "https://ridesync-dff42-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "ridesync-dff42",
     "storage_bucket": "ridesync-dff42.firebasestorage.app"
   },
   "client": [
@@ -13,7 +13,20 @@
           "package_name": "com.ridesync.ridesync"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "94704893061-e76sss53eql3vharh8l7cv031pm7alpc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ridesync.ridesync",
+            "certificate_hash": "3344df0c3a18fc9c7b81ab7ee6cd8c066b130eb8"
+          }
+        },
+        {
+          "client_id": "94704893061-1p2o4hppfttjg69jeot86d1bad052fel.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBij-wCM41xExnjFqhvnxw28lnq42yTR7A"
@@ -21,7 +34,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "94704893061-1p2o4hppfttjg69jeot86d1bad052fel.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "94704893061-gur0rur1kun3ga8ilf3ekdo0tvr2pmao.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ridesync.ridesync"
+              }
+            }
+          ]
         }
       }
     }

@@ -1,5 +1,6 @@
 import '../../../core/errors/result.dart';
 import 'app_user.dart';
+import 'user_profile.dart';
 
 /// Contract for authentication and the durable user profile.
 ///
@@ -12,37 +13,44 @@ import 'app_user.dart';
 /// handle the [Failure] path explicitly and platform exceptions never leak
 /// across the layer boundary.
 abstract interface class AuthRepository {
-  /// Emits the current [AppUser] whenever the authentication state changes,
-  /// and `null` when there is no signed-in user.
-  ///
-  /// The stream replays the latest value to new listeners and begins with the
-  /// restored session on cold start (anonymous sessions persist across
-  /// launches), so routing can react to auth without an imperative check.
+  /// Emits the current [AppUser] whenever the session changes (sign-in,
+  /// sign-out, or a legacy anonymous account being upgraded to Google), and
+  /// `null` when there is no signed-in user. Begins with the restored
+  /// session on cold start, so returning riders skip the sign-in screen.
   Stream<AppUser?> authStateChanges();
 
   /// The currently signed-in user, or `null` if none.
-  ///
-  /// Synchronous convenience for one-off reads (e.g. guards). Prefer
-  /// [authStateChanges] for anything that must stay reactive.
   AppUser? get currentUser;
 
-  /// Signs the user in anonymously and ensures their durable profile exists.
+  /// Signs in with Google.
   ///
-  /// When [displayName] is provided and non-empty it is persisted to the
-  /// profile. On success the resolved [AppUser] is returned; on failure a
-  /// mapped [Failure] (auth, network, or unexpected) is returned.
-  Future<Result<AppUser>> signInAnonymously({String? displayName});
+  /// A legacy anonymous session is upgraded in place, so its uid, and every
+  /// ride saved under it, is kept. A Google account already used on another
+  /// phone is signed into instead, bringing its rides. The profile is
+  /// created on first sign-in (without a rider name; the rider chooses one
+  /// next). Fails with [SignInCancelled] when the rider backs out.
+  Future<Result<AppUser>> signInWithGoogle();
 
-  /// Loads the signed-in user's durable profile (the source of truth for the
-  /// display name). Falls back to the session-only identity if no profile
-  /// document exists yet. Fails with [AuthFailure] when signed out.
+  /// Loads the signed-in user's identity with their rider name (the name
+  /// shown to other riders). Fails with [AuthFailure] when signed out.
   Future<Result<AppUser>> loadCurrentProfile();
 
-  /// Updates the signed-in user's display name in the durable profile.
-  ///
-  /// Requires an active session. Passing `null` or an empty string clears the
-  /// stored name.
-  Future<Result<AppUser>> updateDisplayName(String? displayName);
+  /// The signed-in rider's profile, live: updates as it changes here or on
+  /// another device. `null` while it does not exist yet.
+  Stream<UserProfile?> watchProfile(String uid);
+
+  /// Sets the rider name shown inside RideSync. Rides already finished keep
+  /// the name they were ridden under.
+  Future<Result<void>> updateRiderName(String riderName);
+
+  /// Saves synced preferences; `null` arguments are left unchanged.
+  Future<Result<void>> updatePreferences({
+    String? soloColorId,
+    bool? fuelEnabled,
+  });
+
+  /// Fetches the profile from the server, bypassing the device's copy.
+  Future<Result<void>> refreshProfile();
 
   /// Signs the current user out, ending the local session.
   Future<Result<void>> signOut();

@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/failure.dart';
 import '../../../core/errors/result.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/ambient_background.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_dialogs.dart';
 import '../../../core/widgets/brand_mark.dart';
 import '../../../core/widgets/fade_slide_in.dart';
-import '../../../core/widgets/app_button.dart';
-import '../domain/display_name_rules.dart';
 import 'providers/auth_providers.dart';
-import 'widgets/display_name_field.dart';
 
-/// First-run screen: capture an optional display name, then sign in
-/// anonymously.
+/// The sign-in screen: one way in, "Continue with Google".
 ///
-/// On success the auth state changes and the router's redirect moves the user
-/// to home, so this screen does not navigate imperatively. Failures surface
-/// inline without leaving the screen.
+/// On success the session changes and the router moves the rider on (to the
+/// rider-name screen the first time, else Home), so this screen never
+/// navigates itself. Backing out of the account picker just leaves the rider
+/// here; other failures show inline.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -26,43 +25,34 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  final TextEditingController _nameController = TextEditingController();
   bool _isSubmitting = false;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
   Future<void> _continue() async {
-    if (_isSubmitting || !DisplayNameRules.isValid(_nameController.text)) {
-      return;
-    }
-    FocusScope.of(context).unfocus();
+    if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
-    final repository = ref.read(authRepositoryProvider);
-    final result = await repository.signInAnonymously(
-      displayName: DisplayNameRules.clean(_nameController.text),
-    );
-
+    final result = await ref.read(authRepositoryProvider).signInWithGoogle();
     if (!mounted) return;
 
     switch (result) {
       case Success<Object?>():
-        // The router's auth-aware redirect handles navigation to home once the
-        // auth stream emits the new user. No imperative navigation here.
+        // The router takes it from here once the session updates. Stay in
+        // the loading state until this screen is replaced.
         break;
       case Failed(:final failure):
         setState(() => _isSubmitting = false);
-        showAppSnackBar(context, failure.message);
+        if (failure is! SignInCancelled) {
+          showAppSnackBar(context, failure.message);
+        }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isLegacy = ref.watch(
+      authStateChangesProvider.select((a) => a.value?.isAnonymous ?? false),
+    );
     return Scaffold(
       body: AmbientBackground(
         child: SafeArea(
@@ -90,30 +80,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 FadeSlideIn(
                   delay: AppMotion.stagger * 3,
                   child: Text(
-                    'What should your group call you?',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FadeSlideIn(
-                  delay: AppMotion.stagger * 4,
-                  child: DisplayNameField(
-                    controller: _nameController,
-                    enabled: !_isSubmitting,
-                    onSubmitted: _continue,
+                    isLegacy
+                        ? 'Sign in to keep your rides. Everything you have '
+                              'ridden so far stays with you.'
+                        : 'Sign in to keep your rides safe and pick them up '
+                              'on any phone.',
+                    style: theme.textTheme.bodyMedium,
                   ),
                 ),
                 const Spacer(),
-                // Disabled until the name is acceptable, so it cannot be tapped
-                // early.
-                ListenableBuilder(
-                  listenable: _nameController,
-                  builder: (context, _) => AppButton(
-                    label: 'Continue',
+                FadeSlideIn(
+                  delay: AppMotion.stagger * 4,
+                  child: AppButton(
+                    label: 'Continue with Google',
+                    icon: Icons.login_rounded,
                     isLoading: _isSubmitting,
-                    onPressed: DisplayNameRules.isValid(_nameController.text)
-                        ? _continue
-                        : null,
+                    onPressed: _continue,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),

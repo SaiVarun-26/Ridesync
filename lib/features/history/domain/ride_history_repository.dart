@@ -58,6 +58,11 @@ abstract interface class RideHistoryRepository {
     String? name,
   });
 
+  /// Every ride in [uid]'s history, in no particular order, read from the
+  /// database (for whole-history figures such as the profile's statistics).
+  /// Fails when it cannot be read.
+  Future<Result<List<RideHistoryEntry>>> allEntries(String uid);
+
   /// [uid]'s best rides across their whole history: the [count] longest and
   /// the [count] with the highest top speed, without duplicates. Used for
   /// personal records, so they hold against every ride, not only the ones
