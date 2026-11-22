@@ -1,203 +1,319 @@
 <div align="center">
 
-# 🏍️ RideSync
+<img src="screenshots/home.jpeg" alt="RideSync home screen" width="240">
+
+# RideSync
 
 ### Never lose your ride.
 
-**Solo and group motorcycle rides, synchronized in real time.**
+**Real-time solo and group motorcycle rides, built with Flutter and Firebase.**
 
 <p>
   <a href="../../releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/SaiVarun-26/Ridesync?label=release&color=8C3EE2"></a>
   <a href="../../releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/SaiVarun-26/Ridesync/total?label=downloads&color=8C3EE2"></a>
   <a href="../../actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/SaiVarun-26/Ridesync/ci.yml?branch=main&label=CI"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-8C3EE2"></a>
+  <br>
   <img alt="Platform: Android" src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white">
-  <a href="https://flutter.dev"><img alt="Built with Flutter" src="https://img.shields.io/badge/built%20with-Flutter-02569B?logo=flutter&logoColor=white"></a>
-  <a href="https://firebase.google.com"><img alt="Firebase" src="https://img.shields.io/badge/backend-Firebase-FFCA28?logo=firebase&logoColor=black"></a>
+  <a href="https://flutter.dev"><img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white"></a>
+  <a href="https://dart.dev"><img alt="Dart" src="https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white"></a>
+  <a href="https://firebase.google.com"><img alt="Firebase" src="https://img.shields.io/badge/Firebase-Auth%20%C2%B7%20RTDB%20%C2%B7%20Firestore-FFCA28?logo=firebase&logoColor=black"></a>
+  <a href="https://www.openstreetmap.org"><img alt="OpenStreetMap" src="https://img.shields.io/badge/maps-OpenStreetMap-7EBC6F?logo=openstreetmap&logoColor=white"></a>
 </p>
 
 <a href="../../releases/latest"><img alt="Download the latest APK" src="https://img.shields.io/badge/Download-Latest%20APK-8C3EE2?style=for-the-badge&logo=android&logoColor=white"></a>
 
-[Features](#features) · [Screenshots](#screenshots) · [Tech Stack](#tech-stack) · [Architecture](#architecture) · [Installation](#installation) · [Download](#download-apk) · [Roadmap](#roadmap) · [Contributing](#contributing)
+<sub>
+<a href="#-features">Features</a> ·
+<a href="#-screenshots">Screenshots</a> ·
+<a href="#-tech-stack">Tech Stack</a> ·
+<a href="#-folder-structure">Folder Structure</a> ·
+<a href="#-installation">Installation</a> ·
+<a href="#-running">Running</a> ·
+<a href="#-roadmap">Roadmap</a> ·
+<a href="#-contributing">Contributing</a>
+</sub>
 
 </div>
 
----
+<br>
 
-RideSync is a modern Flutter application for motorcycle riders. Ride alone or with a group: every rider's position, speed and trail are synchronized in real time, a planned route can guide everyone to the same destination, and every finished ride becomes a story you can replay, analyse and share.
+RideSync keeps riders together on the road and keeps every ride afterwards. Ride solo or host a group: every rider's position, speed and trail sync live, one planned route can guide the whole group with turn-by-turn directions, and each finished ride becomes a story with a replay, analytics and a share-ready card.
 
-Sign in with Google and your rides, statistics and preferences follow you to any phone. Rides finished without a connection are kept on the device and uploaded as soon as you are back online.
-
-Maps, search, routing and fuel stations all run on free, open OpenStreetMap services, with no paid map API.
+Sign in with Google and your rides, statistics and preferences follow you to any phone. Maps, search, routing and fuel stations all run on free, open OpenStreetMap services, with no paid map API.
 
 > [!NOTE]
-> RideSync is under active development. Features, data formats and screens may change between releases. Feedback and bug reports are very welcome.
+> RideSync is under active development. Features and screens can change between releases, and feedback is very welcome.
 
-## Features
+<br>
+
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%" valign="top">
 
 ### 🏍️ Solo Riding
 
-| Feature | What it does |
-|---|---|
-| **Free Roam** | Start riding in one tap, anywhere, with live speed, distance and ride time. |
-| **Guided Navigation** | Search a destination, plan a road route and follow turn-by-turn guidance. |
-| **Ride Replay** | Watch the ride again on the map, on its real recorded GPS timeline. |
-| **Ride Insights** | Top speed, moving time, performance, a ride score, achievements and a timeline. |
-| **Fuel Station Discovery** | Nearby fuel stations on the map, with brand markers and a Google Maps hand-off. |
-| **Auto End Ride** | After a long genuine stop, a 15-second countdown asks whether the ride is over. |
-| **Pause / Resume** | Stop for tea, fuel or photos; paused time is kept apart from ride time. |
-| **Share Ride Cards** | A share-ready card with the real map, route and numbers. |
+- **Free Roam:** start in one tap, ride anywhere
+- **Guided Navigation** with turn-by-turn directions
+- **Ride Replay** on the real GPS timeline
+- **Ride Insights:** top speed, performance and highlights
+- **Fuel stations** with brand markers
+- **Smart Auto End** after a long genuine stop
+- **Pause / Resume** for breaks
+- **Share cards** with the real map and route
+
+</td>
+<td width="50%" valign="top">
 
 ### 👥 Group Riding
 
-| Feature | What it does |
+- **Ride rooms** joined with a 6-character code
+- **Live rider tracking** with personal colours
+- **Live Leaderboard** with gaps between riders
+- **Group navigation** on one shared route
+- **Rider trails** and **group replay**
+- **Individual completion:** each rider ends their own ride
+- **Live notices** when riders pause, re-route, rejoin or finish
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### ☁️ Accounts & Sync
+
+- **Google Sign-In** with a rider name you choose
+- **Cloud ride history** restored on any phone
+- **Profile** with personal statistics
+- **Sync status** and **Sync Now**
+- **Settings sync:** name, solo colour, fuel layer
+- **Offline saving:** rides upload when you're back online
+
+</td>
+<td width="50%" valign="top">
+
+### 📊 Analytics
+
+- **Ride score** and achievements (Longest Ride, Top Speed PB, Fastest Sprint)
+- **Speed-coloured route map** with the top-speed spot
+- **Moving vs idle time** and a speed graph
+- **Automatic ride names** from where the ride ended
+- **Totals, records and rides by type** on your profile
+- **Background recording** with the screen off
+
+</td>
+</tr>
+</table>
+
+<br>
+
+## 📸 Screenshots
+
+### 🏠 Home
+
+<table>
+<tr>
+<td align="center" width="50%"><img src="screenshots/home.jpeg" alt="Home" width="260"></td>
+<td valign="middle">
+
+**One screen to start any ride.**
+
+- Greets you by your rider name
+- **Start Solo Ride**, **Host Ride** or **Join Ride**
+- **Previous Rides** with route thumbnails, distance, ride time, top speed and highlights
+- Your profile one tap away, top right
+
+</td>
+</tr>
+</table>
+
+### 🔐 Authentication
+
+<table>
+<tr>
+<td align="center" width="50%"><img src="screenshots/google_signin.jpeg" alt="Google Sign-In" width="260"></td>
+<td valign="middle">
+
+**Continue with Google.**
+
+- One-tap Google Sign-In through Firebase Authentication
+- Choose the name other riders see (never your Google name)
+- Returning riders skip straight to Home
+- Rides and preferences belong to your account, on every phone
+
+</td>
+</tr>
+</table>
+
+### 🤝 Joining Rides
+
+<table>
+<tr>
+<td align="center" width="50%"><img src="screenshots/join_ride.jpeg" alt="Join Ride with a room code" width="260"><br><sub><b>Join with a room code</b></sub></td>
+<td align="center" width="50%"><img src="screenshots/group_ride.jpeg" alt="Group ride lobby" width="260"><br><sub><b>The group ride lobby</b></sub></td>
+</tr>
+</table>
+
+> [!TIP]
+> The host shares the 6-character ride code (or taps **Share Ride**). Everyone picks a colour in the lobby, and the ride starts once every rider is ready.
+
+### 🗺️ Guided Navigation
+
+<table>
+<tr>
+<td align="center" width="33%"><img src="screenshots/guided_or_free_roam.jpeg" alt="Choose Guided Ride or Free Roam" width="220"><br><sub><b>Guided or Free Roam</b></sub></td>
+<td align="center" width="33%"><img src="screenshots/guided_roam_pick_location.jpeg" alt="Plan the route" width="220"><br><sub><b>Search or drop a pin</b></sub></td>
+<td align="center" width="33%"><img src="screenshots/start_guided_ride.jpeg" alt="Route planned, slide to start" width="220"><br><sub><b>Route planned, slide to start</b></sub></td>
+</tr>
+<tr>
+<td align="center" width="33%"><img src="screenshots/guided_route.jpeg" alt="Turn-by-turn guidance" width="220"><br><sub><b>Turn-by-turn guidance</b></sub></td>
+<td align="center" width="33%"><img src="screenshots/guided_route_2.jpeg" alt="Guided ride on the live map" width="220"><br><sub><b>Following the route</b></sub></td>
+<td valign="middle">
+
+- Destination search with **Photon**
+- Road routes from **OSRM** with distance, time and turn count
+- The next turn, distance left and ETA
+- **Fuel stations**, **Pause** and **End Ride** always in view
+
+</td>
+</tr>
+</table>
+
+### 🚴 Live Ride
+
+<table>
+<tr>
+<td align="center" width="50%"><img src="screenshots/ride_loading.jpeg" alt="Preparing your ride" width="260"><br><sub><b>Preparing your ride</b></sub></td>
+<td align="center" width="50%"><img src="screenshots/ride_complete.jpeg" alt="Ride complete" width="260"><br><sub><b>Ride Complete</b></sub></td>
+</tr>
+</table>
+
+> [!NOTE]
+> Before a ride starts, RideSync checks the room sync, the rider, location access, GPS lock and the map, and waits until every rider is ready. When a ride ends it is saved first, and only then is it shown as complete. Without a connection, the ride is kept on the phone and uploads by itself later.
+
+### 📊 Ride History & Analytics
+
+<table>
+<tr>
+<td align="center" width="33%"><img src="screenshots/history_card.jpeg" alt="Ride history and analytics" width="220"></td>
+<td align="center" width="33%"><img src="screenshots/history_card_2.jpeg" alt="Ride history and analytics" width="220"></td>
+<td align="center" width="33%"><img src="screenshots/flex_card.jpeg" alt="Ride flex card" width="220"></td>
+</tr>
+<tr>
+<td colspan="3" align="center"><sub>Every ride opens as a story: an interactive speed-coloured route map, the ride score and achievements, top speed with where it happened, moving and idle time, a speed graph, and a share-ready card.</sub></td>
+</tr>
+</table>
+
+### 👤 Profile
+
+<table>
+<tr>
+<td align="center" width="50%"><img src="screenshots/profile.jpeg" alt="Profile" width="260"></td>
+<td valign="middle">
+
+**Your riding, all in one place.**
+
+| | |
 |---|---|
-| **Live Rider Tracking** | Every rider's live position, speed and colour on one map. |
-| **Live Leaderboard** | Real-time standings along the shared path or planned route, with gaps. |
-| **Group Navigation** | One planned route shared by the whole group, with guidance for everyone. |
-| **Rider Trails** | A fading trail behind each rider, in their own colour. |
-| **Group Replay** | Every rider replayed together on one shared timeline. |
-| **Individual Ride Completion** | Each rider ends their own ride; the rest of the group keeps riding. |
-| **Live Notifications** | Banners when a rider pauses, resumes, re-routes, rejoins or finishes, plus group safety signals. |
+| **Totals** | Rides · distance · ride time |
+| **Records** | Highest speed · longest ride · averages |
+| **Rides by type** | Guided · free roam · group · solo |
+| **Cloud sync** | ✓ Synced · Syncing... · Offline |
 
-### ✨ Smart Features
+Plus **Edit Profile** (rider name and solo colour), **Sync Now** and **Sign Out**.
 
-- **Turn-by-turn navigation** with route progress and the next two turns.
-- **Off-route detection** with guidance back to the planned route.
-- **Automatic ride naming** from where the ride ended, always editable.
-- **Ride History** with route thumbnails, finishing positions, rename and delete.
-- **Replay Timeline** that scrubs through the ride at adjustable speed.
-- **Ride Analytics:** speed-coloured routes, top-speed location, group moments and standings.
-- **Google Sign-In**, with a rider name you choose (never your Google name).
-- **Cloud-backed Ride History** that restores on any phone you sign in on.
-- **Offline saving:** a ride finished offline uploads by itself when the connection returns.
-- **Profile page** with cloud sync status, Edit Profile and Sync Now.
-- **Personal statistics:** total rides, distance and ride time, records and averages, and rides by type.
-- **Solo rider colour** for your dot, trail, replay and ride cards, synced across devices.
-- **Fuel station brands** with company-coloured markers and a one-tap fuel layer toggle.
-- **Background ride recording** with the screen off, and a live ride notification.
+</td>
+</tr>
+</table>
 
-### 🗺️ Maps
+<br>
 
-RideSync uses free, open services built on [OpenStreetMap](https://www.openstreetmap.org) data. They need no API keys or paid plans, they cover the whole world, and the community keeps them current.
+## 🧰 Tech Stack
 
-| Service | Used for | Why |
+| Layer | Technology | Role |
 |---|---|---|
-| [OpenStreetMap](https://www.openstreetmap.org) | Map tiles (shown in a dimmed night style) and all place data | Open data, worldwide coverage, free to use with attribution. |
-| [flutter_map](https://pub.dev/packages/flutter_map) | Drawing the map, routes, trails and markers | Pure Flutter rendering, so riders, trails and replays are ordinary widgets and layers. |
-| [Photon](https://photon.komoot.io) | Destination search and the main fuel-station lookup | Fast search-as-you-type over OSM data, with nearest-first results. |
-| [Overpass API](https://overpass-api.de) | Complete fuel-station coverage for an area | Queries raw OSM tags with no result limit; merged with Photon so no station is missed. |
-| [OSRM](https://project-osrm.org) | Road routes for guided rides | A fast open-source road router; the host plans once and every rider shares the same route. |
-| [Nominatim](https://nominatim.org) | Automatic ride names | Reverse geocoding turns where a ride ended into a readable place name. |
-| [Open-Meteo](https://open-meteo.com) | Weather at the start of a ride | Free weather data with no key. |
+| **App** | [Flutter](https://flutter.dev) · [Dart](https://dart.dev) | Cross-platform UI and app logic |
+| **State** | [Riverpod](https://riverpod.dev) | Dependency injection and reactive state |
+| **Navigation** | [go_router](https://pub.dev/packages/go_router) | Declarative routing with session-aware redirects |
+| **Auth** | [Firebase Authentication](https://firebase.google.com/products/auth) · [Google Sign-In](https://pub.dev/packages/google_sign_in) | Accounts tied to a stable user ID |
+| **Live data** | [Firebase Realtime Database](https://firebase.google.com/products/realtime-database) | Rooms, live positions, ride stats and history, with on-disk persistence |
+| **Profiles** | [Cloud Firestore](https://firebase.google.com/products/firestore) | Rider profile and synced preferences |
+| **Maps** | [flutter_map](https://pub.dev/packages/flutter_map) · [OpenStreetMap](https://www.openstreetmap.org) | Night-style map, routes, trails and markers |
+| **Search & fuel** | [Photon](https://photon.komoot.io) · [Overpass API](https://overpass-api.de) | Destination search and fuel stations |
+| **Routing** | [OSRM](https://project-osrm.org) | Road routes for guided rides |
+| **Places & weather** | [Nominatim](https://nominatim.org) · [Open-Meteo](https://open-meteo.com) | Automatic ride names and ride-start weather |
+| **Location** | [Geolocator](https://pub.dev/packages/geolocator) · [flutter_foreground_task](https://pub.dev/packages/flutter_foreground_task) | GPS and background ride recording |
+| **Storage** | [shared_preferences](https://pub.dev/packages/shared_preferences) · [path_provider](https://pub.dev/packages/path_provider) | Settings and the on-device ride cache |
+| **CI/CD** | [GitHub Actions](https://github.com/features/actions) | Analysis and tests on every push; release builds on tags |
 
-## Screenshots
+<br>
 
-> Screenshots are coming soon. Their files will live in [`assets/screenshots/`](assets/screenshots/).
+## 🗂️ Folder Structure
 
-| Home | Navigation | Group Ride |
-|:---:|:---:|:---:|
-| *Coming soon*<br>`assets/screenshots/home.png` | *Coming soon*<br>`assets/screenshots/navigation.png` | *Coming soon*<br>`assets/screenshots/group-ride.png` |
-
-| Leaderboard | Ride Replay | Ride History |
-|:---:|:---:|:---:|
-| *Coming soon*<br>`assets/screenshots/leaderboard.png` | *Coming soon*<br>`assets/screenshots/ride-replay.png` | *Coming soon*<br>`assets/screenshots/ride-history.png` |
-
-| Insights | Fuel Stations | Profile |
-|:---:|:---:|:---:|
-| *Coming soon*<br>`assets/screenshots/insights.png` | *Coming soon*<br>`assets/screenshots/fuel-stations.png` | *Coming soon*<br>`assets/screenshots/profile.png` |
-
-## Tech Stack
-
-| Area | Technology |
-|---|---|
-| App framework | [Flutter](https://flutter.dev) and [Dart](https://dart.dev) |
-| Backend | [Firebase](https://firebase.google.com) |
-| Live ride data and history | [Firebase Realtime Database](https://firebase.google.com/products/realtime-database), with on-disk persistence |
-| Profiles and synced preferences | [Cloud Firestore](https://firebase.google.com/products/firestore) |
-| Authentication | [Firebase Authentication](https://firebase.google.com/products/auth) |
-| Sign-in | [Google Sign-In](https://pub.dev/packages/google_sign_in) |
-| Maps | [flutter_map](https://pub.dev/packages/flutter_map) with [OpenStreetMap](https://www.openstreetmap.org) tiles |
-| State management | [Riverpod](https://riverpod.dev) |
-| Navigation | [go_router](https://pub.dev/packages/go_router) |
-| Location | [Geolocator](https://pub.dev/packages/geolocator) |
-| Background recording | [flutter_foreground_task](https://pub.dev/packages/flutter_foreground_task) |
-| Local storage | [Shared Preferences](https://pub.dev/packages/shared_preferences) and a file cache via [path_provider](https://pub.dev/packages/path_provider) |
-| Sharing and links | [share_plus](https://pub.dev/packages/share_plus), [url_launcher](https://pub.dev/packages/url_launcher) |
-| CI/CD | [GitHub Actions](https://github.com/features/actions): analysis and tests on every push, APK builds on version tags |
-
-## Architecture
-
-RideSync is organised by feature (`lib/features/auth`, `room`, `ride`, `history`, `insights`, `fuel`, `profile`, …), and every feature is split into the same layers:
-
-| Layer | Responsibility |
-|---|---|
-| **Presentation** | Screens, widgets and Riverpod providers. Widgets only render state and forward user actions. |
-| **Domain** | Plain Dart models and rules (ride statistics, auto-end detection, route guidance, rankings), with no Flutter or Firebase imports, so they are easy to test. |
-| **Data** | Firebase, HTTP and on-device implementations of the domain's repository interfaces. |
-| **Services** | Workflows that span repositories, such as finishing a ride (record, summary, history) or recording statistics from GPS fixes. |
-
-- **Repository pattern:** the app depends on interfaces such as `AuthRepository` and `RideHistoryRepository`, and Riverpod injects the implementations, so any backend can be swapped or faked in tests.
-- **Offline-first:** the Realtime Database and Firestore keep writes on the device until they reach the server. Recent history, ride details and fuel stations are cached locally, so they still show without a connection.
-- **Background synchronization:** a finished ride is queued on the device before it uploads. A background worker publishes anything still waiting as soon as the connection returns, even after the app is restarted.
-- **Security:** Firebase security rules restrict every rider to their own profile and history, while shared ride data is open only to that ride's members.
-
-```
-lib/
-├── app/        # Bootstrap, app root and routing
-├── core/       # Theme, shared widgets, errors and utilities
-└── features/   # Feature modules: data / domain / presentation
-firebase/       # Realtime Database and Firestore security rules
-test/           # Tests
+```text
+ridesync/
+├── lib/
+│   ├── app/                 # Bootstrap, app root, router and auth redirects
+│   ├── core/                # Theme, shared widgets, errors, haptics, Firebase setup
+│   └── features/            # Each feature: data / domain / presentation
+│       ├── auth/            # Google Sign-In, rider name, session
+│       ├── profile/         # Profile, Edit Profile, statistics, sync status
+│       ├── room/            # Home, ride rooms, lobby, joining, solo rides
+│       ├── ride/            # Live map, tracking, guidance, leaderboard, auto end
+│       ├── history/         # Ride history, details, replay, offline upload queue
+│       ├── insights/        # Recap, score, achievements, share cards
+│       ├── naming/          # Automatic ride names
+│       ├── fuel/            # Fuel station discovery
+│       └── ride_card/       # Rider identity card
+├── firebase/                # Realtime Database and Firestore security rules
+├── screenshots/             # README screenshots
+├── docs/release-notes/      # Per-version release notes
+├── .github/                 # CI and release workflows, issue and PR templates
+├── android/ · ios/          # Platform projects
+└── test/                    # Tests
 ```
 
-## Milestones
+> [!IMPORTANT]
+> **Architecture:** domain code is plain Dart with no Flutter or Firebase imports. Data sources sit behind repository interfaces (`AuthRepository`, `RideHistoryRepository`, …) that Riverpod injects, so backends can be swapped or faked in tests. Widgets only render state.
 
-| Milestone | Highlights |
-|---|---|
-| **Milestone 1** | App foundation: project structure, dark theme, routing and the app shell. |
-| **Milestone 2** | Firebase: authentication, user profiles and the Realtime Database backend. |
-| **Milestone 3** | Ride rooms: create and join with a code, the lobby, rider colours and live group tracking. |
-| **Milestone 4** | The ride itself: statistics, results, ride history, insights, guided routes with turn-by-turn navigation, and group safety tools. |
-| **Milestone 5.0** | New Home screen with one-tap solo rides. |
-| **Milestone 5.1** | Live Leaderboard, live rider speed, rankings, and re-route and rejoin notices. |
-| **Milestone 5.2** | Redesigned Ride History and insights, flex cards, an interactive history map and timestamp-accurate replay. |
-| **Milestone 5.3** | Fuel stations across India: brand markers, a fuel layer toggle, caching and background loading. |
-| **Milestone 5.4** | Smart Auto End, Pause and Resume, and every rider ending their own ride. |
-| **Milestone 5.4.1** | Reliable ride saving before Ride Complete, deleting rides from history, and clearer End and Pause controls. |
-| **Milestone 5.5** | Google Sign-In, profiles, cloud ride history, personal statistics, solo rider colour, settings sync and offline ride upload. |
+<br>
 
-See [CHANGELOG.md](CHANGELOG.md) for the full history.
-
-## Installation
+## 📦 Installation
 
 ### Prerequisites
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install), stable channel
-- Android Studio or VS Code with the Flutter extension
-- An Android phone or emulator with location services
+| Requirement | Notes |
+|---|---|
+| [Flutter SDK](https://docs.flutter.dev/get-started/install) | Stable channel (Dart 3) |
+| Android Studio or VS Code | With the Flutter extension |
+| Android device or emulator | With location services |
+| [Firebase](https://console.firebase.google.com) project | Only to run against your own backend |
 
-### Run
+### Clone and install
 
 ```bash
 git clone https://github.com/SaiVarun-26/Ridesync.git
 cd Ridesync
 flutter pub get
-flutter run
 ```
 
 ### Firebase setup
 
-To run RideSync against your own Firebase project:
+<details>
+<summary><b>Use your own Firebase project</b></summary>
+
+<br>
 
 1. Create a Firebase project and add an Android app with the package name `com.ridesync.ridesync`.
 2. In **Authentication → Sign-in method**, enable **Google**.
-3. Add your signing key's SHA-1 and SHA-256 to the Android app in **Project settings**. For local builds, that is the debug key:
+3. Add your signing key's SHA-1 and SHA-256 to the Android app. For local builds that is the debug key:
    ```bash
    keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android
    ```
 4. Create a **Realtime Database** and a **Cloud Firestore** database.
-5. Connect the app with the [FlutterFire CLI](https://firebase.google.com/docs/flutter/setup), which writes `lib/firebase_options.dart` and `android/app/google-services.json`:
+5. Connect the app (writes `lib/firebase_options.dart` and `android/app/google-services.json`):
    ```bash
    dart pub global activate flutterfire_cli
    flutterfire configure
@@ -207,91 +323,92 @@ To run RideSync against your own Firebase project:
    firebase deploy --only database,firestore
    ```
 
-RideSync asks for location access (including background location, so a ride keeps recording with the screen off) and notification permission for the live ride notification.
+</details>
 
-### Checks and builds
+<br>
+
+## ▶️ Running
 
 ```bash
+# Run on a connected device or emulator
+flutter run
+
+# Static analysis and tests
 flutter analyze
 flutter test
+
+# Release APK
 flutter build apk --release
 ```
 
-## Download APK
+RideSync asks for **location** (choose *Allow all the time* so rides keep recording with the screen off) and **notifications** for the live ride notification.
 
-<a href="../../releases/latest"><img alt="Download the latest APK" src="https://img.shields.io/badge/Download-Latest%20APK-8C3EE2?style=for-the-badge&logo=android&logoColor=white"></a>
+### 📲 Download the APK
 
-The newest Android build is always on the **[latest release](../../releases/latest)** page. Every version is listed under **[all releases](../../releases)**, with release notes, the APK and its SHA-256 checksum.
+Prefer not to build it yourself? The newest Android build is always on the **[latest release](../../releases/latest)** page, with release notes and a SHA-256 checksum. Every version is listed under **[all releases](../../releases)**.
 
-1. Open the [latest release](../../releases/latest) on your phone.
-2. Under **Assets**, download the `RideSync-v….apk` file.
-3. Open it and allow installing from your browser or file manager if Android asks.
-4. Allow **location** (choose *Allow all the time* so rides record with the screen off) and **notifications**.
+<br>
 
-To check a download, compare its SHA-256 with the `.sha256` file attached to the same release:
+## 🛣️ Roadmap
 
-```bash
-sha256sum RideSync-v*.apk          # Linux and macOS
-certutil -hashfile RideSync-v*.apk SHA256   # Windows
-```
+| Status | Feature |
+|:---:|---|
+| ✅ | Solo and group rides with live tracking |
+| ✅ | Guided navigation with turn-by-turn directions |
+| ✅ | Live Leaderboard, replay and ride insights |
+| ✅ | Fuel stations with brand markers |
+| ✅ | Auto End, Pause and Resume |
+| ✅ | Google Sign-In, profiles and cloud history |
+| 🔜 | Offline maps |
+| 🔜 | Voice navigation |
+| 🔜 | Crash detection |
+| 🔜 | Friends and community rides |
+| 🔜 | Ride challenges and achievement collections |
+| 🔜 | Live weather along the route |
+| 🔜 | Custom themes |
+| 💭 | Android Auto and Apple CarPlay |
+| 💭 | Wear OS and Apple Watch companions |
 
-> APKs are published only through GitHub Releases and are never committed to this repository.
-
-## Roadmap
-
-- [ ] Android Auto
-- [ ] Apple CarPlay
-- [ ] Wear OS companion
-- [ ] Apple Watch companion
-- [ ] Offline maps
-- [ ] Crash detection
-- [ ] Friends
-- [ ] Achievements
-- [ ] Ride challenges
-- [ ] Community rides
-- [ ] Cloud sync improvements
-- [ ] Live weather along the route
-- [ ] Voice navigation
-- [ ] Custom themes
+<sub>✅ shipped · 🔜 planned · 💭 exploring</sub>
 
 Have an idea? [Request a feature](../../issues/new?template=feature_request.yml).
 
-## Contributing
+<br>
+
+## 🤝 Contributing
 
 Contributions are welcome. Please read the [Contributing Guide](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) first.
 
-1. **Fork** the repository and clone your fork.
-2. **Branch** from `main`:
-   ```bash
-   git checkout -b feature/short-description
-   ```
-3. **Commit** focused changes using [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:` …), and make sure `flutter analyze` and `flutter test` pass.
-4. **Open a pull request** against `main` describing what changed and why, with screenshots for UI changes.
+| Step | |
+|:---:|---|
+| **1** | **Fork** the repository and clone your fork |
+| **2** | **Branch** from `main`: `git checkout -b feature/short-description` |
+| **3** | **Commit** focused changes with [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:` …) |
+| **4** | **Check** that `flutter analyze` and `flutter test` pass |
+| **5** | **Open a pull request** against `main`, with screenshots for UI changes |
 
-- 🐛 [Report a bug](../../issues/new?template=bug_report.yml)
-- ✨ [Request a feature](../../issues/new?template=feature_request.yml)
-- 🔒 Security issues: please follow the [Security Policy](SECURITY.md) instead of opening a public issue.
+<p>
+  🐛 <a href="../../issues/new?template=bug_report.yml">Report a bug</a> &nbsp;·&nbsp;
+  ✨ <a href="../../issues/new?template=feature_request.yml">Request a feature</a> &nbsp;·&nbsp;
+  🔒 <a href="SECURITY.md">Security policy</a>
+</p>
 
-## License
+<br>
+
+## 📄 License
 
 RideSync is released under the [MIT License](LICENSE).
 
-## Credits
+## 🙏 Credits
 
-RideSync is built on these projects and services:
+Built with [Flutter](https://flutter.dev) and [Firebase](https://firebase.google.com). Maps and places from [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, rendered with [flutter_map](https://github.com/fleaflet/flutter_map). Search by [Photon](https://photon.komoot.io), fuel data via the [Overpass API](https://overpass-api.de), routing by [OSRM](https://project-osrm.org), place names by [Nominatim](https://nominatim.org) and weather by [Open-Meteo](https://open-meteo.com).
 
-- [Flutter](https://flutter.dev): the UI toolkit.
-- [Firebase](https://firebase.google.com): authentication, Realtime Database and Cloud Firestore.
-- [OpenStreetMap](https://www.openstreetmap.org/copyright): map tiles and map data, © OpenStreetMap contributors.
-- [flutter_map](https://github.com/fleaflet/flutter_map): map rendering.
-- [Photon](https://photon.komoot.io) by komoot: place and fuel-station search.
-- [Overpass API](https://overpass-api.de): fuel-station data.
-- [OSRM](https://project-osrm.org): road routing.
-- [Nominatim](https://nominatim.org): reverse geocoding for ride names.
-- [Open-Meteo](https://open-meteo.com): weather data (CC BY 4.0).
-
----
+<br>
 
 <div align="center">
-<sub>Made for riders. Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.</sub>
+
+**[⬆ Back to top](#ridesync)**
+
+<sub>Made for riders · Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</sub>
+
 </div>
